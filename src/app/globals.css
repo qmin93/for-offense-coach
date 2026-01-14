@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+:root {
+  --field-green: #2d5a27;
+  --field-line: #ffffff;
+  --offense-primary: #1e40af;
+  --offense-secondary: #3b82f6;
+  --defense-primary: #dc2626;
+  --defense-secondary: #f87171;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* SVG Editor Styles */
+.editor-canvas {
+  cursor: crosshair;
+}
+
+.editor-canvas.mode-select {
+  cursor: default;
+}
+
+.editor-canvas.mode-route {
+  cursor: crosshair;
+}
+
+.editor-canvas.mode-block {
+  cursor: pointer;
+}
+
+.editor-canvas.mode-motion {
+  cursor: move;
+}
+
+.editor-canvas.mode-text {
+  cursor: text;
+}
+
+/* Player Node Styles */
+.player-node {
+  cursor: grab;
+}
+
+.player-node:active {
+  cursor: grabbing;
+}
+
+.player-node.selected {
+  filter: drop-shadow(0 0 4px var(--offense-secondary));
+}

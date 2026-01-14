@@ -1,0 +1,488 @@
+// ============================================
+// Pass Concept Library (20 Concepts)
+// Based on PRD & Business Plan
+// ============================================
+
+import type { Concept } from "../dsl/types";
+
+export const PASS_CONCEPTS: Concept[] = [
+  // ============================================
+  // Quick Game (Quick)
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_stick",
+    name: "Stick",
+    conceptType: "pass",
+    summary: "Flat defender conflict - hitch/flat combo",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2", "3x1"],
+      personnelHints: ["11", "12"],
+    },
+    template: {
+      roles: [
+        { roleName: "STICK", appliesTo: ["Y", "H"], defaultRoute: { pattern: "hitch", depth: 6 } },
+        { roleName: "FLAT", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 2 } },
+        { roleName: "CLEAR", appliesTo: ["X", "Z"], defaultRoute: { pattern: "go", depth: 18 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment", defaultSide: "right" },
+    },
+    passHints: { category: "quick", manBeater: false, zoneBeater: true, stress: ["flat_conflict"] },
+    installFocus: {
+      failurePoints: [
+        {
+          id: "fp_stick_depth",
+          name: "Stick route depth consistency",
+          drill: { name: "6-Yard Hitch Drill", purpose: "Consistent 6yd depth on stick route", phase: "indy" },
+          videoRefs: [{ platform: "instagram", url: "https://instagram.com/p/stick1", accountName: "@qbdrills", hashtags: ["#stickroute"] }],
+        },
+        {
+          id: "fp_flat_timing",
+          name: "Flat route timing vs zone",
+          drill: { name: "Flat Timing Drill", purpose: "RB timing on flat route", phase: "group" },
+        },
+      ],
+    },
+  },
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_spacing",
+    name: "Spacing",
+    conceptType: "pass",
+    summary: "Horizontal stretch - 5 receivers across",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["2x2", "3x1", "empty"],
+    },
+    template: {
+      roles: [
+        { roleName: "OUTSIDE", appliesTo: ["X", "Z"], defaultRoute: { pattern: "speed_out", depth: 5 } },
+        { roleName: "SLOT", appliesTo: ["H", "Y"], defaultRoute: { pattern: "hitch", depth: 6 } },
+        { roleName: "MIDDLE", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 3 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "quick", zoneBeater: true, stress: ["horizontal"] },
+  },
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_slant_flat",
+    name: "Slant/Flat",
+    conceptType: "pass",
+    summary: "High-low on flat defender",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "SLANT", appliesTo: ["X", "Z"], defaultRoute: { pattern: "slant", depth: 6, breakAngleDeg: 45 } },
+        { roleName: "FLAT", appliesTo: ["RB", "H"], defaultRoute: { pattern: "arrow", depth: 2 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "quick", manBeater: true, zoneBeater: true, stress: ["flat_conflict"] },
+  },
+
+  // ============================================
+  // Intermediate
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_mesh",
+    name: "Mesh",
+    conceptType: "pass",
+    summary: "Crossing routes - man beater",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["2x2", "3x1", "bunch"],
+    },
+    template: {
+      roles: [
+        { roleName: "MESH1", appliesTo: ["H"], defaultRoute: { pattern: "shallow", depth: 2, direction: "inside" } },
+        { roleName: "MESH2", appliesTo: ["Y"], defaultRoute: { pattern: "shallow", depth: 3, direction: "inside" } },
+        { roleName: "CLEAR", appliesTo: ["X", "Z"], defaultRoute: { pattern: "go", depth: 18 } },
+        { roleName: "FLAT", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 2 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "intermediate", manBeater: true, stress: ["crossing", "rub"] },
+    installFocus: {
+      failurePoints: [
+        {
+          id: "fp_mesh_depth",
+          name: "Mesh point depth",
+          drill: { name: "Mesh Point Drill", purpose: "Crossers at correct depth (2-3 yds)", phase: "group" },
+        },
+        {
+          id: "fp_mesh_eye",
+          name: "QB mesh read",
+          drill: { name: "Mesh Read Drill", purpose: "QB reads inside-out on mesh", phase: "group" },
+        },
+      ],
+    },
+  },
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_drive",
+    name: "Drive (Shallow Cross)",
+    conceptType: "pass",
+    summary: "Shallow + dig combo",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "SHALLOW", appliesTo: ["H", "Y"], defaultRoute: { pattern: "shallow", depth: 2 } },
+        { roleName: "DIG", appliesTo: ["X", "Z"], defaultRoute: { pattern: "dig", depth: 12 } },
+        { roleName: "CLEAR", appliesTo: ["Z", "X"], defaultRoute: { pattern: "go", depth: 18 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "intermediate", manBeater: true, zoneBeater: true },
+  },
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_levels",
+    name: "Levels",
+    conceptType: "pass",
+    summary: "3 level zone stretch",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["3x1", "bunch"],
+    },
+    template: {
+      roles: [
+        { roleName: "DEEP", appliesTo: ["Z"], defaultRoute: { pattern: "dig", depth: 15 } },
+        { roleName: "INTERMEDIATE", appliesTo: ["Y"], defaultRoute: { pattern: "out", depth: 10 } },
+        { roleName: "SHORT", appliesTo: ["H"], defaultRoute: { pattern: "flat", depth: 3 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "intermediate", zoneBeater: true, stress: ["vertical_layers"] },
+  },
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_curl_flat",
+    name: "Curl/Flat",
+    conceptType: "pass",
+    summary: "Curl + flat - high/low",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2"],
+    },
+    template: {
+      roles: [
+        { roleName: "CURL", appliesTo: ["X", "Z"], defaultRoute: { pattern: "curl", depth: 12 } },
+        { roleName: "FLAT", appliesTo: ["H", "Y"], defaultRoute: { pattern: "flat", depth: 3 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "intermediate", zoneBeater: true, stress: ["flat_conflict"] },
+  },
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_smash",
+    name: "Smash",
+    conceptType: "pass",
+    summary: "Corner/hitch combo",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2", "bunch"],
+    },
+    template: {
+      roles: [
+        { roleName: "CORNER", appliesTo: ["Z", "Y"], defaultRoute: { pattern: "corner", depth: 12 } },
+        { roleName: "HITCH", appliesTo: ["H", "X"], defaultRoute: { pattern: "hitch", depth: 5 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "intermediate", zoneBeater: true, stress: ["corner_flat"] },
+  },
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_all_curls",
+    name: "All Curls",
+    conceptType: "pass",
+    summary: "4 curls - zone soft spots",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 4,
+      preferredStructures: ["2x2"],
+    },
+    template: {
+      roles: [
+        { roleName: "CURL", appliesTo: ["X", "Z", "H", "Y"], defaultRoute: { pattern: "curl", depth: 12 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "intermediate", zoneBeater: true, stress: ["zone_windows"] },
+  },
+
+  // ============================================
+  // Deep
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_flood",
+    name: "Flood",
+    conceptType: "pass",
+    summary: "3-level outside stretch vs zone",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["3x1", "bunch"],
+    },
+    template: {
+      roles: [
+        { roleName: "CLEAR", appliesTo: ["Z"], defaultRoute: { pattern: "go", depth: 18 } },
+        { roleName: "INTERMEDIATE", appliesTo: ["Y"], defaultRoute: { pattern: "deep_out", depth: 12 } },
+        { roleName: "FLAT", appliesTo: ["RB", "H"], defaultRoute: { pattern: "arrow", depth: 2 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment", defaultSide: "right" },
+    },
+    passHints: { category: "deep", zoneBeater: true, stress: ["horizontal", "flat_conflict"] },
+    installFocus: {
+      failurePoints: [
+        {
+          id: "fp_flood_clear",
+          name: "Clear route depth",
+          drill: { name: "Vertical Stem Drill", purpose: "18yd vertical stem on clear", phase: "indy" },
+        },
+        {
+          id: "fp_flood_timing",
+          name: "3-level timing",
+          drill: { name: "Flood Timing Drill", purpose: "All 3 levels break simultaneously", phase: "group" },
+        },
+      ],
+    },
+  },
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_verts",
+    name: "4 Verts",
+    conceptType: "pass",
+    summary: "4 vertical routes - stress deep",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 4,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "OUTSIDE", appliesTo: ["X", "Z"], defaultRoute: { pattern: "go", depth: 20 } },
+        { roleName: "SEAM", appliesTo: ["H", "Y"], defaultRoute: { pattern: "seam", depth: 18 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "deep", stress: ["vertical", "deep_middle"] },
+  },
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_dagger",
+    name: "Dagger",
+    conceptType: "pass",
+    summary: "Post + dig - MOF attack",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2"],
+    },
+    template: {
+      roles: [
+        { roleName: "POST", appliesTo: ["X", "Z"], defaultRoute: { pattern: "post", depth: 15 } },
+        { roleName: "DIG", appliesTo: ["H", "Y"], defaultRoute: { pattern: "dig", depth: 12 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "deep", zoneBeater: true, stress: ["mof", "high_low"] },
+  },
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_y_cross",
+    name: "Y-Cross",
+    conceptType: "pass",
+    summary: "Over route + crossing",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "OVER", appliesTo: ["Y"], defaultRoute: { pattern: "cross", depth: 15 } },
+        { roleName: "CLEAR", appliesTo: ["Z"], defaultRoute: { pattern: "go", depth: 18 } },
+        { roleName: "UNDER", appliesTo: ["H"], defaultRoute: { pattern: "shallow", depth: 3 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "deep", manBeater: true, stress: ["crossing", "mof"] },
+  },
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_sail",
+    name: "Sail",
+    conceptType: "pass",
+    summary: "Corner/out/flat - outside layer",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["3x1", "2x2"],
+    },
+    template: {
+      roles: [
+        { roleName: "CORNER", appliesTo: ["Z"], defaultRoute: { pattern: "corner", depth: 15 } },
+        { roleName: "OUT", appliesTo: ["Y"], defaultRoute: { pattern: "out", depth: 8 } },
+        { roleName: "FLAT", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 2 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "deep", zoneBeater: true, stress: ["outside_layers"] },
+  },
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_post_dig",
+    name: "Post/Dig",
+    conceptType: "pass",
+    summary: "MOF read - post over dig",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2"],
+    },
+    template: {
+      roles: [
+        { roleName: "POST", appliesTo: ["Z"], defaultRoute: { pattern: "post", depth: 15 } },
+        { roleName: "DIG", appliesTo: ["Y", "H"], defaultRoute: { pattern: "dig", depth: 12 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "deep", zoneBeater: true, stress: ["mof"] },
+  },
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_hitch_seam",
+    name: "Hitch/Seam",
+    conceptType: "pass",
+    summary: "Seam stress with underneath",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2"],
+    },
+    template: {
+      roles: [
+        { roleName: "SEAM", appliesTo: ["H", "Y"], defaultRoute: { pattern: "seam", depth: 15 } },
+        { roleName: "HITCH", appliesTo: ["X", "Z"], defaultRoute: { pattern: "hitch", depth: 6 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "deep", stress: ["seam"] },
+  },
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_switch_verts",
+    name: "Switch Verts",
+    conceptType: "pass",
+    summary: "Leverage confusion - switch releases",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "SWITCH_OUT", appliesTo: ["Z"], defaultRoute: { pattern: "go", depth: 18 } },
+        { roleName: "SWITCH_IN", appliesTo: ["Y"], defaultRoute: { pattern: "seam", depth: 15 } },
+        { roleName: "BACKSIDE", appliesTo: ["X"], defaultRoute: { pattern: "post", depth: 15 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "deep", manBeater: true, stress: ["leverage"] },
+  },
+
+  // ============================================
+  // Screens
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_rb_screen",
+    name: "RB Screen",
+    conceptType: "pass",
+    summary: "Slow screen to RB",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 1,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "SCREEN", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: -2 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "screen", stress: ["pressure_beater"] },
+  },
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_wr_screen",
+    name: "WR Screen",
+    conceptType: "pass",
+    summary: "Quick screen to WR",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 1,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "SCREEN", appliesTo: ["X", "Z"], defaultRoute: { pattern: "flat", depth: 0 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "screen", stress: ["quick_game"] },
+  },
+];
+
+export function getPassConceptById(id: string): Concept | undefined {
+  return PASS_CONCEPTS.find((c) => c.id === id);
+}
+
+export function getPassConceptsByCategory(category: string): Concept[] {
+  return PASS_CONCEPTS.filter((c) => c.passHints?.category === category);
+}
+
+export function getPassConceptsForFormation(structure: string): Concept[] {
+  return PASS_CONCEPTS.filter((c) =>
+    c.requirements?.preferredStructures?.includes(structure as any)
+  );
+}

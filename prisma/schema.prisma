@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// User & Workspace
+// ============================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaces       WorkspaceMember[]
+  plays            Play[]
+  playbooks        Playbook[]
+  shareLinks       ShareLink[]
+}
+
+model Workspace {
+  id        String        @id @default(cuid())
+  name      String
+  type      WorkspaceType @default(PERSONAL)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  members   WorkspaceMember[]
+  plays     Play[]
+  playbooks Playbook[]
+}
+
+enum WorkspaceType {
+  PERSONAL
+  TEAM
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        Role     @default(EDITOR)
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+}
+
+enum Role {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+// ============================================
+// Play (단일 다이어그램)
+// ============================================
+
+model Play {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  name          String
+  description   String?
+  tags          String[] @default([])
+  schemaVersion String   @default("1.0")
+  dslJson       Json     // Play DSL JSON 전체 저장
+  version       Int      @default(1)
+
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator       User          @relation(fields: [createdBy], references: [id])
+  playbookPlays PlaybookPlay[]
+  shareLinks    ShareLink[]
+}
+
+// ============================================
+// Playbook (플레이 모음)
+// ============================================
+
+model Playbook {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  name           String
+  description    String?
+  tags           String[] @default([])
+  sections       Json     // sections JSON array
+  exportSettings Json?    // PDF export 설정
+
+  createdBy      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  workspace      Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  creator        User           @relation(fields: [createdBy], references: [id])
+  plays          PlaybookPlay[]
+  shareLinks     ShareLink[]
+}
+
+model PlaybookPlay {
+  id          String @id @default(cuid())
+  playbookId  String
+  playId      String
+  sectionId   String
+  order       Int
+
+  playbook Playbook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  play     Play     @relation(fields: [playId], references: [id], onDelete: Cascade)
+
+  @@unique([playbookId, playId])
+}
+
+// ============================================
+// Concept (컨셉 템플릿 - Pass/Run)
+// ============================================
+
+model Concept {
+  id           String      @id @default(cuid())
+  conceptType  ConceptType
+  name         String
+  summary      String
+  badges       String[]    @default([])
+  requirements Json        // minEligibleReceivers, preferredStructures 등
+  template     Json        // roles, buildPolicy
+  passHints    Json?       // category, manBeater, zoneBeater, stress
+  runHints     Json?       // bestVsFront, bestVs3T, boxTolerance 등
+  installFocus Json?       // failurePoints array
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+enum ConceptType {
+  PASS
+  RUN
+}
+
+// ============================================
+// Formation (프리셋 배치)
+// ============================================
+
+model Formation {
+  id            String   @id @default(cuid())
+  name          String
+  personnelHint String[] @default([])
+  structure     String?  // 2x2, 3x1, bunch 등
+  strength      String?  // left, right, none
+  defaults      Json     // players array, snapRules
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ============================================
+// TeamProfile (포메이션 추천 엔진용)
+// ============================================
+
+model TeamProfile {
+  id                 String   @id @default(cuid())
+  workspaceId        String   @unique
+  teamName           String
+  rosterAvailability Json     // QB, RB, FB, WR, TE, OL count & starterQuality
+  unitStrength       Json     // olRunBlock, olPassPro, rbVision 등
+  stylePreferences   Json     // runPassBalance, tempo 등
+  notes              String[] @default([])
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// ============================================
+// ShareLink (공유 링크)
+// ============================================
+
+model ShareLink {
+  id          String         @id @default(cuid())
+  token       String         @unique @default(cuid())
+  targetType  ShareTarget
+  playId      String?
+  playbookId  String?
+  permission  SharePermission @default(VIEW_ONLY)
+  expiresAt   DateTime?
+
+  createdBy   String
+  createdAt   DateTime       @default(now())
+
+  creator     User           @relation(fields: [createdBy], references: [id])
+  play        Play?          @relation(fields: [playId], references: [id], onDelete: Cascade)
+  playbook    Playbook?      @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+}
+
+enum ShareTarget {
+  PLAY
+  PLAYBOOK
+}
+
+enum SharePermission {
+  VIEW_ONLY
+  VIEW_DOWNLOAD
+}
