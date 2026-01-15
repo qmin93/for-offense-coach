@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phala Network - AI Intro Video</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --phala-green: #C0E735;
+            --dark-bg: #050505;
+            --panel-bg: #111111;
+            --text-white: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+
+        /* Phone Container */
+        .phone-frame {
+            width: 100%;
+            max-width: 450px;
+            aspect-ratio: 9/16;
+            background-color: var(--dark-bg);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            border-radius: 20px;
+        }
+
+        /* Scenes */
+        .scene {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        .scene.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        /* Scene 1: Hook */
+        .hook-text {
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--text-white);
+            text-align: center;
+            line-height: 1.2;
+        }
+        .highlight {
+            color: var(--phala-green);
+            display: block;
+        }
+        .highlight-red {
+            color: #ff4444;
+        }
+
+        /* Scene 2: Brand */
+        .logo-container {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, var(--phala-green), #a2c918);
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 4rem;
+            font-weight: 900;
+            color: var(--dark-bg);
+            margin-bottom: 20px;
+            box-shadow: 0 0 30px rgba(192, 231, 53, 0.3);
+        }
+        .brand-name {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text-white);
+            letter-spacing: -1px;
+        }
+        .tagline {
+            color: #888;
+            margin-top: 10px;
+            font-size: 1.2rem;
+        }
+
+        /* Scene 3: Demo UI */
+        .demo-ui {
+            width: 90%;
+            height: 60%;
+            background: var(--panel-bg);
+            border-radius: 12px;
+            border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            transform: translateY(100%);
+            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        
+        @keyframes slideUp {
+            to { transform: translateY(0); }
+        }
+
+        .ui-header {
+            padding: 15px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            gap: 10px;
+        }
+        .dot { width: 12px; height: 12px; border-radius: 50%; background: #444; }
+        .dot.red { background: #ff5f56; }
+        .dot.yellow { background: #ffbd2e; }
+        .dot.green { background: #27c93f; }
+
+        .ui-content {
+            padding: 20px;
+            color: #aaa;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+        .command { color: var(--text-white); }
+        .cursor { display: inline-block; width: 10px; height: 1.2em; background: var(--phala-green); animation: blink 1s infinite; vertical-align: middle;}
+        .success { color: var(--phala-green); margin-top: 20px; display: block; }
+        
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* Scene 4: Keywords */
+        .keyword {
+            font-size: 4rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: transparent;
+            -webkit-text-stroke: 2px var(--text-white);
+            position: absolute;
+            opacity: 0;
+        }
+        .keyword.filled {
+            color: var(--phala-green);
+            -webkit-text-stroke: 0;
+        }
+
+        /* Scene 5: Outro */
+        .cta-btn {
+            background: var(--phala-green);
+            color: var(--dark-bg);
+            padding: 20px 40px;
+            font-size: 1.5rem;
+            font-weight: 800;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-top: 30px;
+            display: inline-block;
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: var(--phala-green);
+            width: 0%;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="phone-frame">
+        <div class="progress-bar" id="progressBar"></div>
+
+        <!-- Scene 1: Hook -->
+        <div class="scene" id="scene1">
+            <div class="hook-text">
+                <div>AI NEEDS</div>
+                <div class="highlight-red" id="text-privacy">PRIVACY.</div>
+            </div>
+        </div>
+
+        <!-- Scene 2: Intro -->
+        <div class="scene" id="scene2">
+            <div class="logo-container">P</div>
+            <div class="brand-name">Phala Network</div>
+            <div class="tagline">The Confidential AI Cloud</div>
+        </div>
+
+        <!-- Scene 3: Demo -->
+        <div class="scene" id="scene3">
+            <div style="margin-bottom: 20px; font-weight: bold; color: white; font-size: 1.5rem;">Secured by TEE</div>
+            <div class="demo-ui">
+                <div class="ui-header">
+                    <div class="dot red"></div>
+                    <div class="dot yellow"></div>
+                    <div class="dot green"></div>
+                </div>
+                <div class="ui-content" id="terminal-content">
+                    > initiating_secure_enclave...<br>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scene 4: Keywords -->
+        <div class="scene" id="scene4">
+            <div class="keyword" id="kw1">TRUSTLESS</div>
+            <div class="keyword" id="kw2">VERIFIABLE</div>
+            <div class="keyword" id="kw3">PRIVATE</div>
+        </div>
+
+        <!-- Scene 5: Outro -->
+        <div class="scene" id="scene5">
+            <div class="logo-container" style="transform: scale(0.8);">P</div>
+            <div class="hook-text" style="font-size: 2.5rem;">Build AI<br>People Can Trust</div>
+            <a href="https://phala.com" class="cta-btn">Start Building</a>
+        </div>
+
+        <!-- Controls -->
+        <div style="position: absolute; bottom: 20px; left: 0; width: 100%; text-align: center; color: #555; font-size: 0.8rem;">
+            Audio: [Upbeat Tech Phonk]
+        </div>
+    </div>
+
+    <script>
+        const scenes = [
+            { id: 'scene1', duration: 3000 },
+            { id: 'scene2', duration: 3000 },
+            { id: 'scene3', duration: 6000 },
+            { id: 'scene4', duration: 3000 },
+            { id: 'scene5', duration: 5000 }
+        ];
+
+        let currentScene = 0;
+        const progressBar = document.getElementById('progressBar');
+        
+        function playScene(index) {
+            // Hide all scenes
+            document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+            
+            // Show current
+            if (index < scenes.length) {
+                const sceneData = scenes[index];
+                const sceneEl = document.getElementById(sceneData.id);
+                sceneEl.classList.add('active');
+
+                // Scene specific logic
+                if (sceneData.id === 'scene1') {
+                    setTimeout(() => {
+                        document.getElementById('text-privacy').innerText = 'SOLVED.';
+                        document.getElementById('text-privacy').classList.remove('highlight-red');
+                        document.getElementById('text-privacy').classList.add('highlight');
+                    }, 1500);
+                }
+
+                if (sceneData.id === 'scene3') {
+                    const term = document.getElementById('terminal-content');
+                    term.innerHTML = '> initiating_secure_enclave...<br>';
+                    const lines = [
+                        { text: '> verifying_hardware_signatures...', delay: 1000 },
+                        { text: '> connection_established (TEE)', delay: 2500 },
+                        { text: '> deploying_model: "Secret_LLM"', delay: 3500 },
+                        { text: '<span class="success">✓ DEPLOYMENT COMPLETE</span>', delay: 5000 }
+                    ];
+                    lines.forEach(line => {
+                        setTimeout(() => {
+                            term.innerHTML += line.text + '<br>';
+                        }, line.delay);
+                    });
+                }
+
+                if (sceneData.id === 'scene4') {
+                    const kws = ['kw1', 'kw2', 'kw3'];
+                    kws.forEach((id, i) => {
+                        setTimeout(() => {
+                            document.querySelectorAll('.keyword').forEach(k => k.style.opacity = '0');
+                            const el = document.getElementById(id);
+                            el.style.opacity = '1';
+                            el.classList.add('filled');
+                        }, i * 1000);
+                    });
+                }
+
+                // Progress Bar Animation
+                progressBar.style.transition = 'none';
+                progressBar.style.width = '0%';
+                setTimeout(() => {
+                    progressBar.style.transition = `width ${sceneData.duration}ms linear`;
+                    progressBar.style.width = '100%';
+                }, 50);
+
+                // Next scene
+                setTimeout(() => {
+                    playScene(index + 1);
+                }, sceneData.duration);
+            } else {
+                // Loop or stop
+                 setTimeout(() => playScene(0), 2000); // Loop
+            }
+        }
+
+        // Start
+        window.onload = () => {
+            playScene(0);
+        };
+    </script>
+</body>
+</html>

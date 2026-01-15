@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import { useEditorStore } from "@/features/editor/store";
 import {
@@ -13,20 +13,108 @@ import {
 } from "@/features/editor/components";
 import Link from "next/link";
 
+// Debounce hook for autosave
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 export default function EditorPage() {
   const params = useParams();
   const playId = params.playId as string;
   const [activeTab, setActiveTab] = useState<"formation" | "install">("formation");
 
-  const { initPlay, play } = useEditorStore();
+  const {
+    initPlay,
+    loadPlay,
+    savePlay,
+    setPlayName,
+    play,
+    playDbId,
+    isDirty,
+    isSaving,
+    isLoading,
+    loadError,
+    saveError,
+    lastSaved,
+  } = useEditorStore();
 
-  // Initialize play on mount
+  // Track if play has been modified for autosave
+  const debouncedIsDirty = useDebounce(isDirty, 1000);
+  const isFirstRender = useRef(true);
+
+  // Initialize or load play on mount
   useEffect(() => {
     if (playId === "new") {
       initPlay();
+    } else {
+      loadPlay(playId);
     }
-    // TODO: Load existing play from DB
-  }, [playId, initPlay]);
+  }, [playId, initPlay, loadPlay]);
+
+  // Autosave when dirty (debounced)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    if (debouncedIsDirty && playDbId && !isSaving) {
+      savePlay();
+    }
+  }, [debouncedIsDirty, playDbId, isSaving, savePlay]);
+
+  // Format last saved time
+  const formatLastSaved = useCallback(() => {
+    if (!lastSaved) return null;
+    const now = new Date();
+    const diff = now.getTime() - lastSaved.getTime();
+    if (diff < 60000) return "Saved just now";
+    if (diff < 3600000) return `Saved ${Math.floor(diff / 60000)}m ago`;
+    return `Saved at ${lastSaved.toLocaleTimeString()}`;
+  }, [lastSaved]);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading play...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (loadError) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <div className="text-red-500 text-4xl mb-4">!</div>
+          <p className="text-gray-800 font-medium mb-2">Failed to load play</p>
+          <p className="text-gray-600 text-sm mb-4">{loadError}</p>
+          <Link
+            href="/"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Go Home
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-gray-100">
@@ -40,11 +128,20 @@ export default function EditorPage() {
           <input
             type="text"
             value={play?.name || "New Play"}
-            onChange={(e) => {
-              // TODO: Update play name
-            }}
+            onChange={(e) => setPlayName(e.target.value)}
             className="text-lg font-medium text-gray-800 bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2"
           />
+          {/* Save status indicator */}
+          <span className="text-xs text-gray-400">
+            {isSaving && "Saving..."}
+            {!isSaving && isDirty && "Unsaved changes"}
+            {!isSaving && !isDirty && formatLastSaved()}
+          </span>
+          {saveError && (
+            <span className="text-xs text-red-500" title={saveError}>
+              Save failed
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <ExportButton />

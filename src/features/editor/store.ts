@@ -32,6 +32,7 @@ export interface Command {
 export interface EditorState {
   // Core data (source of truth)
   play: Play | null;
+  playDbId: string | null; // Database ID (different from DSL id)
 
   // UI State
   mode: EditorMode;
@@ -50,11 +51,20 @@ export interface EditorState {
 
   // Auto-save
   isDirty: boolean;
+  isSaving: boolean;
   lastSaved: Date | null;
+  saveError: string | null;
+
+  // Loading state
+  isLoading: boolean;
+  loadError: string | null;
 
   // Actions
   initPlay: (play?: Play) => void;
+  loadPlay: (dbId: string) => Promise<void>;
+  savePlay: () => Promise<void>;
   setPlay: (play: Play) => void;
+  setPlayName: (name: string) => void;
   setMode: (mode: EditorMode) => void;
   selectPlayer: (playerId: string | null) => void;
   selectAction: (actionId: string | null) => void;
@@ -92,6 +102,7 @@ export interface EditorState {
 export const useEditorStore = create<EditorState>((set, get) => ({
   // Initial state
   play: null,
+  playDbId: null,
   mode: "select",
   selectedPlayerId: null,
   selectedActionId: null,
@@ -102,19 +113,115 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   suggestionsOpen: false,
   suggestionsType: "pass",
   isDirty: false,
+  isSaving: false,
   lastSaved: null,
+  saveError: null,
+  isLoading: false,
+  loadError: null,
 
-  // Initialize play
+  // Initialize play (for new plays)
   initPlay: (play?: Play) => {
     const newPlay = play || createPlay("New Play");
     set({
       play: newPlay,
+      playDbId: null,
       history: [newPlay],
       historyIndex: 0,
       isDirty: false,
+      isLoading: false,
+      loadError: null,
       selectedPlayerId: null,
       selectedActionId: null,
     });
+  },
+
+  // Load play from database
+  loadPlay: async (dbId: string) => {
+    set({ isLoading: true, loadError: null });
+    try {
+      const response = await fetch(`/api/plays/${dbId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to load play: ${response.statusText}`);
+      }
+      const data = await response.json();
+      const dslPlay = data.dslJson as Play;
+
+      set({
+        play: dslPlay,
+        playDbId: dbId,
+        history: [dslPlay],
+        historyIndex: 0,
+        isDirty: false,
+        isLoading: false,
+        loadError: null,
+        selectedPlayerId: null,
+        selectedActionId: null,
+      });
+    } catch (error) {
+      set({
+        isLoading: false,
+        loadError: error instanceof Error ? error.message : "Failed to load play",
+      });
+    }
+  },
+
+  // Save play to database
+  savePlay: async () => {
+    const state = get();
+    if (!state.play || state.isSaving) return;
+
+    set({ isSaving: true, saveError: null });
+    try {
+      if (state.playDbId) {
+        // Update existing play
+        const response = await fetch(`/api/plays/${state.playDbId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: state.play.name,
+            dslJson: state.play,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to save play: ${response.statusText}`);
+        }
+      }
+      // For new plays, we'd need workspace context - handled at page level
+
+      set({
+        isSaving: false,
+        isDirty: false,
+        lastSaved: new Date(),
+        saveError: null,
+      });
+    } catch (error) {
+      set({
+        isSaving: false,
+        saveError: error instanceof Error ? error.message : "Failed to save play",
+      });
+      // Backup to localStorage on failure
+      if (state.play) {
+        try {
+          localStorage.setItem(`play_draft_${state.playDbId || "new"}`, JSON.stringify(state.play));
+        } catch {
+          // Ignore localStorage errors
+        }
+      }
+    }
+  },
+
+  // Set play name
+  setPlayName: (name: string) => {
+    const state = get();
+    if (!state.play) return;
+
+    const newPlay: Play = {
+      ...state.play,
+      name,
+      updatedAt: new Date().toISOString(),
+    };
+    get().setPlay(newPlay);
   },
 
   setPlay: (play: Play) => {

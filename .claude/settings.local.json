@@ -15,7 +15,9 @@
       "Bash(git checkout:*)",
       "Bash(git push:*)",
       "Bash(gh api:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npm uninstall:*)"
     ]
   }
 }
