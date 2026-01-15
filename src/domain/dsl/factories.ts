@@ -8,8 +8,6 @@ import type {
   Play,
   Player,
   Formation,
-  Concept,
-  Action,
   RouteAction,
   BlockAction,
   MotionAction,
@@ -21,8 +19,7 @@ import type {
   BlockScheme,
   MotionType,
 } from "./types";
-
-const SCHEMA_VERSION = "1.0";
+import { CURRENT_SCHEMA_VERSION } from "./versioning";
 
 // ============================================
 // Play Factory
@@ -33,7 +30,7 @@ export function createPlay(
   options?: Partial<Play>
 ): Play {
   return {
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     type: "play",
     id: uuid(),
     name,
