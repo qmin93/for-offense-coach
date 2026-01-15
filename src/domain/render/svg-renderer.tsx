@@ -38,11 +38,13 @@ const MOTION_COLOR = "#7C3AED"; // Purple for motion (distinct on white)
 const PLAYER_RADIUS = 14;
 const FONT_SIZE = 11;
 
-// Field measurements
-// LOS at 35% from top gives room for 25+ yards downfield and 15+ yards backfield
-const LOS_POSITION = 0.35;
-// 5 yards = 0.1 in normalized Y coordinates
-const FIVE_YARD_UNIT = 0.1;
+// Field measurements (GoArmy Edge style)
+// LOS at 62% from top: gives 62% for defense, 38% for offense/backfield
+// This matches professional playbook tools where defense has more visual space
+const LOS_POSITION = 0.62;
+// Yard scale: controls how much vertical space each yard takes
+// Lower value = more yards visible, higher = more zoom
+const YARD_SCALE = 0.065; // pixels per normalized yard (tuned for new layout)
 
 // ============================================
 // Coordinate Conversion
@@ -54,12 +56,13 @@ function toSvgX(normalizedX: number): number {
 
 function toSvgY(normalizedY: number): number {
   // Y=0 is LOS
-  // Y > 0 is downfield (defense side, toward top)
-  // Y < 0 is backfield (offense side, toward bottom)
+  // Y > 0 is downfield (defense side, toward top of screen)
+  // Y < 0 is backfield (offense side, toward bottom of screen)
   const losY = FIELD_HEIGHT * LOS_POSITION;
-  // Scale: 0.1 normalized = 5 yards visual
-  const yardScale = FIELD_HEIGHT * 0.08; // pixels per 5-yard unit (0.1 normalized)
-  return losY - normalizedY * yardScale * 5;
+  // Scale: normalized Y to pixels
+  // 0.1 normalized ≈ 5 yards, so multiply by 5 to get yard equivalent
+  const pixelsPerYard = FIELD_HEIGHT * YARD_SCALE;
+  return losY - normalizedY * pixelsPerYard * 5;
 }
 
 function toSvgPoint(point: Point): { x: number; y: number } {
@@ -83,9 +86,10 @@ function Field({ showGrid = true, showHash = true }: FieldProps) {
   const hashLeftX = toSvgX(0.355); // College hash (closer to center)
   const hashRightX = toSvgX(0.645);
 
-  // Generate 5-yard lines from -20 to +40 yards relative to LOS
+  // Generate 5-yard lines relative to LOS
+  // More lines above LOS (defense space) than below (offense backfield)
   const yardLines: { yards: number; y: number }[] = [];
-  for (let yds = -15; yds <= 35; yds += 5) {
+  for (let yds = -10; yds <= 40; yds += 5) {
     const normalizedY = yds * 0.02; // 1 yard = 0.02 normalized
     yardLines.push({ yards: yds, y: toSvgY(normalizedY) });
   }
