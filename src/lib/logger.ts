@@ -83,6 +83,7 @@ export const log = {
 
 export type EditorEvent =
   | "APPLY_FORMATION"
+  | "APPLY_DEFAULTS"
   | "AUTO_BUILD"
   | "ADD_ACTION"
   | "UPDATE_ACTION"
