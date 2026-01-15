@@ -11,7 +11,7 @@ export default function Home() {
           Football Playbook Builder & Concept Recommender
         </p>
         <p className="text-gray-500 mb-12">
-          Formation → Concept 추천 → 클릭 즉시 다이어그램 생성 → 출력/공유
+          Formation → Concept Recommendation → Instant Diagram → Export/Share
         </p>
 
         <div className="flex gap-4 justify-center">
@@ -33,19 +33,19 @@ export default function Home() {
           <div className="p-6 bg-white rounded-lg shadow-sm">
             <h3 className="font-semibold text-lg mb-2">🎯 Concept Library</h3>
             <p className="text-gray-600 text-sm">
-              Pass 20개 + Run 20개 컨셉 템플릿. 클릭 한 번으로 자동 생성.
+              20 Pass + 20 Run concept templates. Auto-generate with one click.
             </p>
           </div>
           <div className="p-6 bg-white rounded-lg shadow-sm">
             <h3 className="font-semibold text-lg mb-2">💡 Suggestions</h3>
             <p className="text-gray-600 text-sm">
-              Formation 기반 추천. 가능한 선택지만 보여주고 근거 3줄 제공.
+              Formation-based recommendations. Shows only valid options with 3-line reasoning.
             </p>
           </div>
           <div className="p-6 bg-white rounded-lg shadow-sm">
             <h3 className="font-semibold text-lg mb-2">📋 Install Focus</h3>
             <p className="text-gray-600 text-sm">
-              플레이 → 연습 연결. Failure Point별 드릴 + 영상 레퍼런스.
+              Play to practice connection. Drills + video references for each failure point.
             </p>
           </div>
         </div>
