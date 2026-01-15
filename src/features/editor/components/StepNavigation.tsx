@@ -36,9 +36,9 @@ export function StepNavigation({
   const { play, defensePresetId } = useEditorStore();
 
   // Calculate step completion status
-  const hasFormation = play && play.roster.players.length > 0;
+  const hasFormation = !!(play && play.roster.players.length > 0);
   const hasDefense = !!defensePresetId;
-  const hasConcept = play && play.actions.length > 0;
+  const hasConcept = !!(play && play.actions.length > 0);
 
   const stepStatus: Record<WorkflowStep, "complete" | "current" | "pending"> = {
     formation: hasFormation ? "complete" : currentStep === "formation" ? "current" : "pending",
