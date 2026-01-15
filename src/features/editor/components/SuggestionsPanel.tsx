@@ -162,11 +162,11 @@ export function SuggestionsPanel() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Results header */}
+        {/* Results header - Top 5 only */}
         <div className="px-3 py-2 bg-muted/30 border-b mt-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">
-              {viewMode === "concepts" ? suggestions.length : familySuggestions.length} Recommendations
+              Top {viewMode === "concepts" ? suggestions.length : familySuggestions.length}
             </span>
             <Badge variant="outline" className="text-xs">
               {context.playType.toUpperCase()}

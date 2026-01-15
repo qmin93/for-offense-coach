@@ -181,6 +181,7 @@ export interface RouteData {
   direction?: "inside" | "outside" | "straight";
   controlPoints: Point[];
   endMarker?: EndMarker;
+  curveMode?: boolean; // If true, use Bezier curves between points
 }
 
 // Playback/Timeline Types

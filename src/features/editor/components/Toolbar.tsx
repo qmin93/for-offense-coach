@@ -20,7 +20,7 @@ const MODES: { mode: EditorMode; key: string; icon: string; shortcut: string }[]
 
 export function Toolbar() {
   const t = useTranslations("editor.toolbar");
-  const { mode, setMode, undo, redo, canUndo, canRedo, toggleSuggestions, resetAll, play } =
+  const { mode, setMode, undo, redo, canUndo, canRedo, toggleSuggestions, resetAll, play, curveMode, toggleCurveMode, autoApplyDefaults, toggleAutoApplyDefaults, applyPlayerDefaults } =
     useEditorStore();
 
   return (
@@ -46,6 +46,28 @@ export function Toolbar() {
           </Tooltip>
         ))}
       </div>
+
+      {/* Curve Mode Toggle (only in route mode) */}
+      {mode === "route" && (
+        <div className="flex items-center gap-1 border-r pr-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={curveMode ? "secondary" : "ghost"}
+                size="sm"
+                onClick={toggleCurveMode}
+                className={curveMode ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="mr-1.5">〰</span>
+                Curve
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Draw smooth Bezier curves <kbd className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded">C</kbd></p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      )}
 
       {/* Undo/Redo */}
       <div className="flex items-center gap-1 border-r pr-2">
@@ -103,6 +125,40 @@ export function Toolbar() {
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Auto Defaults Toggle */}
+      <div className="flex items-center gap-1 border-r pr-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={autoApplyDefaults ? "secondary" : "ghost"}
+              size="sm"
+              onClick={toggleAutoApplyDefaults}
+              className={autoApplyDefaults ? "bg-primary/10 text-primary" : ""}
+            >
+              Auto OL
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Auto-apply OL blocks when formation changes</p>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={applyPlayerDefaults}
+              disabled={!play}
+            >
+              Apply
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Apply default blocks to OL now</p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
 
       {/* Reset All */}
       <div className="flex items-center gap-2">

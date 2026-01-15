@@ -18,6 +18,11 @@ import { createPlay, createPlayFromFormation } from "@/domain/dsl/factories";
 import { type SnapConfig, DEFAULT_SNAP_CONFIG } from "@/domain/engine/snap";
 import { autoBuildFromConcept, applyAutoBuildToPlay } from "@/domain/engine/auto-build";
 import { getDefensePresetById } from "@/domain/engine/defense-presets";
+import {
+  loadPlayerDefaults,
+  applyDefaultsToPlay,
+  type PlayerDefaults,
+} from "@/domain/engine/player-defaults";
 import { validateAndRecoverPlay, validatePlay } from "@/domain/dsl/validation";
 import { editorLog } from "@/lib/logger";
 import { deepClone } from "@/lib/immutable";
@@ -96,6 +101,13 @@ export interface EditorState {
     speed: number;
   };
 
+  // Route drawing options
+  curveMode: boolean; // Draw routes as Bezier curves
+
+  // Player defaults
+  autoApplyDefaults: boolean; // Auto-apply role-based defaults
+  playerDefaults: PlayerDefaults;
+
   // Actions
   initPlay: (play?: Play) => void;
   loadPlay: (dbId: string) => Promise<void>;
@@ -117,6 +129,13 @@ export interface EditorState {
   // Snap settings
   setSnapConfig: (config: Partial<SnapConfig>) => void;
   toggleSnap: () => void;
+
+  // Curve mode
+  toggleCurveMode: () => void;
+
+  // Player defaults
+  toggleAutoApplyDefaults: () => void;
+  applyPlayerDefaults: () => void;
 
   // Play modifications (with history)
   applyFormation: (formation: Formation) => void;
@@ -210,6 +229,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     currentMs: 0,
     speed: 1,
   },
+
+  // Route drawing options
+  curveMode: false,
+
+  // Player defaults
+  autoApplyDefaults: true, // Auto-apply defaults by default
+  playerDefaults: loadPlayerDefaults(),
 
   // Initialize play (for new plays)
   initPlay: (play?: Play) => {
@@ -517,13 +543,35 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
   },
 
+  toggleCurveMode: () => {
+    set((state) => ({ curveMode: !state.curveMode }));
+  },
+
+  toggleAutoApplyDefaults: () => {
+    set((state) => ({ autoApplyDefaults: !state.autoApplyDefaults }));
+  },
+
+  applyPlayerDefaults: () => {
+    const state = get();
+    if (!state.play) return;
+
+    const newPlay = applyDefaultsToPlay(state.play, state.playerDefaults);
+    if (newPlay !== state.play) {
+      editorLog.event("APPLY_DEFAULTS", {
+        playId: newPlay.id,
+        newActionCount: newPlay.actions.length - state.play.actions.length,
+      });
+      get().setPlay(newPlay);
+    }
+  },
+
   // Apply formation - full replacement (players get new IDs, actions reset)
   applyFormation: (formation: Formation) => {
     const state = get();
     const currentPlay = state.play;
 
     // Create fresh play from formation - always get new player IDs
-    const newPlay = createPlayFromFormation(
+    let newPlay = createPlayFromFormation(
       formation,
       currentPlay?.name || formation.name
     );
@@ -532,11 +580,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Routes/blocks tied to old player IDs become invalid
     newPlay.actions = [];
 
+    // Auto-apply player defaults if enabled
+    if (state.autoApplyDefaults) {
+      newPlay = applyDefaultsToPlay(newPlay, state.playerDefaults);
+    }
+
     editorLog.event("APPLY_FORMATION", {
       formationId: formation.id,
       playId: newPlay.id,
       playerCount: newPlay.roster.players.length,
       actionsReset: true,
+      defaultsApplied: state.autoApplyDefaults,
     });
 
     get().setPlay(newPlay);
@@ -684,6 +738,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           pattern: "custom",
           controlPoints: points,
           endMarker: "arrow",
+          curveMode: state.curveMode, // Apply current curve mode setting
         },
         timing: { phase: "post_snap" },
         style: { line: "solid", thickness: "normal" },

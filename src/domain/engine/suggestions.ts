@@ -57,6 +57,51 @@ export interface SuggestionResult {
 }
 
 // ============================================
+// Score Normalization
+// ============================================
+
+/**
+ * Normalize scores to spread them across a useful range
+ * Top result gets ~90, bottom gets ~40, others distributed between
+ */
+function normalizeScores<T extends { score: number }>(results: T[]): T[] {
+  if (results.length === 0) return results;
+  if (results.length === 1) {
+    return [{ ...results[0], score: 75 }]; // Single result gets 75
+  }
+
+  // Sort by score descending
+  const sorted = [...results].sort((a, b) => b.score - a.score);
+
+  // Get min and max raw scores
+  const maxScore = sorted[0].score;
+  const minScore = sorted[sorted.length - 1].score;
+  const range = maxScore - minScore;
+
+  // Target range: top gets 92, bottom gets 35
+  const targetMax = 92;
+  const targetMin = 35;
+  const targetRange = targetMax - targetMin;
+
+  // If all scores are the same, distribute evenly
+  if (range < 1) {
+    return sorted.map((r, i) => ({
+      ...r,
+      score: Math.round(targetMax - (i / (sorted.length - 1)) * targetRange),
+    }));
+  }
+
+  // Normalize each score
+  return sorted.map((r) => {
+    const normalized = ((r.score - minScore) / range) * targetRange + targetMin;
+    return {
+      ...r,
+      score: Math.round(normalized),
+    };
+  });
+}
+
+// ============================================
 // Pass Suggestions
 // ============================================
 
@@ -96,24 +141,28 @@ export function getPassSuggestions(input: PassSuggestionInput): SuggestionResult
     return { concept, score, reasons, category };
   });
 
-  // Sort by score descending, limit to 12
-  return results
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 12);
+  // Sort by score descending, limit to 5 (Top 5 only), then normalize
+  const sorted = results.sort((a, b) => b.score - a.score).slice(0, 5);
+  return normalizeScores(sorted);
 }
 
 function scorePassConcept(concept: Concept, input: PassSuggestionInput): number {
-  let score = 50; // Base score
+  let score = 40; // Lower base score for better differentiation
 
-  // Structure match bonus
-  if (concept.requirements?.preferredStructures?.includes(input.structure as any)) {
-    score += 20;
+  // Structure match (biggest factor for pass)
+  const prefStructures = concept.requirements?.preferredStructures;
+  if (prefStructures?.includes(input.structure as any)) {
+    score += 25;
+  } else if (prefStructures && prefStructures.length > 0) {
+    score -= 10; // Penalty for structure mismatch
   }
 
   // Eligible receivers match
   const minReceivers = concept.requirements?.minEligibleReceivers || 1;
   if (input.eligibleReceivers >= minReceivers) {
-    score += 10;
+    score += 15;
+  } else {
+    score -= 15; // Penalty for insufficient receivers
   }
   if (input.eligibleReceivers >= minReceivers + 1) {
     score += 5;
@@ -124,7 +173,11 @@ function scorePassConcept(concept: Concept, input: PassSuggestionInput): number 
     score += 5;
   }
 
-  return Math.min(score, 100);
+  // Category-based relevance
+  const category = concept.passHints?.category;
+  if (category === "quick") score += 5; // Quick passes are more universal
+
+  return Math.max(10, Math.min(score, 95)); // Cap at 95, floor at 10
 }
 
 function generatePassReasons(concept: Concept, input: PassSuggestionInput): string[] {
@@ -175,42 +228,57 @@ export function getRunSuggestions(input: RunSuggestionInput): SuggestionResult[]
     return { concept, score, reasons, category };
   });
 
-  // Sort by score descending, limit to 5
-  return results
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
+  // Sort by score descending, limit to 5, then normalize
+  const sorted = results.sort((a, b) => b.score - a.score).slice(0, 5);
+  return normalizeScores(sorted);
 }
 
 function scoreRunConcept(concept: Concept, input: RunSuggestionInput): number {
-  let score = 50; // Base score
+  let score = 35; // Lower base for better differentiation
 
   const hints = concept.runHints;
-  if (!hints) return score;
+  if (!hints) return Math.max(10, score);
 
-  // Numbers fit (box count)
+  // Numbers fit (box count) - critical for run plays
   if (hints.bestWhenBox?.includes(String(input.box) as any)) {
-    score += 20;
+    score += 25;
   } else {
-    // Penalty for box mismatch
+    // Penalties for box mismatch
     const boxTolerance = concept.requirements?.boxTolerance;
-    if (boxTolerance === "8_risky" && input.box === 8) {
-      score -= 15;
+    if (input.box === 8) {
+      if (boxTolerance === "6_ok") {
+        score -= 20;
+      } else if (boxTolerance === "7_ok") {
+        score -= 10;
+      } else if (boxTolerance === "8_risky") {
+        score -= 25;
+      }
+    } else if (!hints.bestWhenBox?.length) {
+      // Concept has no box preference
+      score += 5;
     }
   }
 
   // Angle fit (front type)
   if (hints.bestVsFront?.includes(input.front)) {
-    score += 15;
+    score += 20;
+  } else if (hints.bestVsFront && hints.bestVsFront.length > 0) {
+    score -= 10; // Penalty for front mismatch
   }
 
   // 3T fit
   if (input.threeTech && hints.bestVs3T?.includes(input.threeTech)) {
-    score += 10;
+    score += 15;
+  } else if (input.threeTech && hints.bestVs3T && hints.bestVs3T.length > 0) {
+    score -= 8; // Penalty for 3T mismatch
   }
 
   // Structure fit
-  if (concept.requirements?.preferredStructures?.includes(input.structure as any)) {
+  const prefStructures = concept.requirements?.preferredStructures;
+  if (prefStructures?.includes(input.structure as any)) {
     score += 10;
+  } else if (prefStructures && prefStructures.length > 0) {
+    score -= 5;
   }
 
   // Badge bonus
@@ -218,7 +286,11 @@ function scoreRunConcept(concept: Concept, input: RunSuggestionInput): number {
     score += 5;
   }
 
-  return Math.min(score, 100);
+  // Run category specific
+  if (hints.category === "zone") score += 3; // Zone is more versatile
+  if (hints.category === "gap" && input.box <= 7) score += 5; // Gap works better with light box
+
+  return Math.max(10, Math.min(score, 95)); // Cap at 95, floor at 10
 }
 
 function generateRunReasons(concept: Concept, input: RunSuggestionInput): string[] {
@@ -381,120 +453,149 @@ export function getEnhancedSuggestions(
     sorted = sorted.filter((r) => !r.alerts?.some((a) => a.includes("risky")));
   }
 
-  // Return top results
-  const limit = playType === "run" ? 5 : 8;
-  return sorted.slice(0, limit);
+  // Return top 5 results with normalized scores
+  const topResults = sorted.slice(0, 5);
+  return normalizeScores(topResults);
 }
 
 function scoreConceptWithContext(concept: Concept, context: SuggestionContext): number {
-  let score = 50;
+  let score = 30; // Lower base for better spread
   const { offense, defense, situation, constraints } = context;
 
   if (concept.conceptType === "run") {
     const hints = concept.runHints;
-    if (!hints) return score;
+    if (!hints) return Math.max(10, score);
 
     // Numbers fit (box count) - most important for run plays
     const boxStr = String(defense.boxCount) as "6" | "7" | "8";
     if (hints.bestWhenBox?.includes(boxStr)) {
-      score += 25;
+      score += 30;
     } else if (defense.boxCount === 8) {
       // Penalty for loaded box
       const tolerance = concept.requirements?.boxTolerance;
       if (tolerance === "6_ok") {
-        score -= 20;
+        score -= 25;
       } else if (tolerance === "7_ok") {
-        score -= 10;
+        score -= 15;
+      } else if (tolerance === "8_risky") {
+        score -= 30;
       }
+    } else if (!hints.bestWhenBox?.length) {
+      score += 5; // No preference = versatile
     }
 
     // Angle fit (front type)
     const frontType = defense.front === "even" || defense.front === "over" ? "even" : "odd";
     if (hints.bestVsFront?.includes(frontType)) {
-      score += 15;
+      score += 20;
+    } else if (hints.bestVsFront && hints.bestVsFront.length > 0) {
+      score -= 12; // Front mismatch penalty
     }
 
     // 3T fit
     if (defense.threeTech !== "none" && defense.threeTech !== "both") {
       if (hints.bestVs3T?.includes(defense.threeTech)) {
-        score += 10;
+        score += 15;
+      } else if (hints.bestVs3T && hints.bestVs3T.length > 0) {
+        score -= 8;
       }
     } else if (defense.threeTech === "both" && hints.bestVs3T?.length) {
-      // If both 3Ts present, concept needs to handle both
       score += 5;
     }
 
     // Structure fit
-    if (offense.structure && concept.requirements?.preferredStructures?.includes(offense.structure)) {
-      score += 10;
+    const prefStructures = concept.requirements?.preferredStructures;
+    if (offense.structure && prefStructures?.includes(offense.structure)) {
+      score += 12;
+    } else if (prefStructures && prefStructures.length > 0) {
+      score -= 5;
     }
 
-    // Situation bonus
-    if (situation.distance === "1-2" && hints.category === "gap") {
-      score += 5; // Short yardage favors gap schemes
+    // Situation bonus/penalty
+    if (situation.distance === "1-2") {
+      if (hints.category === "gap") score += 10;
+      if (hints.category === "zone") score -= 3;
     }
-    if (situation.fieldZone === "goal_line" && hints.aim?.includes("a")) {
-      score += 5; // Goal line favors inside runs
+    if (situation.fieldZone === "goal_line") {
+      if (hints.aim?.includes("a") || hints.aim === "inside") score += 8;
+      if (hints.aim === "edge") score -= 5;
     }
     if (situation.objective === "kill_clock" && hints.category === "zone") {
-      score += 5; // Clock killing favors zone runs
+      score += 8;
+    }
+    if (situation.objective === "explosive") {
+      if (hints.aim === "edge") score += 5;
+      if (hints.aim === "inside") score -= 3;
     }
 
     // Edge/Force player analysis
     if (hints.aim === "edge" && defense.forcePlayer !== "unknown") {
-      if (defense.forcePlayer === "cb") {
-        score += 8; // CB as force = favorable for perimeter
-      } else if (defense.forcePlayer === "olb") {
-        score -= 5; // OLB as force = tougher edge
-      }
+      if (defense.forcePlayer === "cb") score += 10;
+      else if (defense.forcePlayer === "olb") score -= 8;
     }
+
+    // Category versatility
+    if (hints.category === "zone") score += 3;
   } else {
     // Pass concept scoring
     const hints = concept.passHints;
-    if (!hints) return score;
+    if (!hints) return Math.max(10, score);
 
-    // Coverage fit
+    // Coverage fit - biggest factor
     if (defense.shell !== "unknown") {
       const isManCoverage = defense.shell === "cover0" || defense.shell === "cover1";
       const isZoneCoverage = ["cover2", "cover3", "cover4", "cover6"].includes(defense.shell);
 
-      if (isManCoverage && hints.manBeater) {
-        score += 20;
+      if (isManCoverage) {
+        if (hints.manBeater) score += 25;
+        else score -= 10;
       }
-      if (isZoneCoverage && hints.zoneBeater) {
-        score += 20;
+      if (isZoneCoverage) {
+        if (hints.zoneBeater) score += 25;
+        else score -= 10;
       }
+    } else {
+      // Unknown coverage - favor versatile concepts
+      if (hints.manBeater && hints.zoneBeater) score += 15;
     }
 
     // Pressure response
     if (defense.pressureRate === "high") {
-      if (hints.category === "quick" || hints.category === "screen") {
-        score += 15;
-      } else if (hints.category === "deep") {
-        score -= 10;
-      }
+      if (hints.category === "quick" || hints.category === "screen") score += 18;
+      else if (hints.category === "deep") score -= 15;
+      else if (hints.category === "intermediate") score -= 5;
+    } else if (defense.pressureRate === "low") {
+      if (hints.category === "deep") score += 8;
     }
 
     // Structure fit
-    if (offense.structure && concept.requirements?.preferredStructures?.includes(offense.structure)) {
-      score += 10;
+    const prefStructures = concept.requirements?.preferredStructures;
+    if (offense.structure && prefStructures?.includes(offense.structure)) {
+      score += 15;
+    } else if (prefStructures && prefStructures.length > 0) {
+      score -= 8;
     }
 
-    // Situation bonus
-    if (situation.distance === "10+" && hints.category === "deep") {
-      score += 5;
+    // Situation bonus/penalty
+    if (situation.distance === "10+") {
+      if (hints.category === "deep") score += 8;
+      if (hints.category === "quick") score -= 5;
+    } else if (situation.distance === "1-2") {
+      if (hints.category === "quick") score += 8;
+      if (hints.category === "deep") score -= 10;
     }
     if (situation.objective === "explosive" && hints.stress?.includes("vertical")) {
-      score += 8;
+      score += 10;
+    }
+    if (situation.objective === "score_now") {
+      if (hints.category === "quick") score += 5;
     }
   }
 
   // Badge bonus
-  if (concept.badges?.includes("nfl_style")) {
-    score += 5;
-  }
+  if (concept.badges?.includes("nfl_style")) score += 5;
 
-  return Math.min(Math.max(score, 0), 100);
+  return Math.max(10, Math.min(score, 95)); // Cap at 95, floor at 10
 }
 
 function generateFitAnalysis(
@@ -876,8 +977,8 @@ export function getFamilySuggestions(
     };
   });
 
-  // Sort by score
-  return results.sort((a, b) => b.score - a.score);
+  // Sort by score and normalize
+  return normalizeScores(results.sort((a, b) => b.score - a.score));
 }
 
 /**

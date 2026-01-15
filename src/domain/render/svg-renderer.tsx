@@ -306,20 +306,66 @@ function RoutePath({ action }: RoutePathProps) {
   const points = action.route.controlPoints.map(toSvgPoint);
   if (points.length < 2) return null;
 
+  const curveMode = action.route.curveMode ?? false;
+
   // Build path string
-  const pathD = points.reduce((acc, point, i) => {
-    if (i === 0) return `M ${point.x} ${point.y}`;
-    return `${acc} L ${point.x} ${point.y}`;
-  }, "");
+  let pathD: string;
+  let arrowAngle: number;
+
+  if (curveMode && points.length >= 2) {
+    // Bezier curve mode
+    // For 2 points: straight line
+    // For 3 points: quadratic bezier (start, control, end)
+    // For 4+ points: cubic bezier or chained curves
+
+    if (points.length === 2) {
+      // Simple line
+      pathD = `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+      arrowAngle = Math.atan2(points[1].y - points[0].y, points[1].x - points[0].x);
+    } else if (points.length === 3) {
+      // Quadratic bezier: M start Q control end
+      pathD = `M ${points[0].x} ${points[0].y} Q ${points[1].x} ${points[1].y} ${points[2].x} ${points[2].y}`;
+      // Arrow angle: tangent at end of quadratic bezier
+      arrowAngle = Math.atan2(points[2].y - points[1].y, points[2].x - points[1].x);
+    } else {
+      // Cubic bezier or smooth curve through points
+      // Use catmull-rom to cubic bezier conversion for smooth curves
+      pathD = `M ${points[0].x} ${points[0].y}`;
+
+      for (let i = 0; i < points.length - 1; i++) {
+        const p0 = points[Math.max(0, i - 1)];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = points[Math.min(points.length - 1, i + 2)];
+
+        // Catmull-Rom to Cubic Bezier
+        const tension = 0.5;
+        const cp1x = p1.x + (p2.x - p0.x) * tension / 3;
+        const cp1y = p1.y + (p2.y - p0.y) * tension / 3;
+        const cp2x = p2.x - (p3.x - p1.x) * tension / 3;
+        const cp2y = p2.y - (p3.y - p1.y) * tension / 3;
+
+        pathD += ` C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${p2.x} ${p2.y}`;
+      }
+
+      // Arrow angle at the end
+      const lastPt = points[points.length - 1];
+      const prevPt = points[points.length - 2];
+      arrowAngle = Math.atan2(lastPt.y - prevPt.y, lastPt.x - prevPt.x);
+    }
+  } else {
+    // Polyline mode (original behavior)
+    pathD = points.reduce((acc, point, i) => {
+      if (i === 0) return `M ${point.x} ${point.y}`;
+      return `${acc} L ${point.x} ${point.y}`;
+    }, "");
+
+    const lastPoint = points[points.length - 1];
+    const prevPoint = points[points.length - 2];
+    arrowAngle = Math.atan2(lastPoint.y - prevPoint.y, lastPoint.x - prevPoint.x);
+  }
 
   const lastPoint = points[points.length - 1];
-  const prevPoint = points[points.length - 2];
-
-  // Calculate arrow direction
-  const angle = Math.atan2(
-    lastPoint.y - prevPoint.y,
-    lastPoint.x - prevPoint.x
-  );
 
   return (
     <g className="route-action">
@@ -346,8 +392,8 @@ function RoutePath({ action }: RoutePathProps) {
         <polygon
           points={`
             ${lastPoint.x},${lastPoint.y}
-            ${lastPoint.x - 14 * Math.cos(angle - 0.4)},${lastPoint.y - 14 * Math.sin(angle - 0.4)}
-            ${lastPoint.x - 14 * Math.cos(angle + 0.4)},${lastPoint.y - 14 * Math.sin(angle + 0.4)}
+            ${lastPoint.x - 14 * Math.cos(arrowAngle - 0.4)},${lastPoint.y - 14 * Math.sin(arrowAngle - 0.4)}
+            ${lastPoint.x - 14 * Math.cos(arrowAngle + 0.4)},${lastPoint.y - 14 * Math.sin(arrowAngle + 0.4)}
           `}
           fill={ROUTE_COLOR}
           stroke="rgba(0,0,0,0.2)"

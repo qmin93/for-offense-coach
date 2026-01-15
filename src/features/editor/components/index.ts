@@ -10,3 +10,4 @@ export * from "./Canvas";
 export * from "./ExportButton";
 export * from "./RouteTemplatesPanel";
 export * from "./ContextInputForm";
+export * from "./StepNavigation";
