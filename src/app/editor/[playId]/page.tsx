@@ -75,6 +75,39 @@ export default function EditorPage() {
     }
   }, [debouncedIsDirty, playDbId, isSaving, savePlay]);
 
+  // Keyboard shortcuts for Undo/Redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const { undo, redo, canUndo, canRedo } = useEditorStore.getState();
+
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        if (e.shiftKey) {
+          // Ctrl+Shift+Z = Redo
+          if (canRedo()) {
+            e.preventDefault();
+            redo();
+          }
+        } else {
+          // Ctrl+Z = Undo
+          if (canUndo()) {
+            e.preventDefault();
+            undo();
+          }
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "y") {
+        // Ctrl+Y = Redo
+        if (canRedo()) {
+          e.preventDefault();
+          redo();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   // Format last saved time
   const formatLastSaved = useCallback(() => {
     if (!lastSaved) return null;
