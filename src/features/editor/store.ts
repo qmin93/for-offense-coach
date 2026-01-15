@@ -15,6 +15,9 @@ import type {
 } from "@/domain/dsl/types";
 import { createPlay, createPlayFromFormation } from "@/domain/dsl/factories";
 import { autoBuildFromConcept, applyAutoBuildToPlay } from "@/domain/engine/auto-build";
+import { validateAndRecoverPlay, validatePlay } from "@/domain/dsl/validation";
+import { editorLog } from "@/lib/logger";
+import { deepClone } from "@/lib/immutable";
 
 // ============================================
 // Types
@@ -54,6 +57,10 @@ export interface EditorState {
   isSaving: boolean;
   lastSaved: Date | null;
   saveError: string | null;
+
+  // Revision tracking (prevents autosave race conditions)
+  localRevision: number;
+  serverRevision: number;
 
   // Loading state
   isLoading: boolean;
@@ -116,12 +123,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isSaving: false,
   lastSaved: null,
   saveError: null,
+  localRevision: 0,
+  serverRevision: 0,
   isLoading: false,
   loadError: null,
 
   // Initialize play (for new plays)
   initPlay: (play?: Play) => {
-    const newPlay = play || createPlay("New Play");
+    const newPlay = deepClone(play || createPlay("New Play"));
     set({
       play: newPlay,
       playDbId: null,
@@ -132,11 +141,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       loadError: null,
       selectedPlayerId: null,
       selectedActionId: null,
+      localRevision: 0,
+      serverRevision: 0,
     });
   },
 
   // Load play from database
   loadPlay: async (dbId: string) => {
+    editorLog.event("LOAD_START", { playDbId: dbId });
     set({ isLoading: true, loadError: null });
     try {
       const response = await fetch(`/api/plays/${dbId}`);
@@ -144,23 +156,49 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         throw new Error(`Failed to load play: ${response.statusText}`);
       }
       const data = await response.json();
-      const dslPlay = data.dslJson as Play;
+
+      // Validate and recover if needed
+      const { play: validatedPlay, wasRecovered, validationResult } = validateAndRecoverPlay(
+        data.dslJson,
+        data.name || "Recovered Play"
+      );
 
       set({
-        play: dslPlay,
+        play: validatedPlay,
         playDbId: dbId,
-        history: [dslPlay],
+        history: [validatedPlay],
         historyIndex: 0,
-        isDirty: false,
+        isDirty: wasRecovered, // Mark dirty if we had to recover
         isLoading: false,
-        loadError: null,
+        loadError: wasRecovered
+          ? "Play data was corrupted and has been recovered. Some data may have been lost."
+          : null,
         selectedPlayerId: null,
         selectedActionId: null,
+        localRevision: wasRecovered ? 1 : 0,
+        serverRevision: 0,
+      });
+
+      if (wasRecovered) {
+        editorLog.event("REHYDRATE", {
+          playDbId: dbId,
+          playId: validatedPlay.id,
+          actionCount: validatedPlay.actions.length,
+          error: "Play recovered from corrupted state",
+        });
+      }
+
+      editorLog.event("LOAD_OK", {
+        playDbId: dbId,
+        playId: validatedPlay.id,
+        actionCount: validatedPlay.actions.length,
       });
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Failed to load play";
+      editorLog.error("LOAD_FAIL", errorMsg, { playDbId: dbId });
       set({
         isLoading: false,
-        loadError: error instanceof Error ? error.message : "Failed to load play",
+        loadError: errorMsg,
       });
     }
   },
@@ -169,6 +207,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   savePlay: async () => {
     const state = get();
     if (!state.play || state.isSaving) return;
+
+    // Capture revision at save start to detect race conditions
+    const saveRevision = state.localRevision;
+
+    editorLog.event("SAVE_START", {
+      playDbId: state.playDbId || undefined,
+      playId: state.play.id,
+      actionCount: state.play.actions.length,
+    });
 
     set({ isSaving: true, saveError: null });
     try {
@@ -189,16 +236,32 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       }
       // For new plays, we'd need workspace context - handled at page level
 
+      // Check if state changed during save (race condition)
+      const currentState = get();
+      const hasNewChanges = currentState.localRevision > saveRevision;
+
       set({
         isSaving: false,
-        isDirty: false,
+        // Only mark as clean if no new changes happened during save
+        isDirty: hasNewChanges,
         lastSaved: new Date(),
         saveError: null,
+        serverRevision: saveRevision, // Track what server has
+      });
+
+      editorLog.event("SAVE_OK", {
+        playDbId: state.playDbId || undefined,
+        playId: state.play.id,
       });
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Failed to save play";
+      editorLog.error("SAVE_FAIL", errorMsg, {
+        playDbId: state.playDbId || undefined,
+        playId: state.play.id,
+      });
       set({
         isSaving: false,
-        saveError: error instanceof Error ? error.message : "Failed to save play",
+        saveError: errorMsg,
       });
       // Backup to localStorage on failure
       if (state.play) {
@@ -226,16 +289,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setPlay: (play: Play) => {
     const state = get();
+    // Deep clone to ensure new reference (prevents immutability issues)
+    const clonedPlay = deepClone(play);
     const newHistory = [
       ...state.history.slice(0, state.historyIndex + 1),
-      play,
+      clonedPlay,
     ].slice(-state.maxHistory);
 
     set({
-      play,
+      play: clonedPlay,
       history: newHistory,
       historyIndex: newHistory.length - 1,
       isDirty: true,
+      localRevision: state.localRevision + 1, // Increment on every change
     });
   },
 
@@ -269,6 +335,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (currentPlay?.actions.length) {
       newPlay.actions = currentPlay.actions;
     }
+
+    editorLog.event("APPLY_FORMATION", {
+      formationId: formation.id,
+      playId: newPlay.id,
+    });
 
     get().setPlay(newPlay);
   },
@@ -308,6 +379,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       updatedAt: new Date().toISOString(),
     };
 
+    editorLog.event("ADD_ACTION", {
+      playId: state.play.id,
+      actionCount: newPlay.actions.length,
+    });
+
     get().setPlay(newPlay);
   },
 
@@ -324,6 +400,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       updatedAt: new Date().toISOString(),
     };
 
+    editorLog.event("UPDATE_ACTION", {
+      playId: state.play.id,
+      actionCount: newPlay.actions.length,
+    });
+
     get().setPlay(newPlay);
   },
 
@@ -337,6 +418,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       actions: state.play.actions.filter((a) => a.id !== actionId),
       updatedAt: new Date().toISOString(),
     };
+
+    editorLog.event("DELETE_ACTION", {
+      playId: state.play.id,
+      actionCount: newPlay.actions.length,
+    });
 
     get().setPlay(newPlay);
     set({ selectedActionId: null });
@@ -367,6 +453,23 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         },
       };
 
+      // Validate after auto-build
+      const validationResult = validatePlay(newPlay);
+      if (!validationResult.valid) {
+        editorLog.error("VALIDATION_FAIL", "Auto-build produced invalid play", {
+          playId: newPlay.id,
+          conceptId: concept.id,
+          error: validationResult.errors.map((e) => e.message).join("; "),
+        });
+        // Still apply but log the issue
+      }
+
+      editorLog.event("AUTO_BUILD", {
+        playId: state.play.id,
+        conceptId: concept.id,
+        actionCount: newPlay.actions.length,
+      });
+
       get().setPlay(newPlay);
     }
   },
@@ -376,8 +479,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const state = get();
     if (state.historyIndex > 0) {
       const newIndex = state.historyIndex - 1;
+      const restoredPlay = state.history[newIndex];
+      editorLog.event("UNDO", {
+        playId: restoredPlay?.id,
+        actionCount: restoredPlay?.actions.length,
+      });
       set({
-        play: state.history[newIndex],
+        play: restoredPlay,
         historyIndex: newIndex,
         isDirty: true,
       });
@@ -389,8 +497,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const state = get();
     if (state.historyIndex < state.history.length - 1) {
       const newIndex = state.historyIndex + 1;
+      const restoredPlay = state.history[newIndex];
+      editorLog.event("REDO", {
+        playId: restoredPlay?.id,
+        actionCount: restoredPlay?.actions.length,
+      });
       set({
-        play: state.history[newIndex],
+        play: restoredPlay,
         historyIndex: newIndex,
         isDirty: true,
       });

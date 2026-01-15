@@ -76,7 +76,7 @@ export default function PlaybookPage() {
             <Button variant="outline" onClick={() => setShowExportModal(true)}>
               Export PDF
             </Button>
-            <Button variant="primary">Share</Button>
+            <Button variant="default">Share</Button>
           </div>
         </div>
       </header>
@@ -223,7 +223,7 @@ export default function PlaybookPage() {
                 Cancel
               </Button>
               <Button
-                variant="primary"
+                variant="default"
                 onClick={handleExportPdf}
                 disabled={isExporting}
               >

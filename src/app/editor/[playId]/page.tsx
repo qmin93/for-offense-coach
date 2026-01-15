@@ -11,6 +11,9 @@ import {
   Canvas,
   ExportButton,
 } from "@/features/editor/components";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 // Debounce hook for autosave
@@ -33,7 +36,6 @@ function useDebounce<T>(value: T, delay: number): T {
 export default function EditorPage() {
   const params = useParams();
   const playId = params.playId as string;
-  const [activeTab, setActiveTab] = useState<"formation" | "install">("formation");
 
   const {
     initPlay,
@@ -113,18 +115,18 @@ export default function EditorPage() {
     if (!lastSaved) return null;
     const now = new Date();
     const diff = now.getTime() - lastSaved.getTime();
-    if (diff < 60000) return "Saved just now";
-    if (diff < 3600000) return `Saved ${Math.floor(diff / 60000)}m ago`;
-    return `Saved at ${lastSaved.toLocaleTimeString()}`;
+    if (diff < 60000) return "Saved";
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    return `${lastSaved.toLocaleTimeString()}`;
   }, [lastSaved]);
 
   // Loading state
   if (isLoading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-100">
+      <div className="h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading play...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading play...</p>
         </div>
       </div>
     );
@@ -133,48 +135,57 @@ export default function EditorPage() {
   // Error state
   if (loadError) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-100">
+      <div className="h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <div className="text-red-500 text-4xl mb-4">!</div>
-          <p className="text-gray-800 font-medium mb-2">Failed to load play</p>
-          <p className="text-gray-600 text-sm mb-4">{loadError}</p>
-          <Link
-            href="/"
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Go Home
-          </Link>
+          <div className="text-destructive text-4xl mb-4">!</div>
+          <p className="text-foreground font-medium mb-2">Failed to load play</p>
+          <p className="text-muted-foreground text-sm mb-4">{loadError}</p>
+          <Button asChild>
+            <Link href="/">Go Home</Link>
+          </Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100">
+    <div className="h-screen flex flex-col bg-muted/30">
       {/* Header */}
-      <header className="bg-white border-b px-4 py-2 flex items-center justify-between">
+      <header className="bg-background border-b px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-lg font-bold text-blue-600">
+          <Link href="/" className="text-lg font-bold text-primary">
             ForOffenseCoach
           </Link>
-          <span className="text-gray-300">|</span>
+          <span className="text-border">|</span>
           <input
             type="text"
             value={play?.name || "New Play"}
             onChange={(e) => setPlayName(e.target.value)}
-            className="text-lg font-medium text-gray-800 bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2"
+            className="text-lg font-medium text-foreground bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-primary rounded px-2"
           />
           {/* Save status indicator */}
-          <span className="text-xs text-gray-400">
-            {isSaving && "Saving..."}
-            {!isSaving && isDirty && "Unsaved changes"}
-            {!isSaving && !isDirty && formatLastSaved()}
-          </span>
-          {saveError && (
-            <span className="text-xs text-red-500" title={saveError}>
-              Save failed
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {isSaving && (
+              <Badge variant="secondary" className="text-xs">
+                Saving...
+              </Badge>
+            )}
+            {!isSaving && isDirty && (
+              <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                Unsaved
+              </Badge>
+            )}
+            {!isSaving && !isDirty && formatLastSaved() && (
+              <Badge variant="secondary" className="text-xs">
+                {formatLastSaved()}
+              </Badge>
+            )}
+            {saveError && (
+              <Badge variant="destructive" className="text-xs">
+                Save failed
+              </Badge>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <ExportButton />
@@ -187,37 +198,29 @@ export default function EditorPage() {
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left sidebar */}
-        <div className="w-64 bg-white border-r overflow-y-auto">
-          {/* Tabs */}
-          <div className="flex border-b">
-            <button
-              onClick={() => setActiveTab("formation")}
-              className={`flex-1 px-4 py-2 text-sm font-medium ${
-                activeTab === "formation"
-                  ? "text-blue-600 border-b-2 border-blue-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Formation
-            </button>
-            <button
-              onClick={() => setActiveTab("install")}
-              className={`flex-1 px-4 py-2 text-sm font-medium ${
-                activeTab === "install"
-                  ? "text-blue-600 border-b-2 border-blue-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Install Focus
-            </button>
-          </div>
-
-          {/* Tab content */}
-          {activeTab === "formation" ? (
-            <FormationPanel />
-          ) : (
-            <InstallFocusPanel />
-          )}
+        <div className="w-64 bg-background border-r overflow-y-auto">
+          <Tabs defaultValue="formation" className="w-full">
+            <TabsList className="w-full rounded-none border-b bg-transparent h-auto p-0">
+              <TabsTrigger
+                value="formation"
+                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-2"
+              >
+                Formation
+              </TabsTrigger>
+              <TabsTrigger
+                value="install"
+                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-2"
+              >
+                Install Focus
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="formation" className="mt-0">
+              <FormationPanel />
+            </TabsContent>
+            <TabsContent value="install" className="mt-0">
+              <InstallFocusPanel />
+            </TabsContent>
+          </Tabs>
         </div>
 
         {/* Canvas */}
@@ -228,19 +231,23 @@ export default function EditorPage() {
       </div>
 
       {/* Status bar */}
-      <footer className="bg-white border-t px-4 py-1 text-xs text-gray-500 flex items-center justify-between">
-        <div>
+      <footer className="bg-background border-t px-4 py-1.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
           {play?.meta?.formationId && (
-            <span>Formation: {play.meta.formationId.replace("formation_", "")}</span>
+            <Badge variant="outline" className="text-xs">
+              {play.meta.formationId.replace("formation_", "")}
+            </Badge>
           )}
           {play?.meta?.conceptId && (
-            <span className="ml-4">
-              Concept: {play.meta.conceptId.replace("concept_", "")}
-            </span>
+            <Badge variant="outline" className="text-xs">
+              {play.meta.conceptId.replace("concept_", "").replace("run_", "").replace("pass_", "")}
+            </Badge>
           )}
         </div>
-        <div>
-          {play?.actions.length || 0} actions • v{play?.history?.version || 1}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{play?.actions.length || 0} actions</span>
+          <span>•</span>
+          <span>v{play?.history?.version || 1}</span>
         </div>
       </footer>
     </div>

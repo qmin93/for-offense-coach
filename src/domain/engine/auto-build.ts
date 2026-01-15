@@ -487,13 +487,23 @@ export function applyAutoBuildToPlay(
     newActions = [...play.actions, ...layeredActions];
   }
 
+  // Return a completely new object to ensure React re-render
+  // Using spread creates shallow copies, but we need deep copy for nested objects
   return {
     ...play,
+    roster: {
+      ...play.roster,
+      players: [...play.roster.players],
+      groups: play.roster.groups ? [...play.roster.groups] : [],
+    },
     actions: newActions,
-    updatedAt: new Date().toISOString(),
+    meta: { ...play.meta },
+    field: play.field ? { ...play.field } : undefined,
+    notes: play.notes ? { ...play.notes } : undefined,
     history: {
       ...play.history,
       version: (play.history?.version || 0) + 1,
     },
+    updatedAt: new Date().toISOString(),
   };
 }

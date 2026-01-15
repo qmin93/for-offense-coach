@@ -67,7 +67,6 @@ export function ExportButton() {
 
   return (
     <Button
-      variant="primary"
       size="sm"
       onClick={handleExportPng}
       disabled={!play}

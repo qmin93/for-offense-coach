@@ -1,0 +1,77 @@
+{
+  "app": {
+    "title": "ForOffenseCoach",
+    "subtitle": "Football Playbook Builder"
+  },
+  "editor": {
+    "newPlay": "New Play",
+    "loading": "Loading play...",
+    "loadFailed": "Failed to load play",
+    "goHome": "Go Home",
+    "toolbar": {
+      "select": "Select",
+      "route": "Route",
+      "block": "Block",
+      "motion": "Motion",
+      "text": "Text",
+      "undo": "Undo",
+      "redo": "Redo",
+      "passConcepts": "Pass Concepts",
+      "runConcepts": "Run Concepts"
+    },
+    "tabs": {
+      "formation": "Formation",
+      "installFocus": "Install Focus"
+    },
+    "status": {
+      "saving": "Saving...",
+      "saved": "Saved",
+      "unsaved": "Unsaved",
+      "saveFailed": "Save failed"
+    },
+    "export": {
+      "png": "Export PNG"
+    }
+  },
+  "formations": {
+    "title": "Formations"
+  },
+  "suggestions": {
+    "pass": {
+      "title": "Pass Concepts"
+    },
+    "run": {
+      "title": "Run Concepts",
+      "defenseInput": "Defense Input",
+      "box": "Box",
+      "front": "Front",
+      "threeTech": "3-Tech",
+      "topFive": "Top 5 Run Concepts"
+    },
+    "autoBuild": "Auto-build",
+    "built": "Built",
+    "actionsAdded": "{count} actions added"
+  },
+  "installFocus": {
+    "title": "Install Focus",
+    "selectConcept": "Select a concept to see its install focus and key failure points.",
+    "failurePoints": "Failure Points",
+    "drills": "Drills"
+  },
+  "playbook": {
+    "exportPdf": "Export PDF",
+    "share": "Share",
+    "addSection": "Add Section",
+    "noPlays": "No plays in this section",
+    "createPlay": "Create a play"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "rename": "Rename",
+    "remove": "Remove",
+    "actions": "actions",
+    "version": "v"
+  }
+}

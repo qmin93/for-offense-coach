@@ -42,7 +42,7 @@ export default function SharePage() {
             This share link may have expired or been revoked.
           </p>
           <Link href="/">
-            <Button variant="primary">Go to ForOffenseCoach</Button>
+            <Button>Go to ForOffenseCoach</Button>
           </Link>
         </div>
       </div>
