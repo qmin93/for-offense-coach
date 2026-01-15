@@ -209,18 +209,21 @@ function calculateRouteEndpoint(start: Point, pattern: RoutePattern): Point {
   const routeDepth = 0.15; // ~5 yards normalized
 
   switch (pattern) {
-    case "fade":
     case "go":
+    case "seam":
       return { x: start.x, y: start.y + routeDepth * 2 };
     case "slant":
       return { x: start.x + (start.x < 0.5 ? 0.1 : -0.1), y: start.y + routeDepth * 0.7 };
     case "out":
+    case "speed_out":
+    case "quick_out":
+    case "deep_out":
       return { x: start.x + (start.x < 0.5 ? -0.15 : 0.15), y: start.y + routeDepth };
-    case "in":
     case "dig":
+    case "cross":
+    case "shallow":
       return { x: start.x + (start.x < 0.5 ? 0.15 : -0.15), y: start.y + routeDepth };
     case "curl":
-    case "comeback":
       return { x: start.x, y: start.y + routeDepth };
     case "hitch":
       return { x: start.x, y: start.y + routeDepth * 0.5 };
@@ -229,9 +232,15 @@ function calculateRouteEndpoint(start: Point, pattern: RoutePattern): Point {
     case "corner":
       return { x: start.x + (start.x < 0.5 ? -0.2 : 0.2), y: start.y + routeDepth * 1.5 };
     case "flat":
+    case "arrow":
       return { x: start.x + (start.x < 0.5 ? -0.1 : 0.1), y: start.y + routeDepth * 0.3 };
     case "wheel":
       return { x: start.x + (start.x < 0.5 ? -0.1 : 0.1), y: start.y + routeDepth * 1.5 };
+    case "whip":
+    case "pivot":
+    case "return":
+      return { x: start.x, y: start.y + routeDepth * 0.8 };
+    case "custom":
     default:
       return { x: start.x, y: start.y + routeDepth };
   }
