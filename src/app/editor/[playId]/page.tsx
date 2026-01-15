@@ -13,6 +13,7 @@ import {
   RouteTemplatesPanel,
   DefensePanel,
   PlaybackControls,
+  BlockHUD,
 } from "@/features/editor/components";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +54,15 @@ export default function EditorPage() {
     loadError,
     saveError,
     lastSaved,
+    selectedActionId,
+    selectAction,
   } = useEditorStore();
+
+  // Check if selected action is a block
+  const selectedBlockAction = play?.actions.find(
+    (a) => a.id === selectedActionId && a.actionType === "block"
+  );
+  const showBlockHUD = !!selectedBlockAction;
 
   // Track if play has been modified for autosave
   const debouncedIsDirty = useDebounce(isDirty, 1000);
@@ -245,7 +254,15 @@ export default function EditorPage() {
         </div>
 
         {/* Canvas */}
-        <Canvas />
+        <div className="flex-1 relative">
+          <Canvas />
+          {/* Block editing HUD */}
+          <BlockHUD
+            visible={showBlockHUD}
+            playerId={selectedBlockAction?.fromPlayerId || null}
+            onClose={() => selectAction(null)}
+          />
+        </div>
 
         {/* Right sidebar - Suggestions */}
         <SuggestionsPanel />
