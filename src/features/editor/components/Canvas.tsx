@@ -8,11 +8,13 @@ import { v4 as uuid } from "uuid";
 import { Button } from "@/components/ui/button";
 import { snapPoint, getSnapIndicators } from "@/domain/engine/snap";
 
-// Convert normalized to SVG coordinates
+// Convert normalized to SVG coordinates (must match svg-renderer.tsx)
+const LOS_POSITION = 0.35;
 function normalizedToSvg(point: Point): { x: number; y: number } {
   const svgX = point.x * FIELD_WIDTH;
-  const losY = FIELD_HEIGHT * 0.4;
-  const svgY = losY - point.y * FIELD_HEIGHT * 0.5;
+  const losY = FIELD_HEIGHT * LOS_POSITION;
+  const yardScale = FIELD_HEIGHT * 0.08;
+  const svgY = losY - point.y * yardScale * 5;
   return { x: svgX, y: svgY };
 }
 
@@ -141,10 +143,11 @@ export function Canvas() {
       const svgX = (relX / svgWidth) * FIELD_WIDTH;
       const svgY = (relY / svgHeight) * FIELD_HEIGHT;
 
-      // Convert to normalized coordinates
+      // Convert to normalized coordinates (must match svg-renderer.tsx)
       const normalizedX = svgX / FIELD_WIDTH;
-      const losY = FIELD_HEIGHT * 0.4;
-      const normalizedY = (losY - svgY) / (FIELD_HEIGHT * 0.5);
+      const losY = FIELD_HEIGHT * LOS_POSITION;
+      const yardScale = FIELD_HEIGHT * 0.08;
+      const normalizedY = (losY - svgY) / (yardScale * 5);
 
       return { x: normalizedX, y: normalizedY };
     },
@@ -451,8 +454,9 @@ export function Canvas() {
       return `${acc} L ${point.x} ${point.y}`;
     }, "");
 
+    // Colors matching whiteboard theme
     const color =
-      mode === "route" ? "#fbbf24" : mode === "block" ? "#3b82f6" : mode === "motion" ? "#f97316" : "#ffffff";
+      mode === "route" ? "#F59E0B" : mode === "block" ? "#2563EB" : mode === "motion" ? "#7C3AED" : "#374151";
 
     return (
       <g className="drawing-preview">
@@ -487,30 +491,38 @@ export function Canvas() {
 
     return (
       <g className="block-drag-preview">
+        {/* Shadow */}
+        <line
+          x1={start.x}
+          y1={start.y}
+          x2={end.x}
+          y2={end.y}
+          stroke="rgba(0,0,0,0.15)"
+          strokeWidth={8}
+          strokeLinecap="round"
+        />
         {/* Line */}
         <line
           x1={start.x}
           y1={start.y}
           x2={end.x}
           y2={end.y}
-          stroke="#3b82f6"
-          strokeWidth={6}
+          stroke="#2563EB"
+          strokeWidth={5}
           strokeLinecap="round"
-          opacity={0.8}
         />
         {/* Arrow head */}
         <polygon
           points="0,-8 16,0 0,8"
-          fill="#3b82f6"
+          fill="#2563EB"
           transform={`translate(${end.x},${end.y}) rotate(${angle})`}
-          opacity={0.9}
         />
         {/* Start point */}
         <circle
           cx={start.x}
           cy={start.y}
           r={8}
-          fill="#3b82f6"
+          fill="#2563EB"
           stroke="#ffffff"
           strokeWidth={2}
         />
@@ -633,7 +645,7 @@ export function Canvas() {
   return (
     <div
       ref={containerRef}
-      className="flex-1 bg-gray-800 overflow-hidden relative"
+      className="flex-1 bg-slate-100 overflow-hidden relative"
       tabIndex={0}
       onKeyDown={handleKeyDown}
       onWheel={handleWheel}
@@ -646,14 +658,14 @@ export function Canvas() {
       {/* Top bar with mode and zoom controls */}
       <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
         {/* Mode indicator */}
-        <div className="px-3 py-1.5 bg-black/70 rounded-lg text-white text-sm font-medium">
+        <div className="px-3 py-1.5 bg-slate-800/80 rounded-lg text-white text-sm font-medium">
           {mode === "select" && "Select: Click player/route to select, drag to move"}
           {mode === "route" && "Route: Click player, click points, double-click to finish"}
           {mode === "block" && "Block: Click player, drag direction, release to create"}
           {mode === "motion" && "Motion: Click player, click points, double-click to finish"}
           {mode === "text" && "Text: Click to place text"}
-          {drawing.isDrawing && <span className="ml-2 text-yellow-400">(ESC cancel, dbl-click finish)</span>}
-          {blockDrag && <span className="ml-2 text-blue-400">(Dragging block...)</span>}
+          {drawing.isDrawing && <span className="ml-2 text-amber-400">(ESC cancel, dbl-click finish)</span>}
+          {blockDrag && <span className="ml-2 text-blue-300">(Dragging block...)</span>}
         </div>
 
         {/* Zoom and snap controls */}
@@ -664,8 +676,8 @@ export function Canvas() {
             size="sm"
             className={`h-8 px-3 text-xs ${
               snapConfig.enabled
-                ? "bg-blue-500/80 text-white hover:bg-blue-600/80"
-                : "bg-black/70 text-white/60 hover:bg-white/20"
+                ? "bg-blue-600 text-white hover:bg-blue-700"
+                : "bg-slate-800/80 text-white/60 hover:bg-slate-700/80"
             }`}
             onClick={toggleSnap}
             title={snapConfig.enabled ? "Snap enabled (click to disable)" : "Snap disabled (click to enable)"}
@@ -674,7 +686,7 @@ export function Canvas() {
           </Button>
 
           {/* Zoom controls */}
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-black/70 rounded-lg">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 rounded-lg">
             <Button
               variant="ghost"
               size="sm"
@@ -700,7 +712,7 @@ export function Canvas() {
       </div>
 
       {/* Help text */}
-      <div className="absolute bottom-4 left-4 z-10 px-2 py-1 bg-black/50 rounded text-white/70 text-xs">
+      <div className="absolute bottom-4 left-4 z-10 px-2 py-1 bg-slate-800/70 rounded text-white/80 text-xs">
         Scroll to zoom • Space+drag to pan • Shift+click multi-select • Drag box to select • Delete to remove
       </div>
 

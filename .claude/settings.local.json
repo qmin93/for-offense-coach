@@ -17,7 +17,17 @@
       "Bash(gh api:*)",
       "Bash(git reset:*)",
       "Bash(npx prisma generate:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(npm run test:run:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx shadcn@latest init:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(npm run lint)",
+      "Bash(npx next lint:*)",
+      "Bash(git mv:*)",
+      "Bash(git restore:*)",
+      "Bash(dir c:ForOffensiveCoordinatorsrcfeatureseditorcomponents)",
+      "Bash(dir:*)"
     ]
   }
 }

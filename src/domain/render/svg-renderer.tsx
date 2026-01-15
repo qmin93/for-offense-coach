@@ -1,5 +1,5 @@
 // ============================================
-// SVG Renderer
+// SVG Renderer - Whiteboard Theme
 // DSL → SVG 렌더링
 // ============================================
 
@@ -19,21 +19,30 @@ import type {
 } from "../dsl/types";
 
 // ============================================
-// Constants
+// Constants - Whiteboard Theme
 // ============================================
 
 const FIELD_WIDTH = 800;
-const FIELD_HEIGHT = 500;
-const FIELD_COLOR = "#2d5a27";
-const LINE_COLOR = "#ffffff";
-const OFFENSE_COLOR = "#1e40af";
-const DEFENSE_COLOR = "#dc2626";
-const ROUTE_COLOR = "#fbbf24"; // Bright yellow for routes
-const BLOCK_COLOR = "#3b82f6"; // Bright blue for blocks
-const PULL_COLOR = "#10b981"; // Green for pull blocks
-const MOTION_COLOR = "#f97316"; // Orange for motion
+const FIELD_HEIGHT = 600; // Taller for more field depth
+const FIELD_COLOR = "#FAFBFC"; // Off-white (clean whiteboard)
+const LINE_COLOR = "#CBD5E1"; // Light slate gray for yard lines
+const LOS_COLOR = "#3B82F6"; // Blue for Line of Scrimmage
+const HASH_COLOR = "#E2E8F0"; // Very light gray for hash marks
+const YARD_NUMBER_COLOR = "#94A3B8"; // Muted gray for yard numbers
+const OFFENSE_COLOR = "#1E40AF"; // Navy blue for offense
+const DEFENSE_COLOR = "#DC2626"; // Red for defense
+const ROUTE_COLOR = "#F59E0B"; // Amber/orange for routes
+const BLOCK_COLOR = "#2563EB"; // Bright blue for blocks
+const PULL_COLOR = "#059669"; // Emerald green for pull blocks
+const MOTION_COLOR = "#7C3AED"; // Purple for motion (distinct on white)
 const PLAYER_RADIUS = 14;
 const FONT_SIZE = 11;
+
+// Field measurements
+// LOS at 35% from top gives room for 25+ yards downfield and 15+ yards backfield
+const LOS_POSITION = 0.35;
+// 5 yards = 0.1 in normalized Y coordinates
+const FIVE_YARD_UNIT = 0.1;
 
 // ============================================
 // Coordinate Conversion
@@ -44,11 +53,13 @@ function toSvgX(normalizedX: number): number {
 }
 
 function toSvgY(normalizedY: number): number {
-  // Y=0 is LOS, which should be at ~40% from top
-  // Y < 0 is backfield (below LOS)
-  // Y > 0 is downfield (above LOS)
-  const losY = FIELD_HEIGHT * 0.4;
-  return losY - normalizedY * FIELD_HEIGHT * 0.5;
+  // Y=0 is LOS
+  // Y > 0 is downfield (defense side, toward top)
+  // Y < 0 is backfield (offense side, toward bottom)
+  const losY = FIELD_HEIGHT * LOS_POSITION;
+  // Scale: 0.1 normalized = 5 yards visual
+  const yardScale = FIELD_HEIGHT * 0.08; // pixels per 5-yard unit (0.1 normalized)
+  return losY - normalizedY * yardScale * 5;
 }
 
 function toSvgPoint(point: Point): { x: number; y: number } {
@@ -59,7 +70,7 @@ function toSvgPoint(point: Point): { x: number; y: number } {
 }
 
 // ============================================
-// Field Component
+// Field Component - Whiteboard Style
 // ============================================
 
 interface FieldProps {
@@ -69,12 +80,19 @@ interface FieldProps {
 
 function Field({ showGrid = true, showHash = true }: FieldProps) {
   const losY = toSvgY(0);
-  const hashLeftX = toSvgX(0.33);
-  const hashRightX = toSvgX(0.67);
+  const hashLeftX = toSvgX(0.355); // College hash (closer to center)
+  const hashRightX = toSvgX(0.645);
+
+  // Generate 5-yard lines from -20 to +40 yards relative to LOS
+  const yardLines: { yards: number; y: number }[] = [];
+  for (let yds = -15; yds <= 35; yds += 5) {
+    const normalizedY = yds * 0.02; // 1 yard = 0.02 normalized
+    yardLines.push({ yards: yds, y: toSvgY(normalizedY) });
+  }
 
   return (
     <g className="field-layer">
-      {/* Field background */}
+      {/* Field background - clean whiteboard */}
       <rect
         x={0}
         y={0}
@@ -83,65 +101,134 @@ function Field({ showGrid = true, showHash = true }: FieldProps) {
         fill={FIELD_COLOR}
       />
 
-      {/* Yard lines */}
+      {/* Subtle border */}
+      <rect
+        x={0}
+        y={0}
+        width={FIELD_WIDTH}
+        height={FIELD_HEIGHT}
+        fill="none"
+        stroke="#E2E8F0"
+        strokeWidth={2}
+      />
+
+      {/* 5-yard grid lines */}
       {showGrid && (
-        <>
-          {[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9].map((y) => (
-            <line
-              key={y}
-              x1={0}
-              y1={toSvgY(y - 0.4)}
-              x2={FIELD_WIDTH}
-              y2={toSvgY(y - 0.4)}
-              stroke={LINE_COLOR}
-              strokeWidth={1}
-              opacity={0.3}
-            />
-          ))}
-        </>
+        <g className="yard-lines">
+          {yardLines.map(({ yards, y }) => {
+            // Skip if out of viewBox
+            if (y < 0 || y > FIELD_HEIGHT) return null;
+
+            const isLOS = yards === 0;
+            if (isLOS) return null; // LOS drawn separately
+
+            return (
+              <g key={yards}>
+                <line
+                  x1={20}
+                  y1={y}
+                  x2={FIELD_WIDTH - 20}
+                  y2={y}
+                  stroke={LINE_COLOR}
+                  strokeWidth={1}
+                  opacity={0.6}
+                />
+                {/* Yard number on left */}
+                {yards > 0 && yards % 10 === 0 && (
+                  <text
+                    x={8}
+                    y={y + 4}
+                    fill={YARD_NUMBER_COLOR}
+                    fontSize={10}
+                    fontWeight="500"
+                  >
+                    {yards}
+                  </text>
+                )}
+              </g>
+            );
+          })}
+        </g>
       )}
 
-      {/* Line of Scrimmage */}
+      {/* Hash marks */}
+      {showHash && (
+        <g className="hash-marks">
+          {yardLines.map(({ yards, y }) => {
+            if (y < 0 || y > FIELD_HEIGHT) return null;
+
+            return (
+              <g key={`hash-${yards}`}>
+                {/* Left hash tick */}
+                <line
+                  x1={hashLeftX - 8}
+                  y1={y}
+                  x2={hashLeftX + 8}
+                  y2={y}
+                  stroke={HASH_COLOR}
+                  strokeWidth={2}
+                />
+                {/* Right hash tick */}
+                <line
+                  x1={hashRightX - 8}
+                  y1={y}
+                  x2={hashRightX + 8}
+                  y2={y}
+                  stroke={HASH_COLOR}
+                  strokeWidth={2}
+                />
+              </g>
+            );
+          })}
+        </g>
+      )}
+
+      {/* Line of Scrimmage - prominent blue */}
       <line
         x1={0}
         y1={losY}
         x2={FIELD_WIDTH}
         y2={losY}
-        stroke={LINE_COLOR}
+        stroke={LOS_COLOR}
         strokeWidth={3}
       />
+      <text
+        x={FIELD_WIDTH - 30}
+        y={losY - 8}
+        fill={LOS_COLOR}
+        fontSize={10}
+        fontWeight="600"
+      >
+        LOS
+      </text>
 
-      {/* Hash marks */}
-      {showHash && (
-        <>
-          <line
-            x1={hashLeftX}
-            y1={0}
-            x2={hashLeftX}
-            y2={FIELD_HEIGHT}
-            stroke={LINE_COLOR}
-            strokeWidth={1}
-            strokeDasharray="5,10"
-            opacity={0.4}
-          />
-          <line
-            x1={hashRightX}
-            y1={0}
-            x2={hashRightX}
-            y2={FIELD_HEIGHT}
-            stroke={LINE_COLOR}
-            strokeWidth={1}
-            strokeDasharray="5,10"
-            opacity={0.4}
-          />
-        </>
-      )}
+      {/* Sideline indicators */}
+      <line
+        x1={20}
+        y1={0}
+        x2={20}
+        y2={FIELD_HEIGHT}
+        stroke={LINE_COLOR}
+        strokeWidth={1}
+        strokeDasharray="4,8"
+        opacity={0.4}
+      />
+      <line
+        x1={FIELD_WIDTH - 20}
+        y1={0}
+        x2={FIELD_WIDTH - 20}
+        y2={FIELD_HEIGHT}
+        stroke={LINE_COLOR}
+        strokeWidth={1}
+        strokeDasharray="4,8"
+        opacity={0.4}
+      />
     </g>
   );
 }
 
 // ============================================
-// Player Component
+// Player Component - Clean Style
 // ============================================
 
 interface PlayerNodeProps {
@@ -155,20 +242,43 @@ function PlayerNode({ player, selected, onClick }: PlayerNodeProps) {
   const isOffense = player.unit === "offense";
   const color = isOffense ? OFFENSE_COLOR : DEFENSE_COLOR;
 
+  // Determine stance visual (subtle indicator)
+  const isLineman = ["LT", "LG", "C", "RG", "RT", "TE"].includes(player.role || "");
+
   return (
     <g
       className={`player-node ${selected ? "selected" : ""}`}
       onClick={() => onClick?.(player)}
       style={{ cursor: "pointer" }}
     >
+      {/* Shadow for depth */}
+      <circle
+        cx={pos.x + 1}
+        cy={pos.y + 2}
+        r={PLAYER_RADIUS}
+        fill="rgba(0,0,0,0.15)"
+      />
+      {/* Player circle */}
       <circle
         cx={pos.x}
         cy={pos.y}
         r={PLAYER_RADIUS}
         fill={color}
-        stroke={selected ? "#fbbf24" : "#ffffff"}
+        stroke={selected ? "#F59E0B" : "#ffffff"}
         strokeWidth={selected ? 3 : 2}
       />
+      {/* Stance indicator for linemen (small line at bottom) */}
+      {isLineman && isOffense && (
+        <line
+          x1={pos.x - 6}
+          y1={pos.y + PLAYER_RADIUS - 2}
+          x2={pos.x + 6}
+          y2={pos.y + PLAYER_RADIUS - 2}
+          stroke="rgba(255,255,255,0.6)"
+          strokeWidth={2}
+        />
+      )}
+      {/* Label */}
       <text
         x={pos.x}
         y={pos.y + 4}
@@ -185,7 +295,7 @@ function PlayerNode({ player, selected, onClick }: PlayerNodeProps) {
 }
 
 // ============================================
-// Route Component
+// Route Component - Clean with Shadow
 // ============================================
 
 interface RoutePathProps {
@@ -213,16 +323,16 @@ function RoutePath({ action }: RoutePathProps) {
 
   return (
     <g className="route-action">
-      {/* Glow effect for visibility */}
+      {/* Shadow for visibility on white */}
       <path
         d={pathD}
         fill="none"
-        stroke="rgba(0,0,0,0.5)"
+        stroke="rgba(0,0,0,0.2)"
         strokeWidth={6}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Main route line - bright yellow */}
+      {/* Main route line */}
       <path
         d={pathD}
         fill="none"
@@ -233,18 +343,16 @@ function RoutePath({ action }: RoutePathProps) {
       />
       {/* Arrow head */}
       {action.route.endMarker === "arrow" && (
-        <>
-          <polygon
-            points={`
-              ${lastPoint.x},${lastPoint.y}
-              ${lastPoint.x - 14 * Math.cos(angle - 0.4)},${lastPoint.y - 14 * Math.sin(angle - 0.4)}
-              ${lastPoint.x - 14 * Math.cos(angle + 0.4)},${lastPoint.y - 14 * Math.sin(angle + 0.4)}
-            `}
-            fill={ROUTE_COLOR}
-            stroke="rgba(0,0,0,0.5)"
-            strokeWidth={2}
-          />
-        </>
+        <polygon
+          points={`
+            ${lastPoint.x},${lastPoint.y}
+            ${lastPoint.x - 14 * Math.cos(angle - 0.4)},${lastPoint.y - 14 * Math.sin(angle - 0.4)}
+            ${lastPoint.x - 14 * Math.cos(angle + 0.4)},${lastPoint.y - 14 * Math.sin(angle + 0.4)}
+          `}
+          fill={ROUTE_COLOR}
+          stroke="rgba(0,0,0,0.2)"
+          strokeWidth={2}
+        />
       )}
     </g>
   );
@@ -261,7 +369,6 @@ interface BlockPathProps {
 function BlockPath({ action }: BlockPathProps) {
   const pathPoints = action.block.pathPoints;
   if (!pathPoints || pathPoints.length < 2) {
-    // If no path, draw from fromPlayer to target
     return null;
   }
 
@@ -287,7 +394,7 @@ function BlockPath({ action }: BlockPathProps) {
       <path
         d={pathD}
         fill="none"
-        stroke="rgba(0,0,0,0.4)"
+        stroke="rgba(0,0,0,0.15)"
         strokeWidth={6}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -310,7 +417,7 @@ function BlockPath({ action }: BlockPathProps) {
           ${lastPoint.x - 12 * Math.cos(angle + 0.5)},${lastPoint.y - 12 * Math.sin(angle + 0.5)}
         `}
         fill={color}
-        stroke="rgba(0,0,0,0.4)"
+        stroke="rgba(0,0,0,0.15)"
         strokeWidth={1}
       />
     </g>
@@ -347,7 +454,7 @@ function MotionPath({ action }: MotionPathProps) {
       <path
         d={pathD}
         fill="none"
-        stroke="rgba(0,0,0,0.4)"
+        stroke="rgba(0,0,0,0.15)"
         strokeWidth={5}
         strokeLinecap="round"
       />
@@ -390,7 +497,7 @@ function LandmarkNode({ action }: LandmarkNodeProps) {
         cx={pos.x}
         cy={pos.y}
         r={6}
-        fill="#f59e0b"
+        fill="#EF4444"
         stroke="#ffffff"
         strokeWidth={2}
       />
@@ -399,12 +506,9 @@ function LandmarkNode({ action }: LandmarkNodeProps) {
           x={pos.x}
           y={pos.y - 12}
           textAnchor="middle"
-          fill="#ffffff"
+          fill="#374151"
           fontSize={10}
           fontWeight="bold"
-          style={{
-            textShadow: "0 0 3px rgba(0,0,0,0.8)",
-          }}
         >
           {action.landmark.label}
         </text>
@@ -429,11 +533,9 @@ function TextNode({ action }: TextNodeProps) {
       <text
         x={pos.x}
         y={pos.y}
-        fill="#ffffff"
+        fill="#1F2937"
         fontSize={12}
-        style={{
-          textShadow: "0 0 4px rgba(0,0,0,0.9)",
-        }}
+        fontWeight="500"
       >
         {action.text.value}
       </text>
@@ -475,8 +577,8 @@ export function PlayRenderer({
     >
       {/* Field layer */}
       <Field
-        showGrid={fieldSettings.showGrid}
-        showHash={fieldSettings.showHash}
+        showGrid={fieldSettings.showGrid !== false}
+        showHash={fieldSettings.showHash !== false}
       />
 
       {/* Actions layer (routes, blocks, motions) */}

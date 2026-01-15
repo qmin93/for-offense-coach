@@ -1,328 +1,448 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phala Network - AI Intro Video</title>
+    <title>Phala Network - Reel Style Demo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;900&family=JetBrains+Mono:wght@700&display=swap"
+        rel="stylesheet">
     <style>
         :root {
-            --phala-green: #C0E735;
-            --dark-bg: #050505;
-            --panel-bg: #111111;
-            --text-white: #ffffff;
+            --brand: #C0E735;
+            --bg: #050505;
+            --surface: #111;
+            --text-main: white;
+            --text-sub: #888;
         }
 
         body {
             margin: 0;
-            padding: 0;
-            background-color: #222;
+            background: #000;
+            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
             font-family: 'Inter', sans-serif;
             overflow: hidden;
+            perspective: 1000px;
+            /* For 3D rotation */
         }
 
-        /* Phone Container */
-        .phone-frame {
+        /* 9:16 Canvas */
+        #canvas {
             width: 100%;
-            max-width: 450px;
+            max-width: 540px;
             aspect-ratio: 9/16;
-            background-color: var(--dark-bg);
+            background: var(--bg);
             position: relative;
             overflow: hidden;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
-            border-radius: 20px;
+            box-shadow: 0 0 50px rgba(50, 50, 50, 0.5);
+            /* Zoom Container */
+            transform-style: preserve-3d;
+            transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
-        /* Scenes */
-        .scene {
+        /* --- LAYERS --- */
+        .layer {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            inset: 0;
+            pointer-events: none;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.5s ease;
         }
 
-        .scene.active {
-            opacity: 1;
-            pointer-events: all;
+        /* 1. Background Grid */
+        .bg-grid {
+            background-image:
+                linear-gradient(rgba(30, 30, 30, 0.4) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 30, 30, 0.4) 1px, transparent 1px);
+            background-size: 50px 50px;
+            opacity: 0.3;
+            transform: scale(2);
+            /* Make it big for panning */
+            animation: panGrid 20s linear infinite;
         }
 
-        /* Scene 1: Hook */
-        .hook-text {
-            font-size: 3rem;
-            font-weight: 900;
-            color: var(--text-white);
+        @keyframes panGrid {
+            to {
+                transform: scale(2) translateY(50px);
+            }
+        }
+
+        /* 2. UI Mockup Container (Browser) */
+        .browser-mockup {
+            width: 90%;
+            height: 60%;
+            background: #1a1a1a;
+            border-radius: 16px;
+            border: 1px solid #333;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+            position: absolute;
+            top: 20%;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.5s ease;
+            transform: translateY(100vh);
+            /* Start hidden */
+            overflow: hidden;
+        }
+
+        .browser-header {
+            height: 40px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            gap: 8px;
+            background: #222;
+        }
+
+        .b-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #444;
+        }
+
+        .b-dot.r {
+            background: #ff5f56;
+        }
+
+        .b-dot.y {
+            background: #ffbd2e;
+        }
+
+        .b-dot.g {
+            background: #27c93f;
+        }
+
+        .url-bar {
+            background: #000;
+            color: #666;
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 4px;
+            flex: 1;
+            margin-left: 10px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .browser-body {
+            flex: 1;
+            padding: 20px;
+            background: #0d0d0d;
+            position: relative;
+            color: #ddd;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+        }
+
+        /* 3. Captions (Reel Style) */
+        .caption-container {
+            position: absolute;
+            bottom: 25%;
+            left: 0;
+            width: 100%;
             text-align: center;
-            line-height: 1.2;
+            z-index: 999;
         }
+
+        .caption-word {
+            display: inline-block;
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: white;
+            text-transform: uppercase;
+            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
+            transform: scale(0);
+            opacity: 0;
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.1s;
+            margin: 0 5px;
+            -webkit-text-stroke: 2px black;
+        }
+
+        .caption-word.active {
+            transform: scale(1);
+            opacity: 1;
+        }
+
         .highlight {
-            color: var(--phala-green);
-            display: block;
+            color: var(--brand);
         }
+
         .highlight-red {
             color: #ff4444;
         }
 
-        /* Scene 2: Brand */
-        .logo-container {
-            width: 100px;
-            height: 100px;
-            background: linear-gradient(135deg, var(--phala-green), #a2c918);
-            border-radius: 15px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 4rem;
-            font-weight: 900;
-            color: var(--dark-bg);
-            margin-bottom: 20px;
-            box-shadow: 0 0 30px rgba(192, 231, 53, 0.3);
-        }
-        .brand-name {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--text-white);
-            letter-spacing: -1px;
-        }
-        .tagline {
-            color: #888;
-            margin-top: 10px;
-            font-size: 1.2rem;
-        }
-
-        /* Scene 3: Demo UI */
-        .demo-ui {
-            width: 90%;
-            height: 60%;
-            background: var(--panel-bg);
-            border-radius: 12px;
-            border: 1px solid #333;
-            display: flex;
-            flex-direction: column;
-            font-family: 'Courier New', monospace;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            transform: translateY(100%);
-            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        
-        @keyframes slideUp {
-            to { transform: translateY(0); }
-        }
-
-        .ui-header {
-            padding: 15px;
-            border-bottom: 1px solid #333;
-            display: flex;
-            gap: 10px;
-        }
-        .dot { width: 12px; height: 12px; border-radius: 50%; background: #444; }
-        .dot.red { background: #ff5f56; }
-        .dot.yellow { background: #ffbd2e; }
-        .dot.green { background: #27c93f; }
-
-        .ui-content {
-            padding: 20px;
-            color: #aaa;
-            font-size: 1rem;
-            line-height: 1.6;
-        }
-        .command { color: var(--text-white); }
-        .cursor { display: inline-block; width: 10px; height: 1.2em; background: var(--phala-green); animation: blink 1s infinite; vertical-align: middle;}
-        .success { color: var(--phala-green); margin-top: 20px; display: block; }
-        
-        @keyframes blink { 50% { opacity: 0; } }
-
-        /* Scene 4: Keywords */
-        .keyword {
-            font-size: 4rem;
-            font-weight: 900;
-            text-transform: uppercase;
-            color: transparent;
-            -webkit-text-stroke: 2px var(--text-white);
-            position: absolute;
-            opacity: 0;
-        }
-        .keyword.filled {
-            color: var(--phala-green);
-            -webkit-text-stroke: 0;
-        }
-
-        /* Scene 5: Outro */
-        .cta-btn {
-            background: var(--phala-green);
-            color: var(--dark-bg);
-            padding: 20px 40px;
-            font-size: 1.5rem;
-            font-weight: 800;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            text-decoration: none;
-            margin-top: 30px;
-            display: inline-block;
-        }
-
-        /* Progress Bar */
-        .progress-bar {
+        /* Fake Mouse */
+        .cursor {
+            width: 24px;
+            height: 24px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' stroke='black' stroke-width='2'%3E%3Cpath d='M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z'/%3E%3C/svg%3E");
             position: absolute;
             top: 0;
             left: 0;
-            height: 4px;
-            background: var(--phala-green);
-            width: 0%;
-            z-index: 100;
+            z-index: 1000;
+            pointer-events: none;
+            transition: all 0.3s ease-out;
+            /* Smooth movement */
+            filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        .click-effect {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--brand);
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            opacity: 0;
+            transform: scale(0.5);
+        }
+
+        .clicked .click-effect {
+            animation: clickPulse 0.4s ease-out;
+        }
+
+        @keyframes clickPulse {
+            0% {
+                opacity: 1;
+                transform: scale(0.5);
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(1.5);
+            }
+        }
+
+        /* Content Elements inside Browser */
+        .hero-title {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            transition: opacity 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--brand);
+            color: black;
+            padding: 10px 20px;
+            border-radius: 8px;
+            display: inline-block;
+            font-weight: 700;
+            margin-top: 20px;
+        }
+
+        .code-block {
+            background: #222;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid var(--brand);
+            margin-top: 20px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.4s;
+        }
+
+        .hardware-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+            opacity: 0;
+        }
+
+        .hw-card {
+            background: #111;
+            border: 1px solid #333;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
         }
     </style>
 </head>
+
 <body>
 
-    <div class="phone-frame">
-        <div class="progress-bar" id="progressBar"></div>
+    <div id="canvas">
+        <!-- Layer 1: BG -->
+        <div class="layer bg-grid"></div>
 
-        <!-- Scene 1: Hook -->
-        <div class="scene" id="scene1">
-            <div class="hook-text">
-                <div>AI NEEDS</div>
-                <div class="highlight-red" id="text-privacy">PRIVACY.</div>
+        <!-- Layer 2: Simulated Browser -->
+        <div class="browser-mockup" id="browser">
+            <div class="browser-header">
+                <div class="b-dot r"></div>
+                <div class="b-dot y"></div>
+                <div class="b-dot g"></div>
+                <div class="url-bar" id="url-text">phala.com</div>
+            </div>
+            <div class="browser-body" id="browser-content">
+                <!-- Dynamic Content injected via JS -->
+                <div class="hero-title">Build AI That<br>Users Trust.</div>
+                <div style="color: #666;">The Confidential AI Cloud</div>
+                <div class="btn-primary" id="btn-start">Get Started</div>
+            </div>
+            <!-- Cursor lives inside browser frame roughly -->
+            <div class="cursor" id="cursor" style="transform: translate(300px, 400px);">
+                <div class="click-effect"></div>
             </div>
         </div>
 
-        <!-- Scene 2: Intro -->
-        <div class="scene" id="scene2">
-            <div class="logo-container">P</div>
-            <div class="brand-name">Phala Network</div>
-            <div class="tagline">The Confidential AI Cloud</div>
-        </div>
-
-        <!-- Scene 3: Demo -->
-        <div class="scene" id="scene3">
-            <div style="margin-bottom: 20px; font-weight: bold; color: white; font-size: 1.5rem;">Secured by TEE</div>
-            <div class="demo-ui">
-                <div class="ui-header">
-                    <div class="dot red"></div>
-                    <div class="dot yellow"></div>
-                    <div class="dot green"></div>
-                </div>
-                <div class="ui-content" id="terminal-content">
-                    > initiating_secure_enclave...<br>
-                </div>
-            </div>
-        </div>
-
-        <!-- Scene 4: Keywords -->
-        <div class="scene" id="scene4">
-            <div class="keyword" id="kw1">TRUSTLESS</div>
-            <div class="keyword" id="kw2">VERIFIABLE</div>
-            <div class="keyword" id="kw3">PRIVATE</div>
-        </div>
-
-        <!-- Scene 5: Outro -->
-        <div class="scene" id="scene5">
-            <div class="logo-container" style="transform: scale(0.8);">P</div>
-            <div class="hook-text" style="font-size: 2.5rem;">Build AI<br>People Can Trust</div>
-            <a href="https://phala.com" class="cta-btn">Start Building</a>
-        </div>
-
-        <!-- Controls -->
-        <div style="position: absolute; bottom: 20px; left: 0; width: 100%; text-align: center; color: #555; font-size: 0.8rem;">
-            Audio: [Upbeat Tech Phonk]
+        <!-- Layer 3: Overlay Captions -->
+        <div class="caption-container" id="captions">
+            <!-- Words appear here -->
         </div>
     </div>
 
     <script>
-        const scenes = [
-            { id: 'scene1', duration: 3000 },
-            { id: 'scene2', duration: 3000 },
-            { id: 'scene3', duration: 6000 },
-            { id: 'scene4', duration: 3000 },
-            { id: 'scene5', duration: 5000 }
-        ];
+        // Script Engine
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        const el = (id) => document.getElementById(id);
 
-        let currentScene = 0;
-        const progressBar = document.getElementById('progressBar');
-        
-        function playScene(index) {
-            // Hide all scenes
-            document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
-            
-            // Show current
-            if (index < scenes.length) {
-                const sceneData = scenes[index];
-                const sceneEl = document.getElementById(sceneData.id);
-                sceneEl.classList.add('active');
-
-                // Scene specific logic
-                if (sceneData.id === 'scene1') {
-                    setTimeout(() => {
-                        document.getElementById('text-privacy').innerText = 'SOLVED.';
-                        document.getElementById('text-privacy').classList.remove('highlight-red');
-                        document.getElementById('text-privacy').classList.add('highlight');
-                    }, 1500);
-                }
-
-                if (sceneData.id === 'scene3') {
-                    const term = document.getElementById('terminal-content');
-                    term.innerHTML = '> initiating_secure_enclave...<br>';
-                    const lines = [
-                        { text: '> verifying_hardware_signatures...', delay: 1000 },
-                        { text: '> connection_established (TEE)', delay: 2500 },
-                        { text: '> deploying_model: "Secret_LLM"', delay: 3500 },
-                        { text: '<span class="success">✓ DEPLOYMENT COMPLETE</span>', delay: 5000 }
-                    ];
-                    lines.forEach(line => {
-                        setTimeout(() => {
-                            term.innerHTML += line.text + '<br>';
-                        }, line.delay);
-                    });
-                }
-
-                if (sceneData.id === 'scene4') {
-                    const kws = ['kw1', 'kw2', 'kw3'];
-                    kws.forEach((id, i) => {
-                        setTimeout(() => {
-                            document.querySelectorAll('.keyword').forEach(k => k.style.opacity = '0');
-                            const el = document.getElementById(id);
-                            el.style.opacity = '1';
-                            el.classList.add('filled');
-                        }, i * 1000);
-                    });
-                }
-
-                // Progress Bar Animation
-                progressBar.style.transition = 'none';
-                progressBar.style.width = '0%';
-                setTimeout(() => {
-                    progressBar.style.transition = `width ${sceneData.duration}ms linear`;
-                    progressBar.style.width = '100%';
-                }, 50);
-
-                // Next scene
-                setTimeout(() => {
-                    playScene(index + 1);
-                }, sceneData.duration);
-            } else {
-                // Loop or stop
-                 setTimeout(() => playScene(0), 2000); // Loop
+        async function typeUrl(text) {
+            const bar = el('url-text');
+            bar.innerText = '';
+            for (let char of text) {
+                bar.innerText += char;
+                await sleep(50);
             }
         }
 
+        async function moveCursor(x, y, click = false) {
+            const cursor = el('cursor');
+            cursor.style.transform = `translate(${x}px, ${y}px)`;
+            await sleep(400); // Wait for move
+            if (click) {
+                cursor.classList.add('clicked');
+                await sleep(200);
+                cursor.classList.remove('clicked');
+            }
+        }
+
+        // Caption System: Shows words one by one
+        async function say(text, color = 'white', speed = 200) {
+            const container = el('captions');
+            container.innerHTML = ''; // Clear previous
+
+            const words = text.split(' ');
+            for (let word of words) {
+                const span = document.createElement('span');
+                span.innerText = word;
+                span.className = 'caption-word active';
+                if (color === 'brand') span.classList.add('highlight');
+                if (color === 'red') span.classList.add('highlight-red');
+
+                container.appendChild(span);
+                await sleep(speed);
+                // Optional: remove word to act like "rolling" captions or keep stacking
+                // Let's keep stacking for short phrases, clean for new phrases
+            }
+            await sleep(500); // Hold reading time
+        }
+
+        function clearCaptions() { el('captions').innerHTML = ''; }
+
+        async function zoomCanvas(scale, originX = 50, originY = 50) {
+            const c = el('canvas');
+            c.style.transformOrigin = `${originX}% ${originY}%`;
+            c.style.transform = `scale(${scale})`;
+        }
+
+        // --- MAIN TIMELINE ---
+        async function runTimeline() {
+            // Scene 0: Reset
+            const browser = el('browser');
+            const content = el('browser-content');
+
+            // Scene 1: Hook (Large text, no browser yet)
+            await say("AI HAS A", 'white', 300);
+            clearCaptions();
+            await say("HUGE PROBLEM", 'red', 400);
+            clearCaptions();
+
+            // Scene 2: Browser Slide In
+            browser.style.transform = 'translateY(0)'; // Slide Up
+            await sleep(800);
+
+            await moveCursor(200, 300, false); // Move to center
+
+            // Scene 3: Problem Demo (Data Leak)
+            await say("YOUR DATA", 'white', 250);
+            content.innerHTML = `<div style="color:#ff4444; font-size:1.5rem; border:2px dashed red; padding:20px;">⚠ DATA LEAKED ⚠<br><br>User: "My secret key is..."<br>AI: "Loging to server..."</div>`;
+            await say("IS EXPOSED", 'red', 250);
+            await zoomCanvas(1.2, 50, 40); // Zoom in on leak
+            await sleep(1000);
+
+            // Scene 4: Solution (Phala)
+            clearCaptions();
+            await zoomCanvas(1.0); // Zoom out
+            content.innerHTML = `<div class="hero-title">Phala Network</div><div class="code-block" style="opacity:1;">> Initializing TEE...<br>> Securing Data...<br>> Status: <span style="color:#C0E735">ENCRYPTED</span></div>`;
+
+            await typeUrl("phala.com/solution");
+            await say("BUT PHALA", 'brand', 300);
+            await moveCursor(350, 150, true); // Click something
+            clearCaptions();
+            await say("FIXES THIS.", 'brand', 400);
+
+            // Scene 5: Hardware Showcase (Fast Cuts)
+            clearCaptions();
+            await say("POWERFUL HARDWARE", 'white', 200);
+
+            // Show Cards
+            content.innerHTML = `
+                <div class="hero-title" style="font-size:1.5rem;">Global GPU Fleet</div>
+                <div class="hardware-grid" style="opacity:1;">
+                    <div class="hw-card"><h2 style="color:#76b900">H100</h2>Nvidia</div>
+                    <div class="hw-card"><h2 style="color:white">H200</h2>Nvidia</div>
+                    <div class="hw-card"><h2 style="color:white">TDX</h2>Intel</div>
+                    <div class="hw-card"><h2 style="color:#C0E735">TEE</h2>Secure</div>
+                </div>`;
+
+            await moveCursor(80, 250);
+            await zoomCanvas(1.5, 20, 40); // Zoom on H100
+            await sleep(800);
+            await moveCursor(380, 250);
+            await zoomCanvas(1.5, 80, 40); // Pan to TEE
+            await sleep(800);
+            await zoomCanvas(1.0);
+
+            // Scene 6: Models
+            clearCaptions();
+            content.innerHTML = `
+            <div style="font-size:1.2rem; margin-bottom:10px;">Supported Models</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <span style="background:#333; padding:5px 10px; border-radius:20px;">Llama 3</span>
+                <span style="background:#333; padding:5px 10px; border-radius:20px;">DeepSeek</span>
+                <span style="background:#333; padding:5px 10px; border-radius:20px;">Mistral</span>
+            </div>
+            `;
+            await say("ANY MODEL.", 'white', 300);
+            await say("TOTALLY PRIVATE.", 'brand', 300);
+
+            // Scene 7: CTA
+            clearCaptions();
+            content.innerHTML = `<div class="hero-title">Start Building</div><div class="btn-primary" style="transform:scale(1.5);">phala.com</div>`;
+            await moveCursor(250, 400, true); // Click button
+
+            await say("LINK IN BIO", 'brand', 500);
+            await sleep(2000);
+
+            // Loop?
+            // location.reload();
+        }
+
         // Start
-        window.onload = () => {
-            playScene(0);
-        };
+        setTimeout(runTimeline, 500);
+
     </script>
 </body>
+
 </html>
