@@ -182,7 +182,9 @@ export type BlockScheme =
   | "wham"
   | "arc"
   | "sift"
-  | "seal";
+  | "seal"
+  // Hand-drawn
+  | "custom";
 
 export interface BlockTarget {
   toPlayerId?: string;

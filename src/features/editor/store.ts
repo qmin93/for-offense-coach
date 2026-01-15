@@ -32,6 +32,12 @@ export interface Command {
   description: string;
 }
 
+export interface DrawingState {
+  isDrawing: boolean;
+  drawingPlayerId: string | null; // Player the action is attached to
+  drawingPoints: Point[];
+}
+
 export interface EditorState {
   // Core data (source of truth)
   play: Play | null;
@@ -42,6 +48,9 @@ export interface EditorState {
   selectedPlayerId: string | null;
   selectedActionId: string | null;
   hoveredPlayerId: string | null;
+
+  // Drawing state
+  drawing: DrawingState;
 
   // History (Undo/Redo)
   history: Play[];
@@ -84,6 +93,12 @@ export interface EditorState {
   updateAction: (actionId: string, updates: Partial<Action>) => void;
   removeAction: (actionId: string) => void;
 
+  // Drawing operations
+  startDrawing: (playerId: string, startPoint: Point) => void;
+  addDrawingPoint: (point: Point) => void;
+  finishDrawing: () => void;
+  cancelDrawing: () => void;
+
   // Auto-build
   buildFromConcept: (concept: Concept) => void;
 
@@ -114,6 +129,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectedPlayerId: null,
   selectedActionId: null,
   hoveredPlayerId: null,
+  drawing: {
+    isDrawing: false,
+    drawingPlayerId: null,
+    drawingPoints: [],
+  },
   history: [],
   historyIndex: -1,
   maxHistory: 50,
@@ -428,6 +448,114 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     get().setPlay(newPlay);
     set({ selectedActionId: null });
+  },
+
+  // Drawing operations
+  startDrawing: (playerId: string, startPoint: Point) => {
+    const state = get();
+    const player = state.play?.roster.players.find((p) => p.id === playerId);
+    if (!player) return;
+
+    // Use player's position as the first point
+    const playerPoint = { x: player.alignment.x, y: player.alignment.y };
+
+    set({
+      drawing: {
+        isDrawing: true,
+        drawingPlayerId: playerId,
+        drawingPoints: [playerPoint],
+      },
+      selectedPlayerId: playerId,
+    });
+  },
+
+  addDrawingPoint: (point: Point) => {
+    const state = get();
+    if (!state.drawing.isDrawing) return;
+
+    set({
+      drawing: {
+        ...state.drawing,
+        drawingPoints: [...state.drawing.drawingPoints, point],
+      },
+    });
+  },
+
+  finishDrawing: () => {
+    const state = get();
+    if (!state.drawing.isDrawing || !state.play || !state.drawing.drawingPlayerId) return;
+
+    const points = state.drawing.drawingPoints;
+    if (points.length < 2) {
+      // Not enough points, cancel
+      set({
+        drawing: { isDrawing: false, drawingPlayerId: null, drawingPoints: [] },
+      });
+      return;
+    }
+
+    const mode = state.mode;
+    const playerId = state.drawing.drawingPlayerId;
+    let newAction: Action | null = null;
+
+    if (mode === "route") {
+      newAction = {
+        id: `a_route_${uuid().slice(0, 8)}`,
+        actionType: "route",
+        fromPlayerId: playerId,
+        layer: "primary",
+        route: {
+          pattern: "custom",
+          controlPoints: points,
+          endMarker: "arrow",
+        },
+        timing: { phase: "post_snap" },
+        style: { line: "solid", thickness: "normal" },
+      } as Action;
+    } else if (mode === "block") {
+      newAction = {
+        id: `a_block_${uuid().slice(0, 8)}`,
+        actionType: "block",
+        fromPlayerId: playerId,
+        layer: "primary",
+        block: {
+          scheme: "custom",
+          target: { landmark: points[points.length - 1] },
+          pathPoints: points,
+        },
+        style: { line: "solid", endMarker: "arrow" },
+      } as Action;
+    } else if (mode === "motion") {
+      newAction = {
+        id: `a_motion_${uuid().slice(0, 8)}`,
+        actionType: "motion",
+        fromPlayerId: playerId,
+        layer: "primary",
+        motion: {
+          motionType: "shift",
+          pathPoints: points,
+          endAlignment: points[points.length - 1],
+        },
+        timing: { phase: "pre_snap" },
+        style: { line: "dashed", endMarker: "none" },
+      } as Action;
+    }
+
+    // Clear drawing state first
+    set({
+      drawing: { isDrawing: false, drawingPlayerId: null, drawingPoints: [] },
+    });
+
+    // Add the action if created
+    if (newAction) {
+      get().addAction(newAction);
+    }
+  },
+
+  cancelDrawing: () => {
+    set({
+      drawing: { isDrawing: false, drawingPlayerId: null, drawingPoints: [] },
+    });
   },
 
   // Build from concept

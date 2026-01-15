@@ -28,6 +28,10 @@ const FIELD_COLOR = "#2d5a27";
 const LINE_COLOR = "#ffffff";
 const OFFENSE_COLOR = "#1e40af";
 const DEFENSE_COLOR = "#dc2626";
+const ROUTE_COLOR = "#fbbf24"; // Bright yellow for routes
+const BLOCK_COLOR = "#3b82f6"; // Bright blue for blocks
+const PULL_COLOR = "#10b981"; // Green for pull blocks
+const MOTION_COLOR = "#f97316"; // Orange for motion
 const PLAYER_RADIUS = 14;
 const FONT_SIZE = 11;
 
@@ -209,24 +213,38 @@ function RoutePath({ action }: RoutePathProps) {
 
   return (
     <g className="route-action">
+      {/* Glow effect for visibility */}
       <path
         d={pathD}
         fill="none"
-        stroke={OFFENSE_COLOR}
-        strokeWidth={2.5}
+        stroke="rgba(0,0,0,0.5)"
+        strokeWidth={6}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Main route line - bright yellow */}
+      <path
+        d={pathD}
+        fill="none"
+        stroke={ROUTE_COLOR}
+        strokeWidth={4}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       {/* Arrow head */}
       {action.route.endMarker === "arrow" && (
-        <polygon
-          points={`
-            ${lastPoint.x},${lastPoint.y}
-            ${lastPoint.x - 10 * Math.cos(angle - 0.4)},${lastPoint.y - 10 * Math.sin(angle - 0.4)}
-            ${lastPoint.x - 10 * Math.cos(angle + 0.4)},${lastPoint.y - 10 * Math.sin(angle + 0.4)}
-          `}
-          fill={OFFENSE_COLOR}
-        />
+        <>
+          <polygon
+            points={`
+              ${lastPoint.x},${lastPoint.y}
+              ${lastPoint.x - 14 * Math.cos(angle - 0.4)},${lastPoint.y - 14 * Math.sin(angle - 0.4)}
+              ${lastPoint.x - 14 * Math.cos(angle + 0.4)},${lastPoint.y - 14 * Math.sin(angle + 0.4)}
+            `}
+            fill={ROUTE_COLOR}
+            stroke="rgba(0,0,0,0.5)"
+            strokeWidth={2}
+          />
+        </>
       )}
     </g>
   );
@@ -261,26 +279,39 @@ function BlockPath({ action }: BlockPathProps) {
   );
 
   const isPull = action.block.scheme?.includes("pull") || action.block.scheme === "wrap";
+  const color = isPull ? PULL_COLOR : BLOCK_COLOR;
 
   return (
     <g className="block-action">
+      {/* Shadow for visibility */}
       <path
         d={pathD}
         fill="none"
-        stroke={isPull ? "#059669" : "#1e40af"}
-        strokeWidth={3}
+        stroke="rgba(0,0,0,0.4)"
+        strokeWidth={6}
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeDasharray={isPull ? "8,4" : undefined}
+      />
+      {/* Main block line */}
+      <path
+        d={pathD}
+        fill="none"
+        stroke={color}
+        strokeWidth={4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeDasharray={isPull ? "10,5" : undefined}
       />
       {/* Arrow head */}
       <polygon
         points={`
           ${lastPoint.x},${lastPoint.y}
-          ${lastPoint.x - 8 * Math.cos(angle - 0.5)},${lastPoint.y - 8 * Math.sin(angle - 0.5)}
-          ${lastPoint.x - 8 * Math.cos(angle + 0.5)},${lastPoint.y - 8 * Math.sin(angle + 0.5)}
+          ${lastPoint.x - 12 * Math.cos(angle - 0.5)},${lastPoint.y - 12 * Math.sin(angle - 0.5)}
+          ${lastPoint.x - 12 * Math.cos(angle + 0.5)},${lastPoint.y - 12 * Math.sin(angle + 0.5)}
         `}
-        fill={isPull ? "#059669" : "#1e40af"}
+        fill={color}
+        stroke="rgba(0,0,0,0.4)"
+        strokeWidth={1}
       />
     </g>
   );
@@ -303,15 +334,40 @@ function MotionPath({ action }: MotionPathProps) {
     return `${acc} L ${point.x} ${point.y}`;
   }, "");
 
+  const lastPoint = points[points.length - 1];
+  const prevPoint = points[points.length - 2];
+  const angle = Math.atan2(
+    lastPoint.y - prevPoint.y,
+    lastPoint.x - prevPoint.x
+  );
+
   return (
     <g className="motion-action">
+      {/* Shadow */}
       <path
         d={pathD}
         fill="none"
-        stroke="#f59e0b"
-        strokeWidth={2}
-        strokeDasharray="6,4"
+        stroke="rgba(0,0,0,0.4)"
+        strokeWidth={5}
         strokeLinecap="round"
+      />
+      {/* Main motion line */}
+      <path
+        d={pathD}
+        fill="none"
+        stroke={MOTION_COLOR}
+        strokeWidth={3}
+        strokeDasharray="8,5"
+        strokeLinecap="round"
+      />
+      {/* Arrow head */}
+      <polygon
+        points={`
+          ${lastPoint.x},${lastPoint.y}
+          ${lastPoint.x - 10 * Math.cos(angle - 0.4)},${lastPoint.y - 10 * Math.sin(angle - 0.4)}
+          ${lastPoint.x - 10 * Math.cos(angle + 0.4)},${lastPoint.y - 10 * Math.sin(angle + 0.4)}
+        `}
+        fill={MOTION_COLOR}
       />
     </g>
   );
