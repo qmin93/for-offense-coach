@@ -237,8 +237,10 @@ export function createPlayFromFormation(
   formation: Formation,
   name?: string
 ): Play {
+  // IMPORTANT: Generate new player IDs every time to ensure uniqueness
+  // This prevents issues when comparing/merging plays and ensures React keys are stable
   const players: Player[] = formation.defaults.players.map((p) => ({
-    id: p.id,
+    id: `p_${p.role.toLowerCase()}_${uuid().slice(0, 8)}`, // Always generate new ID
     role: p.role,
     label: p.label,
     unit: "offense" as const,

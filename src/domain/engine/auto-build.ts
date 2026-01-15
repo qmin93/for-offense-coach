@@ -479,12 +479,75 @@ export function applyAutoBuildToPlay(
     // Replace all existing actions
     newActions = result.actions;
   } else {
-    // Add as new layer (secondary)
-    const layeredActions = result.actions.map((action) => ({
-      ...action,
-      layer: "secondary" as const,
-    }));
-    newActions = [...play.actions, ...layeredActions];
+    // Merge actions intelligently - prevent duplicates (idempotent)
+    const existingActions = [...play.actions];
+
+    for (const newAction of result.actions) {
+      // Check for duplicate landmarks (aim points) - only one per kind
+      if (newAction.actionType === "landmark") {
+        const landmarkAction = newAction as LandmarkAction;
+        const existingIndex = existingActions.findIndex(
+          (a) =>
+            a.actionType === "landmark" &&
+            (a as LandmarkAction).landmark.kind === landmarkAction.landmark.kind
+        );
+
+        if (existingIndex !== -1) {
+          // Update existing landmark instead of adding duplicate
+          existingActions[existingIndex] = {
+            ...newAction,
+            id: existingActions[existingIndex].id, // Keep original ID for React key stability
+          };
+          continue;
+        }
+      }
+
+      // Check for duplicate routes from same player
+      if (newAction.actionType === "route") {
+        const routeAction = newAction as RouteAction;
+        const existingIndex = existingActions.findIndex(
+          (a) =>
+            a.actionType === "route" &&
+            (a as RouteAction).fromPlayerId === routeAction.fromPlayerId
+        );
+
+        if (existingIndex !== -1) {
+          // Update existing route instead of adding duplicate
+          existingActions[existingIndex] = {
+            ...newAction,
+            id: existingActions[existingIndex].id,
+          };
+          continue;
+        }
+      }
+
+      // Check for duplicate blocks from same player
+      if (newAction.actionType === "block") {
+        const blockAction = newAction as BlockAction;
+        const existingIndex = existingActions.findIndex(
+          (a) =>
+            a.actionType === "block" &&
+            (a as BlockAction).fromPlayerId === blockAction.fromPlayerId
+        );
+
+        if (existingIndex !== -1) {
+          // Update existing block instead of adding duplicate
+          existingActions[existingIndex] = {
+            ...newAction,
+            id: existingActions[existingIndex].id,
+          };
+          continue;
+        }
+      }
+
+      // No duplicate found, add as new action
+      existingActions.push({
+        ...newAction,
+        layer: "secondary" as const,
+      });
+    }
+
+    newActions = existingActions;
   }
 
   // Return a completely new object to ensure React re-render

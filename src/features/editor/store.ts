@@ -321,24 +321,26 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ hoveredPlayerId: playerId });
   },
 
-  // Apply formation
+  // Apply formation - full replacement (players get new IDs, actions reset)
   applyFormation: (formation: Formation) => {
     const state = get();
     const currentPlay = state.play;
 
+    // Create fresh play from formation - always get new player IDs
     const newPlay = createPlayFromFormation(
       formation,
       currentPlay?.name || formation.name
     );
 
-    // Preserve existing actions if any
-    if (currentPlay?.actions.length) {
-      newPlay.actions = currentPlay.actions;
-    }
+    // IMPORTANT: Clear all actions when formation changes
+    // Routes/blocks tied to old player IDs become invalid
+    newPlay.actions = [];
 
     editorLog.event("APPLY_FORMATION", {
       formationId: formation.id,
       playId: newPlay.id,
+      playerCount: newPlay.roster.players.length,
+      actionsReset: true,
     });
 
     get().setPlay(newPlay);
