@@ -6,6 +6,15 @@
 import type { Concept, Formation, Play, FormationMeta } from "../dsl/types";
 import { PASS_CONCEPTS, getPassConceptsForFormation } from "./concepts-pass";
 import { RUN_CONCEPTS, getRunConceptsForFormation } from "./concepts-run";
+import type {
+  SuggestionContext,
+  EnhancedSuggestionResult,
+  DefenseContext,
+  OffenseContext,
+  SituationContext,
+  ConstraintsContext,
+} from "./suggestion-context";
+import { DEFAULT_SUGGESTION_CONTEXT } from "./suggestion-context";
 
 // ============================================
 // Types
@@ -277,4 +286,405 @@ export function getSuggestionsFromPlay(
       strength: runInput?.strength,
     });
   }
+}
+
+// ============================================
+// Enhanced Context-Based Suggestions
+// ============================================
+
+export function getEnhancedSuggestions(
+  play: Play,
+  context: SuggestionContext = DEFAULT_SUGGESTION_CONTEXT
+): EnhancedSuggestionResult[] {
+  const { playType, offense, defense, situation, constraints } = context;
+
+  // Get base concepts based on play type
+  const concepts =
+    playType === "pass"
+      ? PASS_CONCEPTS
+      : playType === "rpo"
+      ? [...RUN_CONCEPTS.filter((c) => c.id.includes("rpo") || c.id.includes("zone_read")), ...PASS_CONCEPTS.slice(0, 5)]
+      : RUN_CONCEPTS;
+
+  // Filter by structure
+  const structureFiltered = concepts.filter((c) => {
+    if (!offense.structure) return true;
+    return (
+      !c.requirements?.preferredStructures ||
+      c.requirements.preferredStructures.includes(offense.structure)
+    );
+  });
+
+  // Filter by constraints
+  const constraintFiltered = structureFiltered.filter((c) => {
+    // Avoid concepts
+    if (constraints.avoidConcepts.includes(c.id)) return false;
+
+    // Must include tags check
+    if (constraints.mustIncludeTags.length > 0) {
+      const hasTags = constraints.mustIncludeTags.some((tag) => {
+        if (tag === "QB run" && c.id.includes("qb_")) return true;
+        if (tag === "screen" && c.passHints?.category === "screen") return true;
+        if (tag === "TE involved" && c.requirements?.needsTE) return true;
+        if (tag === "motion" && c.id.includes("jet")) return true;
+        if (tag === "RPO" && c.id.includes("rpo")) return true;
+        return false;
+      });
+      if (!hasTags) return false;
+    }
+
+    // Install complexity check
+    if (constraints.installComplexity === "simple") {
+      if (c.requirements?.needsPuller === "GT") return false;
+    }
+
+    return true;
+  });
+
+  // Score and enhance results
+  const results: EnhancedSuggestionResult[] = constraintFiltered.map((concept) => {
+    const score = scoreConceptWithContext(concept, context);
+    const fit = generateFitAnalysis(concept, context);
+    const why = generateWhyReasons(concept, context);
+    const alerts = generateAlerts(concept, context);
+
+    return {
+      conceptId: concept.id,
+      name: concept.name,
+      conceptType: concept.conceptType,
+      score,
+      fit,
+      why,
+      alerts: alerts.length > 0 ? alerts : undefined,
+      autoBuildProfile: {
+        style: "nfl_style",
+        buildMode: "replace",
+        includes: getAutoBuildIncludes(concept),
+      },
+    };
+  });
+
+  // Sort by score and apply risk filter
+  let sorted = results.sort((a, b) => b.score - a.score);
+
+  // Apply risk tolerance filter
+  if (constraints.riskTolerance === "conservative") {
+    sorted = sorted.filter((r) => !r.alerts?.some((a) => a.includes("risky")));
+  }
+
+  // Return top results
+  const limit = playType === "run" ? 5 : 8;
+  return sorted.slice(0, limit);
+}
+
+function scoreConceptWithContext(concept: Concept, context: SuggestionContext): number {
+  let score = 50;
+  const { offense, defense, situation, constraints } = context;
+
+  if (concept.conceptType === "run") {
+    const hints = concept.runHints;
+    if (!hints) return score;
+
+    // Numbers fit (box count) - most important for run plays
+    const boxStr = String(defense.boxCount) as "6" | "7" | "8";
+    if (hints.bestWhenBox?.includes(boxStr)) {
+      score += 25;
+    } else if (defense.boxCount === 8) {
+      // Penalty for loaded box
+      const tolerance = concept.requirements?.boxTolerance;
+      if (tolerance === "6_ok") {
+        score -= 20;
+      } else if (tolerance === "7_ok") {
+        score -= 10;
+      }
+    }
+
+    // Angle fit (front type)
+    const frontType = defense.front === "even" || defense.front === "over" ? "even" : "odd";
+    if (hints.bestVsFront?.includes(frontType)) {
+      score += 15;
+    }
+
+    // 3T fit
+    if (defense.threeTech !== "none" && defense.threeTech !== "both") {
+      if (hints.bestVs3T?.includes(defense.threeTech)) {
+        score += 10;
+      }
+    } else if (defense.threeTech === "both" && hints.bestVs3T?.length) {
+      // If both 3Ts present, concept needs to handle both
+      score += 5;
+    }
+
+    // Structure fit
+    if (offense.structure && concept.requirements?.preferredStructures?.includes(offense.structure)) {
+      score += 10;
+    }
+
+    // Situation bonus
+    if (situation.distance === "1-2" && hints.category === "gap") {
+      score += 5; // Short yardage favors gap schemes
+    }
+    if (situation.fieldZone === "goal_line" && hints.aim?.includes("a")) {
+      score += 5; // Goal line favors inside runs
+    }
+    if (situation.objective === "kill_clock" && hints.category === "zone") {
+      score += 5; // Clock killing favors zone runs
+    }
+
+    // Edge/Force player analysis
+    if (hints.aim === "edge" && defense.forcePlayer !== "unknown") {
+      if (defense.forcePlayer === "cb") {
+        score += 8; // CB as force = favorable for perimeter
+      } else if (defense.forcePlayer === "olb") {
+        score -= 5; // OLB as force = tougher edge
+      }
+    }
+  } else {
+    // Pass concept scoring
+    const hints = concept.passHints;
+    if (!hints) return score;
+
+    // Coverage fit
+    if (defense.shell !== "unknown") {
+      const isManCoverage = defense.shell === "cover0" || defense.shell === "cover1";
+      const isZoneCoverage = ["cover2", "cover3", "cover4", "cover6"].includes(defense.shell);
+
+      if (isManCoverage && hints.manBeater) {
+        score += 20;
+      }
+      if (isZoneCoverage && hints.zoneBeater) {
+        score += 20;
+      }
+    }
+
+    // Pressure response
+    if (defense.pressureRate === "high") {
+      if (hints.category === "quick" || hints.category === "screen") {
+        score += 15;
+      } else if (hints.category === "deep") {
+        score -= 10;
+      }
+    }
+
+    // Structure fit
+    if (offense.structure && concept.requirements?.preferredStructures?.includes(offense.structure)) {
+      score += 10;
+    }
+
+    // Situation bonus
+    if (situation.distance === "10+" && hints.category === "deep") {
+      score += 5;
+    }
+    if (situation.objective === "explosive" && hints.stress?.includes("vertical")) {
+      score += 8;
+    }
+  }
+
+  // Badge bonus
+  if (concept.badges?.includes("nfl_style")) {
+    score += 5;
+  }
+
+  return Math.min(Math.max(score, 0), 100);
+}
+
+function generateFitAnalysis(
+  concept: Concept,
+  context: SuggestionContext
+): EnhancedSuggestionResult["fit"] {
+  const { offense, defense } = context;
+  const fit: EnhancedSuggestionResult["fit"] = {};
+
+  if (concept.conceptType === "run") {
+    const hints = concept.runHints;
+
+    // Numbers fit
+    const boxStr = String(defense.boxCount) as "6" | "7" | "8";
+    if (hints?.bestWhenBox?.includes(boxStr)) {
+      fit.numbers = `Box ${defense.boxCount} favorable`;
+    } else {
+      fit.numbers = `Box ${defense.boxCount}`;
+    }
+
+    // Front fit
+    const frontType = defense.front === "even" || defense.front === "over" ? "even" : "odd";
+    if (hints?.bestVsFront?.includes(frontType)) {
+      fit.front = `${defense.front} front favorable`;
+    } else {
+      fit.front = `${defense.front} front`;
+    }
+
+    // Surface fit (3T)
+    if (defense.threeTech !== "none") {
+      const threeTechForCheck = defense.threeTech === "both" ? "strong" : defense.threeTech;
+      if (hints?.bestVs3T?.includes(threeTechForCheck)) {
+        fit.surface = `3T ${defense.threeTech} - good angle`;
+      } else {
+        fit.surface = `3T ${defense.threeTech}`;
+      }
+    }
+  } else {
+    // Pass concept fit
+    const hints = concept.passHints;
+
+    // Coverage fit
+    if (defense.shell !== "unknown") {
+      const isManCoverage = defense.shell === "cover0" || defense.shell === "cover1";
+      if (isManCoverage && hints?.manBeater) {
+        fit.coverage = "Man beater";
+      } else if (!isManCoverage && hints?.zoneBeater) {
+        fit.coverage = "Zone beater";
+      } else {
+        fit.coverage = defense.shell.replace("cover", "Cover ");
+      }
+    }
+  }
+
+  // Structure fit
+  if (offense.structure) {
+    if (concept.requirements?.preferredStructures?.includes(offense.structure)) {
+      fit.structure = `${offense.structure} optimal`;
+    } else {
+      fit.structure = offense.structure;
+    }
+  }
+
+  return fit;
+}
+
+function generateWhyReasons(concept: Concept, context: SuggestionContext): string[] {
+  const reasons: string[] = [];
+  const { offense, defense, situation } = context;
+
+  if (concept.conceptType === "run") {
+    const hints = concept.runHints;
+
+    // Box count reason
+    const boxStr = String(defense.boxCount) as "6" | "7" | "8";
+    if (hints?.bestWhenBox?.includes(boxStr)) {
+      reasons.push(`Numbers advantage vs ${defense.boxCount}-man box`);
+    }
+
+    // Front reason
+    const frontType = defense.front === "even" || defense.front === "over" ? "even" : "odd";
+    if (hints?.bestVsFront?.includes(frontType)) {
+      reasons.push(`Blocking scheme fits ${defense.front} front`);
+    }
+
+    // 3T reason
+    if (defense.threeTech !== "none" && defense.threeTech !== "both") {
+      if (hints?.bestVs3T?.includes(defense.threeTech)) {
+        reasons.push(`Good leverage on ${defense.threeTech} 3-tech`);
+      }
+    } else if (defense.threeTech === "both") {
+      reasons.push("Both 3-techs present");
+    }
+
+    // Aim point reason
+    if (hints?.aim) {
+      reasons.push(`Targets ${hints.aim.replace(/_/g, " ")} area`);
+    }
+
+    // Category specific
+    if (hints?.category === "zone" && situation.objective === "kill_clock") {
+      reasons.push("Zone scheme good for clock management");
+    }
+    if (hints?.category === "gap" && situation.distance === "1-2") {
+      reasons.push("Gap scheme effective in short yardage");
+    }
+  } else {
+    const hints = concept.passHints;
+
+    // Coverage stress
+    if (hints?.stress && hints.stress.length > 0) {
+      reasons.push(`Stresses ${hints.stress[0].replace(/_/g, " ")}`);
+    }
+
+    // Man/Zone beater
+    const isManCoverage = defense.shell === "cover0" || defense.shell === "cover1";
+    if (isManCoverage && hints?.manBeater) {
+      reasons.push("Effective man coverage beater");
+    } else if (!isManCoverage && hints?.zoneBeater) {
+      reasons.push("Attacks zone coverage windows");
+    }
+
+    // Pressure response
+    if (defense.pressureRate === "high" && (hints?.category === "quick" || hints?.category === "screen")) {
+      reasons.push("Quick release vs pressure");
+    }
+  }
+
+  return reasons.slice(0, 4);
+}
+
+function generateAlerts(concept: Concept, context: SuggestionContext): string[] {
+  const alerts: string[] = [];
+  const { offense, defense, constraints } = context;
+
+  if (concept.conceptType === "run") {
+    // Box overload alert
+    if (defense.boxCount === 8) {
+      const tolerance = concept.requirements?.boxTolerance;
+      if (tolerance === "6_ok" || tolerance === "7_ok") {
+        alerts.push("8-man box risky for this concept");
+      }
+    }
+
+    // Puller requirement alert
+    if (concept.requirements?.needsPuller === "GT" && offense.olPullAbility === 0) {
+      alerts.push("Requires OL pull ability");
+    }
+
+    // TE requirement alert
+    if (concept.requirements?.needsTE && offense.teAttached === 0) {
+      alerts.push("Requires attached TE");
+    }
+
+    // Edge setting alert
+    if (concept.runHints?.aim === "edge" && defense.edgeSetting === "hard") {
+      alerts.push("Hard edge setting may limit perimeter");
+    }
+  } else {
+    // Pressure alert for deep concepts
+    if (defense.pressureRate === "high" && concept.passHints?.category === "deep") {
+      alerts.push("High pressure risk for deep routes");
+    }
+
+    // Blitz tendency alert
+    if (defense.blitzTendency !== "none" && concept.passHints?.category === "intermediate") {
+      alerts.push(`Watch for ${defense.blitzTendency} blitz`);
+    }
+  }
+
+  // Risk tolerance check
+  if (constraints.riskTolerance === "conservative") {
+    if (concept.id.includes("deep") || concept.passHints?.category === "deep") {
+      alerts.push("Lower percentage play");
+    }
+  }
+
+  return alerts;
+}
+
+function getAutoBuildIncludes(concept: Concept): string[] {
+  const includes: string[] = [];
+
+  if (concept.conceptType === "run") {
+    includes.push("OL blocking assignments");
+    includes.push("RB path");
+
+    if (concept.requirements?.needsPuller && concept.requirements.needsPuller !== "none") {
+      includes.push("Puller paths");
+    }
+    if (concept.id.includes("zone_read") || concept.id.includes("rpo")) {
+      includes.push("QB read option");
+    }
+  } else {
+    includes.push("Route assignments");
+    if (concept.passHints?.category === "screen") {
+      includes.push("Blocking assignments");
+    }
+  }
+
+  return includes;
 }
