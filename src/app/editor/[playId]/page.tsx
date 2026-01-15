@@ -11,6 +11,8 @@ import {
   Canvas,
   ExportButton,
   RouteTemplatesPanel,
+  DefensePanel,
+  PlaybackControls,
 } from "@/features/editor/components";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -206,7 +208,13 @@ export default function EditorPage() {
                 value="formation"
                 className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-2 text-xs"
               >
-                Formation
+                Offense
+              </TabsTrigger>
+              <TabsTrigger
+                value="defense"
+                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-red-500 data-[state=active]:bg-transparent py-2 text-xs"
+              >
+                Defense
               </TabsTrigger>
               <TabsTrigger
                 value="routes"
@@ -224,6 +232,9 @@ export default function EditorPage() {
             <TabsContent value="formation" className="mt-0 flex-1 overflow-y-auto">
               <FormationPanel />
             </TabsContent>
+            <TabsContent value="defense" className="mt-0 flex-1 overflow-y-auto">
+              <DefensePanel />
+            </TabsContent>
             <TabsContent value="routes" className="mt-0 flex-1 overflow-y-auto">
               <RouteTemplatesPanel />
             </TabsContent>
@@ -239,6 +250,9 @@ export default function EditorPage() {
         {/* Right sidebar - Suggestions */}
         <SuggestionsPanel />
       </div>
+
+      {/* Playback Controls */}
+      <PlaybackControls />
 
       {/* Status bar */}
       <footer className="bg-background border-t px-4 py-1.5 flex items-center justify-between">

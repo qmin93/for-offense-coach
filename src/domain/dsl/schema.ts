@@ -31,10 +31,38 @@ export const OffenseRoleSchema = z.enum([
 ]);
 
 export const DefenseRoleSchema = z.enum([
-  "DE", "DT", "NT", "OLB", "ILB", "MLB", "CB", "FS", "SS",
+  "DE", "DT", "NT", "OLB", "ILB", "MLB", "CB", "FS", "SS", "Nickel", "Dime",
 ]);
 
 export const PlayerRoleSchema = z.union([OffenseRoleSchema, DefenseRoleSchema]);
+
+// ============================================
+// Defense Preset Schemas
+// ============================================
+
+export const DefensePresetFamilySchema = z.enum(["front", "shell"]);
+export const DefenseFrontSchema = z.enum(["even", "odd", "over", "under", "bear", "tite"]);
+export const DefenseShellSchema = z.enum(["cover0", "cover1", "cover2", "cover3", "cover4", "cover6", "nickel", "dime", "unknown"]);
+export const DefenseTechniqueSchema = z.enum(["0", "1", "2i", "3", "4i", "5", "6", "7", "9"]);
+
+export const DefenseAlignmentSchema = z.object({
+  role: DefenseRoleSchema,
+  label: z.string(),
+  x: z.number().min(0).max(1),
+  y: z.number().min(-1).max(1),
+  technique: DefenseTechniqueSchema.optional(),
+});
+
+export const DefensePresetSchema = z.object({
+  id: z.string().min(1),
+  name: z.string(),
+  family: DefensePresetFamilySchema,
+  front: DefenseFrontSchema,
+  boxCount: z.union([z.literal(5), z.literal(6), z.literal(7), z.literal(8)]),
+  shell: DefenseShellSchema,
+  alignments: z.array(DefenseAlignmentSchema),
+  tags: z.array(z.string()),
+});
 export const UnitSchema = z.enum(["offense", "defense", "special"]);
 
 export const PlayerAlignmentSchema = PointSchema.extend({
@@ -112,9 +140,13 @@ export const RouteDataSchema = z.object({
   endMarker: EndMarkerSchema.optional(),
 });
 
+export const PlayPhaseSchema = z.enum(["pre_snap", "snap", "t1", "t2", "t3"]);
+
 export const RouteTimingSchema = z.object({
   phase: z.enum(["pre_snap", "post_snap"]),
   delayMs: z.number().optional(),
+  startMs: z.number().optional(),
+  durationMs: z.number().optional(),
 });
 
 export const RouteActionSchema = ActionBaseSchema.extend({
@@ -127,17 +159,26 @@ export const RouteActionSchema = ActionBaseSchema.extend({
 export const BlockSchemeSchema = z.enum([
   "reach", "zone_step", "combo", "climb", "down",
   "kick", "wrap", "pull_lead", "pull_kick", "trap",
-  "wham", "arc", "sift", "seal",
+  "wham", "arc", "sift", "seal", "custom",
 ]);
 
+export const BlockTargetTypeSchema = z.enum(["landmark", "defender", "gap", "none"]);
+export const BlockStyleSchema = z.enum(["drive", "reach", "down", "pull_pass", "zone_step", "combo", "custom"]);
+export const GapNameSchema = z.enum(["A_strong", "A_weak", "B_strong", "B_weak", "C_strong", "C_weak", "D"]);
+
 export const BlockTargetSchema = z.object({
+  targetType: BlockTargetTypeSchema.optional(),
   toPlayerId: z.string().optional(),
   landmark: PointSchema.optional(),
+  gapName: GapNameSchema.optional(),
 });
 
 export const BlockDataSchema = z.object({
   scheme: BlockSchemeSchema,
   target: BlockTargetSchema,
+  angleDeg: z.number().min(0).max(359).optional(),
+  length: z.number().optional(),
+  style: BlockStyleSchema.optional(),
   notes: z.string().optional(),
   pathPoints: z.array(PointSchema).optional(),
 });

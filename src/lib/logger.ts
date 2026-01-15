@@ -96,7 +96,14 @@ export type EditorEvent =
   | "REHYDRATE"
   | "UNDO"
   | "REDO"
-  | "VALIDATION_FAIL";
+  | "VALIDATION_FAIL"
+  | "APPLY_DEFENSE_PRESET"
+  | "RESET_DEFENSE"
+  | "RESET_ALL"
+  | "TOGGLE_DEFENSE_VISIBILITY"
+  | "PLAYBACK_PLAY"
+  | "PLAYBACK_PAUSE"
+  | "PLAYBACK_SEEK";
 
 export interface EditorEventContext extends LogContext {
   playId?: string;

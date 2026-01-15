@@ -12,10 +12,12 @@ import type {
   Formation,
   Concept,
   Point,
+  DefensePreset,
 } from "@/domain/dsl/types";
 import { createPlay, createPlayFromFormation } from "@/domain/dsl/factories";
 import { type SnapConfig, DEFAULT_SNAP_CONFIG } from "@/domain/engine/snap";
 import { autoBuildFromConcept, applyAutoBuildToPlay } from "@/domain/engine/auto-build";
+import { getDefensePresetById } from "@/domain/engine/defense-presets";
 import { validateAndRecoverPlay, validatePlay } from "@/domain/dsl/validation";
 import { editorLog } from "@/lib/logger";
 import { deepClone } from "@/lib/immutable";
@@ -83,6 +85,17 @@ export interface EditorState {
   isLoading: boolean;
   loadError: string | null;
 
+  // Defense state
+  defensePresetId: string | null;
+  showDefense: boolean;
+
+  // Playback state
+  playbackState: {
+    isPlaying: boolean;
+    currentMs: number;
+    speed: number;
+  };
+
   // Actions
   initPlay: (play?: Play) => void;
   loadPlay: (dbId: string) => Promise<void>;
@@ -120,6 +133,20 @@ export interface EditorState {
 
   // Auto-build
   buildFromConcept: (concept: Concept) => void;
+
+  // Defense actions
+  applyDefensePreset: (presetId: string) => void;
+  toggleDefenseVisibility: () => void;
+  resetDefense: () => void;
+
+  // Whiteboard actions
+  resetAll: () => void;
+
+  // Playback actions
+  playAnimation: () => void;
+  pauseAnimation: () => void;
+  seekTo: (ms: number) => void;
+  setPlaybackSpeed: (speed: number) => void;
 
   // History
   undo: () => void;
@@ -169,6 +196,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   serverRevision: 0,
   isLoading: false,
   loadError: null,
+
+  // Defense state
+  defensePresetId: null,
+  showDefense: true,
+
+  // Playback state
+  playbackState: {
+    isPlaying: false,
+    currentMs: 0,
+    speed: 1,
+  },
 
   // Initialize play (for new plays)
   initPlay: (play?: Play) => {
@@ -737,6 +775,137 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       get().setPlay(newPlay);
     }
+  },
+
+  // Defense actions
+  applyDefensePreset: (presetId: string) => {
+    const state = get();
+    if (!state.play) return;
+
+    const preset = getDefensePresetById(presetId);
+    if (!preset) return;
+
+    // Create defense players from preset
+    const defensePlayers: Player[] = preset.alignments.map((alignment, index) => ({
+      id: `p_def_${alignment.role.toLowerCase()}_${index}`,
+      role: alignment.role,
+      label: alignment.label,
+      unit: "defense" as const,
+      alignment: {
+        x: alignment.x,
+        y: alignment.y,
+        facing: "down" as const,
+        stance: "three_point" as const,
+      },
+      appearance: {
+        icon: "circle" as const,
+        colorToken: "defense" as const,
+        showLabel: true,
+      },
+    }));
+
+    // Remove existing defense players and add new ones
+    const offensePlayers = state.play.roster.players.filter(
+      (p) => p.unit !== "defense"
+    );
+
+    const newPlay: Play = {
+      ...state.play,
+      roster: {
+        ...state.play.roster,
+        players: [...offensePlayers, ...defensePlayers],
+      },
+      updatedAt: new Date().toISOString(),
+    };
+
+    editorLog.event("APPLY_DEFENSE_PRESET", {
+      presetId,
+      playId: newPlay.id,
+      defensePlayerCount: defensePlayers.length,
+    });
+
+    set({ defensePresetId: presetId });
+    get().setPlay(newPlay);
+  },
+
+  toggleDefenseVisibility: () => {
+    set((state) => ({ showDefense: !state.showDefense }));
+  },
+
+  resetDefense: () => {
+    const state = get();
+    if (!state.play) return;
+
+    // Remove all defense players
+    const offensePlayers = state.play.roster.players.filter(
+      (p) => p.unit !== "defense"
+    );
+
+    const newPlay: Play = {
+      ...state.play,
+      roster: {
+        ...state.play.roster,
+        players: offensePlayers,
+      },
+      updatedAt: new Date().toISOString(),
+    };
+
+    set({ defensePresetId: null });
+    get().setPlay(newPlay);
+  },
+
+  // Whiteboard actions
+  resetAll: () => {
+    const state = get();
+    if (!state.play) return;
+
+    // Keep formation players but reset actions and positions
+    const formationId = state.play.meta?.formationId;
+
+    // Clear all actions
+    const newPlay: Play = {
+      ...state.play,
+      actions: [],
+      updatedAt: new Date().toISOString(),
+    };
+
+    editorLog.event("RESET_ALL", {
+      playId: newPlay.id,
+    });
+
+    set({
+      defensePresetId: null,
+      selectedPlayerId: null,
+      selectedActionId: null,
+      selectedPlayerIds: [],
+      selectedActionIds: [],
+    });
+    get().setPlay(newPlay);
+  },
+
+  // Playback actions
+  playAnimation: () => {
+    set((state) => ({
+      playbackState: { ...state.playbackState, isPlaying: true },
+    }));
+  },
+
+  pauseAnimation: () => {
+    set((state) => ({
+      playbackState: { ...state.playbackState, isPlaying: false },
+    }));
+  },
+
+  seekTo: (ms: number) => {
+    set((state) => ({
+      playbackState: { ...state.playbackState, currentMs: Math.max(0, ms) },
+    }));
+  },
+
+  setPlaybackSpeed: (speed: number) => {
+    set((state) => ({
+      playbackState: { ...state.playbackState, speed },
+    }));
   },
 
   // Undo

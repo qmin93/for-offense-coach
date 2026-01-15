@@ -450,6 +450,7 @@ export interface PlayRendererProps {
   selectedPlayerId?: string;
   onPlayerClick?: (player: Player) => void;
   className?: string;
+  showDefense?: boolean;
 }
 
 export function PlayRenderer({
@@ -457,8 +458,14 @@ export function PlayRenderer({
   selectedPlayerId,
   onPlayerClick,
   className = "",
+  showDefense = true,
 }: PlayRendererProps) {
   const fieldSettings = play.field || {};
+
+  // Filter players based on showDefense flag
+  const visiblePlayers = showDefense
+    ? play.roster.players
+    : play.roster.players.filter((p) => p.unit !== "defense");
 
   return (
     <svg
@@ -512,7 +519,7 @@ export function PlayRenderer({
 
       {/* Players layer */}
       <g className="players-layer">
-        {play.roster.players.map((player) => (
+        {visiblePlayers.map((player) => (
           <PlayerNode
             key={player.id}
             player={player}

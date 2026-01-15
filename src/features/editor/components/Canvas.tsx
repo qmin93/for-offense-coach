@@ -46,6 +46,7 @@ export function Canvas() {
     snapConfig,
     setSnapConfig,
     toggleSnap,
+    showDefense,
   } = useEditorStore();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -638,6 +639,7 @@ export function Canvas() {
             play={play}
             selectedPlayerId={selectedPlayerId || undefined}
             onPlayerClick={handlePlayerClick}
+            showDefense={showDefense}
           />
           {renderDrawingPreview()}
           {renderEditHandles()}

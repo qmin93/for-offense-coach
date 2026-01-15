@@ -47,9 +47,39 @@ export type DefenseRole =
   | "MLB"
   | "CB"
   | "FS"
-  | "SS";
+  | "SS"
+  | "Nickel"
+  | "Dime";
 
 export type PlayerRole = OffenseRole | DefenseRole;
+
+// ============================================
+// Defense Preset Types
+// ============================================
+
+export type DefensePresetFamily = "front" | "shell";
+export type DefenseFront = "even" | "odd" | "over" | "under" | "bear" | "tite";
+export type DefenseShell = "cover0" | "cover1" | "cover2" | "cover3" | "cover4" | "cover6" | "nickel" | "dime" | "unknown";
+export type DefenseTechnique = "0" | "1" | "2i" | "3" | "4i" | "5" | "6" | "7" | "9";
+
+export interface DefenseAlignment {
+  role: DefenseRole;
+  label: string;
+  x: number;
+  y: number;
+  technique?: DefenseTechnique;
+}
+
+export interface DefensePreset {
+  id: string;
+  name: string;
+  family: DefensePresetFamily;
+  front: DefenseFront;
+  boxCount: 5 | 6 | 7 | 8;
+  shell: DefenseShell;
+  alignments: DefenseAlignment[];
+  tags: string[];
+}
 export type Unit = "offense" | "defense" | "special";
 
 export interface PlayerAlignment extends Point {
@@ -153,9 +183,14 @@ export interface RouteData {
   endMarker?: EndMarker;
 }
 
+// Playback/Timeline Types
+export type PlayPhase = "pre_snap" | "snap" | "t1" | "t2" | "t3";
+
 export interface RouteTiming {
   phase: "pre_snap" | "post_snap";
   delayMs?: number;
+  startMs?: number;
+  durationMs?: number;
 }
 
 export interface RouteAction extends ActionBase {
@@ -186,14 +221,24 @@ export type BlockScheme =
   // Hand-drawn
   | "custom";
 
+// Block Target & Style Types
+export type BlockTargetType = "landmark" | "defender" | "gap" | "none";
+export type BlockStyle = "drive" | "reach" | "down" | "pull_pass" | "zone_step" | "combo" | "custom";
+export type GapName = "A_strong" | "A_weak" | "B_strong" | "B_weak" | "C_strong" | "C_weak" | "D";
+
 export interface BlockTarget {
+  targetType?: BlockTargetType;
   toPlayerId?: string;
   landmark?: Point;
+  gapName?: GapName;
 }
 
 export interface BlockData {
   scheme: BlockScheme;
   target: BlockTarget;
+  angleDeg?: number;        // 0-359 degree for block direction
+  length?: number;          // Block length in field units
+  style?: BlockStyle;       // Visual style of block
   notes?: string;
   pathPoints?: Point[];
 }
@@ -459,6 +504,50 @@ export interface Concept {
     category?: ConceptCategory;
     coverageStress?: string[];
   };
+  familyId?: string; // Reference to ConceptFamily
+}
+
+// ============================================
+// Concept Family Types
+// ============================================
+
+export interface ConceptVariation {
+  conceptId: string;
+  label: string;
+  description: string;
+  tags?: string[];
+}
+
+export interface ConceptAlert {
+  id: string;
+  label: string;
+  description: string;
+  trigger: {
+    defense?: {
+      front?: DefenseFront[];
+      shell?: DefenseShell[];
+      boxCount?: number[];
+    };
+    situation?: {
+      down?: (1 | 2 | 3 | 4)[];
+      fieldZone?: string[];
+    };
+  };
+  adjustment: string;
+}
+
+export interface ConceptFamily {
+  id: string;
+  name: string;
+  baseConceptId: string;
+  conceptType: ConceptType;
+  summary: string;
+  variations: ConceptVariation[];
+  alerts: ConceptAlert[];
+  installFocus: string[];
+  compatibleFronts: DefenseFront[];
+  compatibleShells: DefenseShell[];
+  tags: string[];
 }
 
 // ============================================

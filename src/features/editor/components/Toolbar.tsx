@@ -20,7 +20,7 @@ const MODES: { mode: EditorMode; key: string; icon: string; shortcut: string }[]
 
 export function Toolbar() {
   const t = useTranslations("editor.toolbar");
-  const { mode, setMode, undo, redo, canUndo, canRedo, toggleSuggestions } =
+  const { mode, setMode, undo, redo, canUndo, canRedo, toggleSuggestions, resetAll, play } =
     useEditorStore();
 
   return (
@@ -99,6 +99,29 @@ export function Toolbar() {
         >
           {t("runConcepts")}
         </Button>
+      </div>
+
+      {/* Spacer */}
+      <div className="flex-1" />
+
+      {/* Reset All */}
+      <div className="flex items-center gap-2">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={resetAll}
+              disabled={!play || play.actions.length === 0}
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              Reset All
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Clear all actions and reset to formation</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

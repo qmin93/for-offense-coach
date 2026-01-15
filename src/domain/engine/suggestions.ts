@@ -3,7 +3,7 @@
 // Formation → Pass/Run Concept 추천
 // ============================================
 
-import type { Concept, Formation, Play, FormationMeta } from "../dsl/types";
+import type { Concept, Formation, Play, FormationMeta, DefensePreset, ConceptFamily } from "../dsl/types";
 import { PASS_CONCEPTS, getPassConceptsForFormation } from "./concepts-pass";
 import { RUN_CONCEPTS, getRunConceptsForFormation } from "./concepts-run";
 import type {
@@ -13,8 +13,17 @@ import type {
   OffenseContext,
   SituationContext,
   ConstraintsContext,
+  FrontType,
+  ShellCoverage,
 } from "./suggestion-context";
 import { DEFAULT_SUGGESTION_CONTEXT } from "./suggestion-context";
+import {
+  CONCEPT_FAMILIES,
+  getConceptFamilyByConceptId,
+  getActiveAlerts,
+  getCompatibleFamilies,
+} from "./concept-families";
+import { getDefensePresetById } from "./defense-presets";
 
 // ============================================
 // Types
@@ -687,4 +696,223 @@ function getAutoBuildIncludes(concept: Concept): string[] {
   }
 
   return includes;
+}
+
+// ============================================
+// Defense Preset Integration
+// ============================================
+
+/**
+ * Convert DefensePreset to DefenseContext for suggestions
+ */
+export function defensePresetToContext(preset: DefensePreset): Partial<DefenseContext> {
+  // Map defense preset front to FrontType
+  const frontMap: Record<string, FrontType> = {
+    even: "even",
+    odd: "odd",
+    over: "over",
+    under: "under",
+    bear: "bear",
+    tite: "even", // Tite is similar to even front
+  };
+
+  // Map defense shell to ShellCoverage
+  const shellMap: Record<string, ShellCoverage> = {
+    cover0: "cover0",
+    cover1: "cover1",
+    cover2: "cover2",
+    cover3: "cover3",
+    cover4: "cover4",
+    cover6: "cover6",
+    nickel: "unknown",
+    dime: "unknown",
+    unknown: "unknown",
+  };
+
+  return {
+    boxCount: preset.boxCount,
+    front: frontMap[preset.front] || "even",
+    shell: shellMap[preset.shell] || "unknown",
+  };
+}
+
+/**
+ * Get enhanced suggestions using defense preset ID
+ */
+export function getSuggestionsWithDefensePreset(
+  play: Play,
+  defensePresetId: string | null,
+  baseContext: Partial<SuggestionContext> = {}
+): EnhancedSuggestionResult[] {
+  // Build context from defense preset
+  let context: SuggestionContext = {
+    ...DEFAULT_SUGGESTION_CONTEXT,
+    ...baseContext,
+  };
+
+  if (defensePresetId) {
+    const preset = getDefensePresetById(defensePresetId);
+    if (preset) {
+      const defenseContext = defensePresetToContext(preset);
+      context = {
+        ...context,
+        defense: {
+          ...context.defense,
+          ...defenseContext,
+        },
+      };
+    }
+  }
+
+  return getEnhancedSuggestions(play, context);
+}
+
+// ============================================
+// Family-Based Suggestions
+// ============================================
+
+export interface FamilySuggestionResult {
+  family: ConceptFamily;
+  score: number;
+  baseConceptResult: EnhancedSuggestionResult | null;
+  activeAlerts: ConceptFamily["alerts"];
+  recommendedVariation: string | null;
+  fit: {
+    front: boolean;
+    shell: boolean;
+    overall: "excellent" | "good" | "fair" | "poor";
+  };
+}
+
+/**
+ * Get concept family suggestions based on defense preset
+ */
+export function getFamilySuggestions(
+  play: Play,
+  defensePresetId: string | null,
+  playType: "run" | "pass" = "run"
+): FamilySuggestionResult[] {
+  // Get defense preset for analysis
+  const preset = defensePresetId ? getDefensePresetById(defensePresetId) : null;
+
+  // Get concept families by type
+  const families = CONCEPT_FAMILIES.filter((f) => f.conceptType === playType);
+
+  // Get enhanced suggestions for scoring
+  const enhancedSuggestions = getSuggestionsWithDefensePreset(play, defensePresetId, {
+    playType,
+  });
+
+  // Score and analyze each family
+  const results: FamilySuggestionResult[] = families.map((family) => {
+    // Find base concept in enhanced suggestions
+    const baseResult = enhancedSuggestions.find(
+      (s) => s.conceptId === family.baseConceptId
+    ) || null;
+
+    // Calculate family score
+    let score = baseResult?.score || 50;
+
+    // Fit analysis
+    const frontFit = preset ? family.compatibleFronts.includes(preset.front) : true;
+    const shellFit = preset
+      ? preset.shell === "unknown" || family.compatibleShells.includes(preset.shell as any)
+      : true;
+
+    // Adjust score based on fit
+    if (frontFit) score += 5;
+    if (shellFit) score += 5;
+
+    // Get active alerts for this family based on defense
+    const activeAlerts = preset
+      ? getActiveAlerts(family, {
+          front: preset.front,
+          shell: preset.shell as any,
+          boxCount: preset.boxCount,
+        })
+      : [];
+
+    // Determine recommended variation based on defense
+    let recommendedVariation: string | null = null;
+    if (preset && family.variations.length > 1) {
+      // For loaded box (7+), recommend read/RPO variations
+      if (preset.boxCount >= 7) {
+        const readVar = family.variations.find(
+          (v) => v.tags?.includes("read") || v.tags?.includes("rpo")
+        );
+        if (readVar) recommendedVariation = readVar.conceptId;
+      }
+
+      // For bear/tite front, recommend split/wham variations
+      if (preset.front === "bear" || preset.front === "tite") {
+        const splitVar = family.variations.find(
+          (v) => v.tags?.includes("split") || v.tags?.includes("wham")
+        );
+        if (splitVar) recommendedVariation = splitVar.conceptId;
+      }
+    }
+
+    // Calculate overall fit
+    let overallFit: "excellent" | "good" | "fair" | "poor" = "fair";
+    if (frontFit && shellFit && score >= 70) {
+      overallFit = "excellent";
+    } else if (frontFit && score >= 60) {
+      overallFit = "good";
+    } else if (score < 40) {
+      overallFit = "poor";
+    }
+
+    return {
+      family,
+      score,
+      baseConceptResult: baseResult,
+      activeAlerts,
+      recommendedVariation,
+      fit: {
+        front: frontFit,
+        shell: shellFit,
+        overall: overallFit,
+      },
+    };
+  });
+
+  // Sort by score
+  return results.sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Get comprehensive suggestion data including families
+ */
+export interface ComprehensiveSuggestions {
+  enhanced: EnhancedSuggestionResult[];
+  families: FamilySuggestionResult[];
+  defenseAnalysis: {
+    presetId: string | null;
+    presetName: string | null;
+    front: string;
+    shell: string;
+    boxCount: number;
+  } | null;
+}
+
+export function getComprehensiveSuggestions(
+  play: Play,
+  defensePresetId: string | null,
+  playType: "run" | "pass" = "run"
+): ComprehensiveSuggestions {
+  const preset = defensePresetId ? getDefensePresetById(defensePresetId) : null;
+
+  return {
+    enhanced: getSuggestionsWithDefensePreset(play, defensePresetId, { playType }),
+    families: getFamilySuggestions(play, defensePresetId, playType),
+    defenseAnalysis: preset
+      ? {
+          presetId: preset.id,
+          presetName: preset.name,
+          front: preset.front,
+          shell: preset.shell,
+          boxCount: preset.boxCount,
+        }
+      : null,
+  };
 }
