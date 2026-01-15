@@ -4,3 +4,4 @@ export * from "./SuggestionsPanel";
 export * from "./InstallFocusPanel";
 export * from "./Canvas";
 export * from "./ExportButton";
+export * from "./RouteTemplatesPanel";

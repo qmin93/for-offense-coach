@@ -10,6 +10,7 @@ import {
   InstallFocusPanel,
   Canvas,
   ExportButton,
+  RouteTemplatesPanel,
 } from "@/features/editor/components";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -199,25 +200,34 @@ export default function EditorPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left sidebar */}
         <div className="w-64 bg-background border-r overflow-y-auto">
-          <Tabs defaultValue="formation" className="w-full">
-            <TabsList className="w-full rounded-none border-b bg-transparent h-auto p-0">
+          <Tabs defaultValue="formation" className="w-full h-full flex flex-col">
+            <TabsList className="w-full rounded-none border-b bg-transparent h-auto p-0 flex-shrink-0">
               <TabsTrigger
                 value="formation"
-                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-2"
+                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-2 text-xs"
               >
                 Formation
               </TabsTrigger>
               <TabsTrigger
-                value="install"
-                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-2"
+                value="routes"
+                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-2 text-xs"
               >
-                Install Focus
+                Routes
+              </TabsTrigger>
+              <TabsTrigger
+                value="install"
+                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-2 text-xs"
+              >
+                Install
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="formation" className="mt-0">
+            <TabsContent value="formation" className="mt-0 flex-1 overflow-y-auto">
               <FormationPanel />
             </TabsContent>
-            <TabsContent value="install" className="mt-0">
+            <TabsContent value="routes" className="mt-0 flex-1 overflow-y-auto">
+              <RouteTemplatesPanel />
+            </TabsContent>
+            <TabsContent value="install" className="mt-0 flex-1 overflow-y-auto">
               <InstallFocusPanel />
             </TabsContent>
           </Tabs>

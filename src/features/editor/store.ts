@@ -14,6 +14,7 @@ import type {
   Point,
 } from "@/domain/dsl/types";
 import { createPlay, createPlayFromFormation } from "@/domain/dsl/factories";
+import { type SnapConfig, DEFAULT_SNAP_CONFIG } from "@/domain/engine/snap";
 import { autoBuildFromConcept, applyAutoBuildToPlay } from "@/domain/engine/auto-build";
 import { validateAndRecoverPlay, validatePlay } from "@/domain/dsl/validation";
 import { editorLog } from "@/lib/logger";
@@ -45,9 +46,16 @@ export interface EditorState {
 
   // UI State
   mode: EditorMode;
-  selectedPlayerId: string | null;
+  selectedPlayerId: string | null; // Primary selection (for backwards compatibility)
   selectedActionId: string | null;
   hoveredPlayerId: string | null;
+
+  // Multi-selection (new)
+  selectedPlayerIds: string[];
+  selectedActionIds: string[];
+
+  // Snap settings
+  snapConfig: SnapConfig;
 
   // Drawing state
   drawing: DrawingState;
@@ -85,6 +93,17 @@ export interface EditorState {
   selectPlayer: (playerId: string | null) => void;
   selectAction: (actionId: string | null) => void;
   setHoveredPlayer: (playerId: string | null) => void;
+
+  // Multi-select operations
+  togglePlayerSelection: (playerId: string, additive?: boolean) => void;
+  selectMultiplePlayers: (playerIds: string[]) => void;
+  toggleActionSelection: (actionId: string, additive?: boolean) => void;
+  selectMultipleActions: (actionIds: string[]) => void;
+  clearSelection: () => void;
+
+  // Snap settings
+  setSnapConfig: (config: Partial<SnapConfig>) => void;
+  toggleSnap: () => void;
 
   // Play modifications (with history)
   applyFormation: (formation: Formation) => void;
@@ -129,6 +148,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectedPlayerId: null,
   selectedActionId: null,
   hoveredPlayerId: null,
+  selectedPlayerIds: [],
+  selectedActionIds: [],
+  snapConfig: DEFAULT_SNAP_CONFIG,
   drawing: {
     isDrawing: false,
     drawingPlayerId: null,
@@ -161,6 +183,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       loadError: null,
       selectedPlayerId: null,
       selectedActionId: null,
+      selectedPlayerIds: [],
+      selectedActionIds: [],
       localRevision: 0,
       serverRevision: 0,
     });
@@ -195,6 +219,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           : null,
         selectedPlayerId: null,
         selectedActionId: null,
+        selectedPlayerIds: [],
+        selectedActionIds: [],
         localRevision: wasRecovered ? 1 : 0,
         serverRevision: 0,
       });
@@ -330,15 +356,124 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   selectPlayer: (playerId: string | null) => {
-    set({ selectedPlayerId: playerId, selectedActionId: null });
+    set({
+      selectedPlayerId: playerId,
+      selectedPlayerIds: playerId ? [playerId] : [],
+      selectedActionId: null,
+      selectedActionIds: [],
+    });
   },
 
   selectAction: (actionId: string | null) => {
-    set({ selectedActionId: actionId, selectedPlayerId: null });
+    set({
+      selectedActionId: actionId,
+      selectedActionIds: actionId ? [actionId] : [],
+      selectedPlayerId: null,
+      selectedPlayerIds: [],
+    });
   },
 
   setHoveredPlayer: (playerId: string | null) => {
     set({ hoveredPlayerId: playerId });
+  },
+
+  // Multi-select: toggle a single player (shift+click behavior)
+  togglePlayerSelection: (playerId: string, additive: boolean = false) => {
+    const state = get();
+    const currentIds = state.selectedPlayerIds;
+
+    if (additive) {
+      // Add or remove from selection
+      const isSelected = currentIds.includes(playerId);
+      const newIds = isSelected
+        ? currentIds.filter((id) => id !== playerId)
+        : [...currentIds, playerId];
+      set({
+        selectedPlayerIds: newIds,
+        selectedPlayerId: newIds.length > 0 ? newIds[newIds.length - 1] : null,
+        selectedActionId: null,
+        selectedActionIds: [],
+      });
+    } else {
+      // Replace selection
+      set({
+        selectedPlayerIds: [playerId],
+        selectedPlayerId: playerId,
+        selectedActionId: null,
+        selectedActionIds: [],
+      });
+    }
+  },
+
+  // Multi-select: select multiple players at once (box selection)
+  selectMultiplePlayers: (playerIds: string[]) => {
+    set({
+      selectedPlayerIds: playerIds,
+      selectedPlayerId: playerIds.length > 0 ? playerIds[playerIds.length - 1] : null,
+      selectedActionId: null,
+      selectedActionIds: [],
+    });
+  },
+
+  // Multi-select: toggle a single action
+  toggleActionSelection: (actionId: string, additive: boolean = false) => {
+    const state = get();
+    const currentIds = state.selectedActionIds;
+
+    if (additive) {
+      const isSelected = currentIds.includes(actionId);
+      const newIds = isSelected
+        ? currentIds.filter((id) => id !== actionId)
+        : [...currentIds, actionId];
+      set({
+        selectedActionIds: newIds,
+        selectedActionId: newIds.length > 0 ? newIds[newIds.length - 1] : null,
+        selectedPlayerId: null,
+        selectedPlayerIds: [],
+      });
+    } else {
+      set({
+        selectedActionIds: [actionId],
+        selectedActionId: actionId,
+        selectedPlayerId: null,
+        selectedPlayerIds: [],
+      });
+    }
+  },
+
+  // Multi-select: select multiple actions at once
+  selectMultipleActions: (actionIds: string[]) => {
+    set({
+      selectedActionIds: actionIds,
+      selectedActionId: actionIds.length > 0 ? actionIds[actionIds.length - 1] : null,
+      selectedPlayerId: null,
+      selectedPlayerIds: [],
+    });
+  },
+
+  // Clear all selections
+  clearSelection: () => {
+    set({
+      selectedPlayerId: null,
+      selectedActionId: null,
+      selectedPlayerIds: [],
+      selectedActionIds: [],
+    });
+  },
+
+  // Snap settings
+  setSnapConfig: (config: Partial<SnapConfig>) => {
+    const state = get();
+    set({
+      snapConfig: { ...state.snapConfig, ...config },
+    });
+  },
+
+  toggleSnap: () => {
+    const state = get();
+    set({
+      snapConfig: { ...state.snapConfig, enabled: !state.snapConfig.enabled },
+    });
   },
 
   // Apply formation - full replacement (players get new IDs, actions reset)
