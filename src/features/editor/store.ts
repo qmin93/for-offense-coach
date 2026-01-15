@@ -131,6 +131,9 @@ export interface EditorState {
   finishDrawing: () => void;
   cancelDrawing: () => void;
 
+  // Quick block creation (drag to create)
+  createQuickBlock: (playerId: string, endPoint: Point) => void;
+
   // Auto-build
   buildFromConcept: (concept: Concept) => void;
 
@@ -728,6 +731,70 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   cancelDrawing: () => {
     set({
       drawing: { isDrawing: false, drawingPlayerId: null, drawingPoints: [] },
+    });
+  },
+
+  // Quick block creation (drag to create)
+  createQuickBlock: (playerId: string, endPoint: Point) => {
+    const state = get();
+    if (!state.play) return;
+
+    const player = state.play.roster.players.find((p) => p.id === playerId);
+    if (!player) return;
+
+    const startPoint = { x: player.alignment.x, y: player.alignment.y };
+
+    // Calculate angle from start to end (0° = straight up/forward)
+    const dx = endPoint.x - startPoint.x;
+    const dy = endPoint.y - startPoint.y;
+
+    // atan2 gives angle in radians, convert to degrees
+    // Adjust so 0° is straight forward (up), positive is clockwise
+    let angleDeg = Math.atan2(dx, dy) * (180 / Math.PI);
+    angleDeg = (angleDeg + 360) % 360;
+
+    // Snap to 15 degrees
+    angleDeg = Math.round(angleDeg / 15) * 15;
+
+    // Calculate block length (distance)
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const length = Math.min(Math.max(distance, 0.05), 0.15); // Clamp between 0.05 and 0.15
+
+    // Create block action
+    const newAction: Action = {
+      id: `a_block_${uuid().slice(0, 8)}`,
+      actionType: "block",
+      fromPlayerId: playerId,
+      layer: "primary",
+      block: {
+        scheme: "zone_step",
+        target: { landmark: endPoint },
+        pathPoints: [startPoint, endPoint],
+        angleDeg,
+        length,
+        style: "zone_step",
+      },
+      style: { line: "solid", endMarker: "arrow" },
+    } as Action;
+
+    // Add the action
+    const newPlay: Play = {
+      ...state.play,
+      actions: [...state.play.actions, newAction],
+      updatedAt: new Date().toISOString(),
+    };
+
+    editorLog.event("ADD_ACTION", {
+      playId: state.play.id,
+      actionCount: newPlay.actions.length,
+    });
+
+    get().setPlay(newPlay);
+
+    // Select the new action for editing
+    set({
+      selectedActionId: newAction.id,
+      selectedPlayerId: null,
     });
   },
 

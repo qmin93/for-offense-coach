@@ -47,6 +47,7 @@ export function Canvas() {
     setSnapConfig,
     toggleSnap,
     showDefense,
+    createQuickBlock,
   } = useEditorStore();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -71,6 +72,13 @@ export function Canvas() {
   const dragPlayerId = useRef<string | null>(null);
   const dragActionId = useRef<string | null>(null);
   const dragPointIndex = useRef<number | null>(null);
+
+  // Block drag state (for quick block creation)
+  const [blockDrag, setBlockDrag] = useState<{
+    playerId: string;
+    startPoint: Point;
+    currentPoint: Point;
+  } | null>(null);
 
   // Text input state
   const [textInput, setTextInput] = useState<{ x: number; y: number; value: string } | null>(null);
@@ -162,7 +170,15 @@ export function Canvas() {
         } else {
           selectPlayer(player.id);
         }
-      } else if (mode === "route" || mode === "block" || mode === "motion") {
+      } else if (mode === "block") {
+        // Block mode: start drag for quick block creation
+        const startPoint = { x: player.alignment.x, y: player.alignment.y };
+        setBlockDrag({
+          playerId: player.id,
+          startPoint,
+          currentPoint: startPoint,
+        });
+      } else if (mode === "route" || mode === "motion") {
         const startPoint = { x: player.alignment.x, y: player.alignment.y };
         startDrawing(player.id, startPoint);
       }
@@ -250,6 +266,18 @@ export function Canvas() {
         return;
       }
 
+      // Handle block drag (quick block creation)
+      if (blockDrag) {
+        const coords = getSvgCoordinates(e.clientX, e.clientY);
+        if (coords) {
+          setBlockDrag({
+            ...blockDrag,
+            currentPoint: coords,
+          });
+        }
+        return;
+      }
+
       // Handle player dragging
       if (isDragging.current && dragPlayerId.current) {
         const coords = getSvgCoordinates(e.clientX, e.clientY);
@@ -302,6 +330,20 @@ export function Canvas() {
 
   // Handle mouse up
   const handleMouseUp = useCallback(() => {
+    // Finish block drag (create quick block)
+    if (blockDrag) {
+      const dx = blockDrag.currentPoint.x - blockDrag.startPoint.x;
+      const dy = blockDrag.currentPoint.y - blockDrag.startPoint.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      // Only create block if dragged at least a small distance
+      if (distance > 0.02) {
+        createQuickBlock(blockDrag.playerId, blockDrag.currentPoint);
+      }
+      setBlockDrag(null);
+      return;
+    }
+
     // Finish box selection
     if (isBoxSelecting && selectionBox && play) {
       const minX = Math.min(selectionBox.start.x, selectionBox.end.x);
@@ -330,7 +372,7 @@ export function Canvas() {
     dragPlayerId.current = null;
     dragActionId.current = null;
     dragPointIndex.current = null;
-  }, [isBoxSelecting, selectionBox, play, selectMultiplePlayers, clearSelection]);
+  }, [isBoxSelecting, selectionBox, play, selectMultiplePlayers, clearSelection, blockDrag, createQuickBlock]);
 
   // Handle canvas click (for drawing)
   const handleCanvasClick = useCallback(
@@ -427,6 +469,51 @@ export function Canvas() {
         {points.map((point, i) => (
           <circle key={i} cx={point.x} cy={point.y} r={6} fill={color} stroke="#ffffff" strokeWidth={2} />
         ))}
+      </g>
+    );
+  };
+
+  // Render block drag preview
+  const renderBlockDragPreview = () => {
+    if (!blockDrag) return null;
+
+    const start = normalizedToSvg(blockDrag.startPoint);
+    const end = normalizedToSvg(blockDrag.currentPoint);
+
+    // Calculate angle for arrow head
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+    return (
+      <g className="block-drag-preview">
+        {/* Line */}
+        <line
+          x1={start.x}
+          y1={start.y}
+          x2={end.x}
+          y2={end.y}
+          stroke="#3b82f6"
+          strokeWidth={6}
+          strokeLinecap="round"
+          opacity={0.8}
+        />
+        {/* Arrow head */}
+        <polygon
+          points="0,-8 16,0 0,8"
+          fill="#3b82f6"
+          transform={`translate(${end.x},${end.y}) rotate(${angle})`}
+          opacity={0.9}
+        />
+        {/* Start point */}
+        <circle
+          cx={start.x}
+          cy={start.y}
+          r={8}
+          fill="#3b82f6"
+          stroke="#ffffff"
+          strokeWidth={2}
+        />
       </g>
     );
   };
@@ -562,10 +649,11 @@ export function Canvas() {
         <div className="px-3 py-1.5 bg-black/70 rounded-lg text-white text-sm font-medium">
           {mode === "select" && "Select: Click player/route to select, drag to move"}
           {mode === "route" && "Route: Click player, click points, double-click to finish"}
-          {mode === "block" && "Block: Click player, click points, double-click to finish"}
+          {mode === "block" && "Block: Click player, drag direction, release to create"}
           {mode === "motion" && "Motion: Click player, click points, double-click to finish"}
           {mode === "text" && "Text: Click to place text"}
           {drawing.isDrawing && <span className="ml-2 text-yellow-400">(ESC cancel, dbl-click finish)</span>}
+          {blockDrag && <span className="ml-2 text-blue-400">(Dragging block...)</span>}
         </div>
 
         {/* Zoom and snap controls */}
@@ -642,6 +730,7 @@ export function Canvas() {
             showDefense={showDefense}
           />
           {renderDrawingPreview()}
+          {renderBlockDragPreview()}
           {renderEditHandles()}
           {renderMultiSelectHighlights()}
           {renderSelectionBox()}
