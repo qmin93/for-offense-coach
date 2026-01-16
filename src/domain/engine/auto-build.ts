@@ -16,6 +16,9 @@ import type {
   Point,
   RoutePattern,
   BlockScheme,
+  AutoBuildFailure,
+  AutoBuildFailureCode,
+  AutoBuildResult as TypedAutoBuildResult,
 } from "../dsl/types";
 
 // ============================================
@@ -26,11 +29,27 @@ export interface AutoBuildResult {
   success: boolean;
   actions: Action[];
   errors?: string[];
+  failure?: AutoBuildFailure; // Typed failure info
+  warnings?: string[];
+  appliedActions?: number;
 }
 
 export interface AutoBuildOptions {
   conflictPolicy?: "add_layer" | "replace_actions";
   side?: "left" | "right";
+}
+
+// ============================================
+// Failure Helpers
+// ============================================
+
+function createFailure(
+  code: AutoBuildFailureCode,
+  message: string,
+  suggestion: string,
+  context?: Record<string, unknown>
+): AutoBuildFailure {
+  return { code, message, suggestion, context };
 }
 
 // ============================================
@@ -45,16 +64,74 @@ export function autoBuildFromConcept(
   const { conflictPolicy = "add_layer", side = "right" } = options;
   const actions: Action[] = [];
   const errors: string[] = [];
+  const warnings: string[] = [];
 
   const players = play.roster.players;
   const template = concept.template;
 
+  // Failure: No template defined
   if (!template || !template.roles) {
     return {
       success: false,
       actions: [],
       errors: ["Concept has no template roles defined"],
+      failure: createFailure(
+        "NO_MATCHING_ROLES",
+        "This concept has no template defined",
+        "Try a different concept or contact support",
+        { conceptId: concept.id }
+      ),
     };
+  }
+
+  // Pre-check: Eligible receivers for pass concepts
+  if (concept.conceptType === "pass") {
+    const eligibleRoles = ["X", "Y", "Z", "H", "RB", "FB"];
+    const eligibleCount = players.filter(p => eligibleRoles.includes(p.role)).length;
+    const minRequired = concept.requirements?.minEligibleReceivers || 1;
+
+    if (eligibleCount < minRequired) {
+      return {
+        success: false,
+        actions: [],
+        errors: [`Need at least ${minRequired} eligible receivers, have ${eligibleCount}`],
+        failure: createFailure(
+          "NOT_ENOUGH_RECEIVERS",
+          `This concept needs ${minRequired} eligible receivers, but only ${eligibleCount} are available`,
+          "Add more skill players to your formation or choose a simpler concept",
+          { required: minRequired, available: eligibleCount, conceptId: concept.id }
+        ),
+      };
+    }
+  }
+
+  // Pre-check: Puller requirements for run concepts
+  if (concept.conceptType === "run" && concept.requirements?.needsPuller) {
+    const olRoles = ["LT", "LG", "C", "RG", "RT"];
+    const olPlayers = players.filter(p => olRoles.includes(p.role));
+
+    if (concept.requirements.needsPuller === "GT" && olPlayers.length < 5) {
+      return {
+        success: false,
+        actions: [],
+        errors: ["This run concept needs full OL for pulling scheme"],
+        failure: createFailure(
+          "MISSING_PULLER",
+          "This concept requires pulling guard/tackle",
+          "Ensure you have a complete offensive line (5 OL) in your formation",
+          { needsPuller: concept.requirements.needsPuller, conceptId: concept.id }
+        ),
+      };
+    }
+  }
+
+  // Pre-check: Formation structure compatibility
+  const prefStructures = concept.requirements?.preferredStructures;
+  if (prefStructures && prefStructures.length > 0) {
+    const currentStructure = detectFormationStructure(players);
+    if (!prefStructures.includes(currentStructure as any)) {
+      warnings.push(`Best in ${prefStructures.join("/")} formation, current: ${currentStructure}`);
+    }
   }
 
   // Build actions from each role
@@ -65,6 +142,7 @@ export function autoBuildFromConcept(
     );
 
     if (matchingPlayers.length === 0) {
+      warnings.push(`No player found for role: ${role.roleName}`);
       continue; // Skip if no matching player
     }
 
@@ -107,11 +185,50 @@ export function autoBuildFromConcept(
     }
   }
 
+  // Check if we generated any actions
+  if (actions.length === 0) {
+    return {
+      success: false,
+      actions: [],
+      errors: ["No actions could be generated from concept template"],
+      failure: createFailure(
+        "NO_MATCHING_ROLES",
+        "Could not match concept roles to players in formation",
+        "Try a different formation or concept that matches your player positions",
+        { conceptId: concept.id, rolesCount: template.roles.length }
+      ),
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  }
+
   return {
     success: true,
     actions,
     errors: errors.length > 0 ? errors : undefined,
+    warnings: warnings.length > 0 ? warnings : undefined,
+    appliedActions: actions.length,
   };
+}
+
+// ============================================
+// Formation Detection
+// ============================================
+
+function detectFormationStructure(players: Player[]): string {
+  const receivers = players.filter(p => ["X", "Y", "Z", "H"].includes(p.role));
+  const leftReceivers = receivers.filter(p => (p.alignment?.x || 0.5) < 0.4).length;
+  const rightReceivers = receivers.filter(p => (p.alignment?.x || 0.5) > 0.6).length;
+
+  if (leftReceivers === 3 || rightReceivers === 3) return "3x1";
+  if (leftReceivers === 2 && rightReceivers === 2) return "2x2";
+  if (receivers.some(p => Math.abs((p.alignment?.x || 0.5) - 0.5) < 0.1)) return "bunch";
+
+  // Check for backfield formations
+  const rb = players.find(p => p.role === "RB");
+  const fb = players.find(p => p.role === "FB");
+  if (fb && rb) return "I";
+
+  return "2x2"; // Default
 }
 
 // ============================================

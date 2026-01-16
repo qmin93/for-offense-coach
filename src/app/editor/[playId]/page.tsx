@@ -15,11 +15,32 @@ import {
   DefensePanel,
   PlaybackControls,
   BlockHUD,
+  RecoveryDialog,
 } from "@/features/editor/components";
+import { ValidationPanel, ValidationStatusBadge } from "@/features/editor/components/ValidationPanel";
+import {
+  OnboardingOverlay,
+  HardOnboardingModal,
+  type OnboardingConcept,
+} from "@/features/onboarding";
+import {
+  startAutoSnapshot,
+  stopAutoSnapshot,
+  createSnapshot,
+  getSnapshotsForPlay,
+  checkRecoveryNeeded,
+  recoverFromSnapshot,
+  type Snapshot,
+  type RecoveryInfo,
+} from "@/features/editor/snapshot-manager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { toast } from "sonner";
+import { getFormationById } from "@/domain/engine/formations";
+import { getPassConceptById } from "@/domain/engine/concepts-pass";
+import { getRunConceptById } from "@/domain/engine/concepts-run";
 
 // Debounce hook for autosave
 function useDebounce<T>(value: T, delay: number): T {
@@ -57,6 +78,8 @@ export default function EditorPage() {
     lastSaved,
     selectedActionId,
     selectAction,
+    applyFormation,
+    buildFromConcept,
   } = useEditorStore();
 
   // Check if selected action is a block
@@ -68,6 +91,11 @@ export default function EditorPage() {
   // Track if play has been modified for autosave
   const debouncedIsDirty = useDebounce(isDirty, 1000);
   const isFirstRender = useRef(true);
+
+  // Recovery state
+  const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
+  const [recoveryInfo, setRecoveryInfo] = useState<RecoveryInfo | null>(null);
+  const [allSnapshots, setAllSnapshots] = useState<Snapshot[]>([]);
 
   // Initialize or load play on mount
   useEffect(() => {
@@ -89,6 +117,84 @@ export default function EditorPage() {
       savePlay();
     }
   }, [debouncedIsDirty, playDbId, isSaving, savePlay]);
+
+  // Auto-snapshot management
+  useEffect(() => {
+    // Start auto-snapshotting when play is loaded
+    if (play?.id) {
+      startAutoSnapshot(() => useEditorStore.getState().play);
+
+      // Also create a snapshot when saving
+      const unsubscribe = useEditorStore.subscribe((state, prevState) => {
+        if (!state.isSaving && prevState.isSaving && state.play) {
+          createSnapshot(state.play, "save");
+        }
+      });
+
+      return () => {
+        stopAutoSnapshot();
+        unsubscribe();
+      };
+    }
+  }, [play?.id]);
+
+  // Check for recovery needs on load
+  useEffect(() => {
+    if (!isLoading && playId !== "new") {
+      const info = checkRecoveryNeeded(playId, play);
+      if (info.needsRecovery) {
+        const snapshots = getSnapshotsForPlay(playId);
+        setRecoveryInfo(info);
+        setAllSnapshots(snapshots);
+        setShowRecoveryDialog(true);
+      }
+    }
+  }, [playId, play, isLoading]);
+
+  // Recovery handlers
+  const handleRecover = useCallback((snapshotId: string) => {
+    const recoveredPlay = recoverFromSnapshot(snapshotId);
+    if (recoveredPlay) {
+      useEditorStore.getState().setPlay(recoveredPlay);
+      toast.success("Play recovered successfully");
+      setShowRecoveryDialog(false);
+    } else {
+      toast.error("Failed to recover play");
+    }
+  }, []);
+
+  const handleContinueWithoutRecovery = useCallback(() => {
+    setShowRecoveryDialog(false);
+    toast.info("Continuing with current state");
+  }, []);
+
+  // Hard Onboarding concept selection handler
+  const handleOnboardingConceptSelect = useCallback(
+    async (onboardingConcept: OnboardingConcept) => {
+      // Get and apply the formation for the selected concept
+      const formationId = `formation_${onboardingConcept.formation}`;
+      const formation = getFormationById(formationId);
+      if (formation) {
+        applyFormation(formation);
+      }
+
+      // Get the full concept definition
+      const concept =
+        onboardingConcept.type === "run"
+          ? getRunConceptById(onboardingConcept.id)
+          : getPassConceptById(onboardingConcept.id);
+
+      if (concept) {
+        // Build the concept
+        await buildFromConcept(concept);
+
+        toast.success(`${onboardingConcept.name} concept applied!`, {
+          description: "Feel free to edit or try a different concept.",
+        });
+      }
+    },
+    [applyFormation, buildFromConcept]
+  );
 
   // Keyboard shortcuts for Undo/Redo
   useEffect(() => {
@@ -199,6 +305,8 @@ export default function EditorPage() {
               </Badge>
             )}
           </div>
+          {/* Validation status badge */}
+          <ValidationStatusBadge />
         </div>
         <div className="flex items-center gap-2">
           <ExportButton />
@@ -263,6 +371,11 @@ export default function EditorPage() {
             playerId={selectedBlockAction?.fromPlayerId || null}
             onClose={() => selectAction(null)}
           />
+          {/* Validation Panel (floating overlay) */}
+          <ValidationPanel
+            className="absolute bottom-4 left-4 w-72 z-10"
+            defaultExpanded={false}
+          />
         </div>
 
         {/* Right sidebar - Suggestions */}
@@ -292,6 +405,26 @@ export default function EditorPage() {
           <span>v{play?.history?.version || 1}</span>
         </div>
       </footer>
+
+      {/* Hard onboarding modal for first-time users (forced concept selection) */}
+      {playId === "new" && (
+        <HardOnboardingModal onSelect={handleOnboardingConceptSelect} />
+      )}
+
+      {/* Soft onboarding overlay for hints */}
+      <OnboardingOverlay />
+
+      {/* Recovery dialog for data corruption */}
+      {recoveryInfo && (
+        <RecoveryDialog
+          isOpen={showRecoveryDialog}
+          onClose={() => setShowRecoveryDialog(false)}
+          onRecover={handleRecover}
+          onContinueAnyway={handleContinueWithoutRecovery}
+          recoveryInfo={recoveryInfo}
+          allSnapshots={allSnapshots}
+        />
+      )}
     </div>
   );
 }

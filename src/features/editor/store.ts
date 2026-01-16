@@ -13,7 +13,19 @@ import type {
   Concept,
   Point,
   DefensePreset,
+  AutoBuildFailure,
 } from "@/domain/dsl/types";
+
+// ============================================
+// Auto-build Result Type for UI
+// ============================================
+
+export interface BuildFromConceptResult {
+  success: boolean;
+  failure?: AutoBuildFailure;
+  appliedActions?: number;
+  warnings?: string[];
+}
 import { createPlay, createPlayFromFormation } from "@/domain/dsl/factories";
 import { type SnapConfig, DEFAULT_SNAP_CONFIG } from "@/domain/engine/snap";
 import { autoBuildFromConcept, applyAutoBuildToPlay } from "@/domain/engine/auto-build";
@@ -26,6 +38,15 @@ import {
 import { validateAndRecoverPlay, validatePlay } from "@/domain/dsl/validation";
 import { editorLog } from "@/lib/logger";
 import { deepClone } from "@/lib/immutable";
+import { createSnapshot } from "./snapshot-manager";
+import {
+  telemetry,
+  startTimer,
+  endTimer,
+  setLastAutobuildContext,
+  getLastAutobuildContext,
+  clearAutobuildContext,
+} from "@/lib/telemetry";
 
 // ============================================
 // Types
@@ -154,7 +175,7 @@ export interface EditorState {
   createQuickBlock: (playerId: string, endPoint: Point) => void;
 
   // Auto-build
-  buildFromConcept: (concept: Concept) => void;
+  buildFromConcept: (concept: Concept) => BuildFromConceptResult;
 
   // Defense actions
   applyDefensePreset: (presetId: string) => void;
@@ -593,6 +614,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       defaultsApplied: state.autoApplyDefaults,
     });
 
+    // Create snapshot before formation change (important recovery point)
+    if (currentPlay) {
+      createSnapshot(currentPlay, "manual");
+    }
+
     get().setPlay(newPlay);
   },
 
@@ -853,50 +879,126 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
   },
 
-  // Build from concept
+  // Build from concept - returns result for UI to display
   buildFromConcept: (concept: Concept) => {
     const state = get();
-    if (!state.play) return;
+
+    // Start timing for telemetry
+    startTimer(`autobuild_${concept.id}`);
+
+    if (!state.play) {
+      const failure = { code: "INVALID_DSL_STATE" as const, message: "No play loaded", suggestion: "Create or load a play first" };
+      telemetry.autobuildFail({
+        conceptId: concept.id,
+        conceptName: concept.name,
+        code: failure.code,
+        message: failure.message,
+      });
+      return { success: false, failure };
+    }
 
     const result = autoBuildFromConcept(state.play, concept);
-    if (result.success) {
-      const newPlay = applyAutoBuildToPlay(state.play, result, {
-        conflictPolicy: "add_layer",
-      });
 
-      // Update concept reference
-      newPlay.meta = {
-        ...newPlay.meta,
-        conceptId: concept.id,
-      };
-      newPlay.history = {
-        ...newPlay.history,
-        version: (newPlay.history?.version || 0) + 1,
-        derivedFrom: {
-          ...newPlay.history?.derivedFrom,
-          sourceConceptId: concept.id,
-        },
-      };
-
-      // Validate after auto-build
-      const validationResult = validatePlay(newPlay);
-      if (!validationResult.valid) {
-        editorLog.error("VALIDATION_FAIL", "Auto-build produced invalid play", {
-          playId: newPlay.id,
-          conceptId: concept.id,
-          error: validationResult.errors.map((e) => e.message).join("; "),
-        });
-        // Still apply but log the issue
-      }
-
-      editorLog.event("AUTO_BUILD", {
+    // Handle failure
+    if (!result.success) {
+      const timeMs = endTimer(`autobuild_${concept.id}`);
+      editorLog.error("AUTO_BUILD", result.failure?.message || "Unknown error", {
         playId: state.play.id,
         conceptId: concept.id,
-        actionCount: newPlay.actions.length,
+        error: result.failure?.code || "UNKNOWN",
       });
 
-      get().setPlay(newPlay);
+      // Track failure telemetry
+      const failureContext = result.failure?.context || {};
+      telemetry.autobuildFail({
+        conceptId: concept.id,
+        conceptName: concept.name,
+        code: result.failure?.code || "UNKNOWN",
+        message: result.failure?.message || result.errors?.[0] || "Auto-build failed",
+        missingRoles: failureContext.missingRoles as string[] | undefined,
+        requiredCount: failureContext.requiredCount as number | undefined,
+        availableCount: failureContext.availableCount as number | undefined,
+      });
+
+      return {
+        success: false,
+        failure: result.failure || {
+          code: "UNKNOWN" as const,
+          message: result.errors?.[0] || "Auto-build failed",
+          suggestion: "Try a different concept or formation",
+        },
+        warnings: result.warnings,
+      };
     }
+
+    // Success path
+    const newPlay = applyAutoBuildToPlay(state.play, result, {
+      conflictPolicy: "add_layer",
+    });
+
+    // Update concept reference
+    newPlay.meta = {
+      ...newPlay.meta,
+      conceptId: concept.id,
+    };
+    newPlay.history = {
+      ...newPlay.history,
+      version: (newPlay.history?.version || 0) + 1,
+      derivedFrom: {
+        ...newPlay.history?.derivedFrom,
+        sourceConceptId: concept.id,
+      },
+    };
+
+    // Validate after auto-build
+    const validationResult = validatePlay(newPlay);
+    if (!validationResult.valid) {
+      editorLog.error("VALIDATION_FAIL", "Auto-build produced invalid play", {
+        playId: newPlay.id,
+        conceptId: concept.id,
+        error: validationResult.errors.map((e) => e.message).join("; "),
+      });
+      // Still apply but log the issue
+    }
+
+    const timeMs = endTimer(`autobuild_${concept.id}`);
+    const appliedActions = result.appliedActions || result.actions.length;
+    const playersAssigned = result.actions.filter((a) => a.fromPlayerId).length;
+
+    editorLog.event("AUTO_BUILD", {
+      playId: state.play.id,
+      conceptId: concept.id,
+      actionCount: newPlay.actions.length,
+    });
+
+    // Track success telemetry
+    telemetry.autobuildSuccess({
+      conceptId: concept.id,
+      conceptName: concept.name,
+      timeMs,
+      actionsGenerated: appliedActions,
+      playersAssigned,
+    });
+
+    // Store autobuild context for undo tracking
+    setLastAutobuildContext({
+      conceptId: concept.id,
+      conceptName: concept.name,
+      reasonCount: 0, // Will be set by UI when reasons are displayed
+      startedAt: Date.now(),
+      completedAt: Date.now(),
+    });
+
+    get().setPlay(newPlay);
+
+    // Create snapshot after successful auto-build (important recovery point)
+    createSnapshot(newPlay, "manual");
+
+    return {
+      success: true,
+      appliedActions,
+      warnings: result.warnings,
+    };
   },
 
   // Defense actions
@@ -981,6 +1083,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const state = get();
     if (!state.play) return;
 
+    // Create snapshot before reset (important recovery point)
+    createSnapshot(state.play, "manual");
+
     // Keep formation players but reset actions and positions
     const formationId = state.play.meta?.formationId;
 
@@ -1036,6 +1141,25 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (state.historyIndex > 0) {
       const newIndex = state.historyIndex - 1;
       const restoredPlay = state.history[newIndex];
+
+      // Check if this is undoing an autobuild
+      const autobuildContext = getLastAutobuildContext();
+      if (autobuildContext && autobuildContext.completedAt) {
+        const timeSinceAutobuild = Date.now() - autobuildContext.completedAt;
+        // If undo happens within 30 seconds of autobuild, track it
+        if (timeSinceAutobuild < 30000) {
+          telemetry.undoAfterAutobuild({
+            conceptId: autobuildContext.conceptId,
+            conceptName: autobuildContext.conceptName,
+            reasonCount: autobuildContext.reasonCount,
+            timeFromBuildMs: timeSinceAutobuild,
+            undoCount: 1,
+          });
+        }
+        // Clear context after tracking
+        clearAutobuildContext();
+      }
+
       editorLog.event("UNDO", {
         playId: restoredPlay?.id,
         actionCount: restoredPlay?.actions.length,

@@ -5,6 +5,7 @@ import { useEditorStore } from "../store";
 import { Button } from "@/components/ui";
 import { FIELD_WIDTH, FIELD_HEIGHT } from "@/domain/render/svg-renderer";
 import { toast } from "sonner";
+import { telemetry, startTimer, endTimer } from "@/lib/telemetry";
 
 export function ExportButton() {
   const { play, playDbId } = useEditorStore();
@@ -16,6 +17,8 @@ export function ExportButton() {
     // Find the SVG element
     const svgElement = document.querySelector("svg");
     if (!svgElement) return;
+
+    const startTime = performance.now();
 
     try {
       // Clone the SVG
@@ -59,6 +62,17 @@ export function ExportButton() {
           URL.revokeObjectURL(pngUrl);
           URL.revokeObjectURL(url);
 
+          // Track successful export
+          const timeMs = Math.round(performance.now() - startTime);
+          telemetry.exportPng({
+            playId: play.id,
+            timeMs,
+            scale: 2,
+            width: FIELD_WIDTH * 2,
+            height: FIELD_HEIGHT * 2,
+            success: true,
+          });
+
           toast.success("PNG exported successfully");
         }, "image/png");
       };
@@ -66,6 +80,19 @@ export function ExportButton() {
       img.src = url;
     } catch (error) {
       console.error("Export failed:", error);
+
+      // Track failed export
+      const timeMs = Math.round(performance.now() - startTime);
+      telemetry.exportPng({
+        playId: play.id,
+        timeMs,
+        scale: 2,
+        width: FIELD_WIDTH * 2,
+        height: FIELD_HEIGHT * 2,
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+
       toast.error("Export failed");
     }
   }, [play]);
@@ -97,6 +124,13 @@ export function ExportButton() {
 
       // Copy to clipboard
       await navigator.clipboard.writeText(shareUrl);
+
+      // Track share link creation
+      telemetry.shareLinkCreated({
+        type: "play",
+        targetId: playDbId,
+        viewOnly: true,
+      });
 
       toast.success("Share link copied!", {
         description: "Link copied to clipboard",

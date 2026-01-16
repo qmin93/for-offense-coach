@@ -27,7 +27,10 @@
       "Bash(git mv:*)",
       "Bash(git restore:*)",
       "Bash(dir c:ForOffensiveCoordinatorsrcfeatureseditorcomponents)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(vercel --version:*)",
+      "Bash(vercel --yes:*)"
     ]
   }
 }

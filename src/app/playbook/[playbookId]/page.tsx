@@ -9,6 +9,8 @@ import { PlayRenderer } from "@/domain/render/svg-renderer";
 import { exportPlaybookToPdf, capturePlaySvgAsImage } from "@/lib/pdf-export";
 import { toast } from "sonner";
 import type { Play } from "@/domain/dsl/types";
+import { ExportValidationDialog } from "@/features/playbook/components/ExportValidationDialog";
+import { telemetry, startTimer, endTimer } from "@/lib/telemetry";
 
 export default function PlaybookPage() {
   const params = useParams();
@@ -61,6 +63,7 @@ export default function PlaybookPage() {
 
     setExporting(true);
     setExportProgress(0);
+    startTimer("pdf_export");
 
     try {
       // Wait for export container to render
@@ -103,10 +106,33 @@ export default function PlaybookPage() {
       link.click();
       URL.revokeObjectURL(url);
 
+      // Track successful export
+      const timeMs = endTimer("pdf_export");
+      telemetry.exportPdf({
+        playbookId: playbook.id,
+        pages: Math.min(allPlays.length, 10),
+        style: playbook.exportSettings?.pageStyle || "classic",
+        timeMs,
+        success: true,
+        blocked: false,
+      });
+
       toast.success("PDF exported successfully!");
       setShowExportModal(false);
     } catch (error) {
       console.error("PDF export failed:", error);
+
+      // Track failed export
+      const timeMs = endTimer("pdf_export");
+      telemetry.exportPdf({
+        playbookId: playbook.id,
+        pages: Math.min(allPlays.length, 10),
+        style: playbook.exportSettings?.pageStyle || "classic",
+        timeMs,
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+
       toast.error("Failed to export PDF");
     } finally {
       setExporting(false);
@@ -230,116 +256,16 @@ export default function PlaybookPage() {
         </div>
       </div>
 
-      {/* Export Modal */}
-      {showExportModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Export PDF</h3>
-
-            <div className="space-y-4">
-              {/* Play count info */}
-              <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600">
-                {(() => {
-                  const count = getAllPlays().length;
-                  const limitedCount = Math.min(count, 10);
-                  return (
-                    <>
-                      <span className="font-medium">{limitedCount} plays</span>
-                      {count > 10 && (
-                        <span className="text-amber-600"> (max 10 per export)</span>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Page Style
-                </label>
-                <select
-                  value={playbook.exportSettings?.pageStyle || "classic"}
-                  onChange={(e) =>
-                    setExportSettings({
-                      pageStyle: e.target.value as "classic" | "minimal",
-                    })
-                  }
-                  className="w-full border rounded-lg p-2"
-                  disabled={isExporting}
-                >
-                  <option value="classic">Classic (Scout Card)</option>
-                  <option value="minimal">Minimal</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="includeNotes"
-                  checked={playbook.exportSettings?.includeNotes ?? true}
-                  onChange={(e) =>
-                    setExportSettings({ includeNotes: e.target.checked })
-                  }
-                  className="rounded"
-                  disabled={isExporting}
-                />
-                <label htmlFor="includeNotes" className="text-sm">
-                  Include coaching notes
-                </label>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="includeGrid"
-                  checked={playbook.exportSettings?.includeGrid ?? false}
-                  onChange={(e) =>
-                    setExportSettings({ includeGrid: e.target.checked })
-                  }
-                  className="rounded"
-                  disabled={isExporting}
-                />
-                <label htmlFor="includeGrid" className="text-sm">
-                  Include alignment grid
-                </label>
-              </div>
-
-              {/* Progress bar */}
-              {isExporting && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Generating PDF...</span>
-                    <span>{exportProgress}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${exportProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2 mt-6">
-              <Button
-                variant="outline"
-                onClick={() => setShowExportModal(false)}
-                disabled={isExporting}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="default"
-                onClick={handleExportPdf}
-                disabled={isExporting || getAllPlays().length === 0}
-              >
-                {isExporting ? "Exporting..." : "Export PDF"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Export Validation Dialog */}
+      <ExportValidationDialog
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExportPdf}
+        playbook={playbook}
+        plays={plays}
+        isExporting={isExporting}
+        exportProgress={exportProgress}
+      />
 
       {/* Hidden container for rendering plays during export */}
       {showExportModal && (

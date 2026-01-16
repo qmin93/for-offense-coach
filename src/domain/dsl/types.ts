@@ -322,11 +322,22 @@ export interface PlayMeta {
   formationId?: string;
   conceptId?: string;
   nflStyle?: boolean;
-  // Scout Card fields
-  down?: string;
-  distance?: string;
+  // Scout Card fields (constrained for UI/export quality)
+  down?: ScoutCardDown;
+  distance?: ScoutCardDistance;
   hash?: HashPosition;
   callName?: string;
+}
+
+// Scout Card constrained types
+export type ScoutCardDown = 1 | 2 | 3 | 4 | "-";
+export type ScoutCardDistance = "short" | "medium" | "long" | "goal" | number | "-";
+
+// Helper to display distance
+export function formatDistance(distance: ScoutCardDistance): string {
+  if (typeof distance === "number") return String(distance);
+  if (distance === "-") return "-";
+  return distance.charAt(0).toUpperCase() + distance.slice(1);
 }
 
 export interface FieldSettings {
@@ -556,6 +567,76 @@ export interface ConceptFamily {
   compatibleFronts: DefenseFront[];
   compatibleShells: DefenseShell[];
   tags: string[];
+}
+
+// ============================================
+// Recommendation Reason Types (추천 신뢰 강화)
+// ============================================
+
+export type ReasonType = "numbers" | "angle" | "surface" | "structure" | "coverage" | "situational";
+
+export interface RecommendationReason {
+  type: ReasonType;
+  text: string;
+  favorable: boolean; // true = 이 이유로 추천됨, false = 주의 사항
+  details?: string;
+}
+
+export interface SuggestionWithReasons {
+  conceptId: string;
+  score: number;
+  reasons: RecommendationReason[]; // 최소 3개 보장
+  warnings?: RecommendationReason[]; // 주의 사항
+  category: string;
+}
+
+// ============================================
+// Auto-build Failure Types
+// ============================================
+
+export type AutoBuildFailureCode =
+  | "NOT_ENOUGH_RECEIVERS"
+  | "FORMATION_MISMATCH"
+  | "MISSING_PULLER"
+  | "NO_ELIGIBLE_SURFACE"
+  | "NO_MATCHING_ROLES"
+  | "INVALID_DSL_STATE"
+  | "UNKNOWN";
+
+export interface AutoBuildFailure {
+  code: AutoBuildFailureCode;
+  message: string;
+  suggestion: string; // 다음 액션 제시
+  context?: Record<string, unknown>;
+}
+
+export interface AutoBuildResult {
+  success: boolean;
+  failure?: AutoBuildFailure;
+  appliedActions?: number;
+  warnings?: string[];
+}
+
+// ============================================
+// Editor Validation Types
+// ============================================
+
+export type ValidationSeverity = "error" | "warning" | "info";
+
+export interface ValidationIssue {
+  severity: ValidationSeverity;
+  code: string;
+  message: string;
+  field?: string;
+  playerId?: string;
+  actionId?: string;
+}
+
+export interface ValidationResult {
+  valid: boolean; // error가 없으면 true
+  canSave: boolean; // error가 없으면 true
+  canExport: boolean; // error + critical warning 없으면 true
+  issues: ValidationIssue[];
 }
 
 // ============================================

@@ -3,7 +3,16 @@
 // Formation → Pass/Run Concept 추천
 // ============================================
 
-import type { Concept, Formation, Play, FormationMeta, DefensePreset, ConceptFamily } from "../dsl/types";
+import type {
+  Concept,
+  Formation,
+  Play,
+  FormationMeta,
+  DefensePreset,
+  ConceptFamily,
+  RecommendationReason,
+  ReasonType,
+} from "../dsl/types";
 import { PASS_CONCEPTS, getPassConceptsForFormation } from "./concepts-pass";
 import { RUN_CONCEPTS, getRunConceptsForFormation } from "./concepts-run";
 import type {
@@ -52,8 +61,22 @@ export interface RunSuggestionInput {
 export interface SuggestionResult {
   concept: Concept;
   score: number;
-  reasons: string[];
+  reasons: string[]; // Legacy string reasons
+  typedReasons: RecommendationReason[]; // Typed reasons with 3+ items guaranteed
   category: string;
+}
+
+// ============================================
+// Helper: Create Typed Reason
+// ============================================
+
+function createReason(
+  type: ReasonType,
+  text: string,
+  favorable: boolean,
+  details?: string
+): RecommendationReason {
+  return { type, text, favorable, details };
 }
 
 // ============================================
@@ -135,10 +158,10 @@ export function getPassSuggestions(input: PassSuggestionInput): SuggestionResult
   // Score and sort
   const results: SuggestionResult[] = concepts.map((concept) => {
     const score = scorePassConcept(concept, input);
-    const reasons = generatePassReasons(concept, input);
+    const { reasons, typedReasons } = generatePassReasons(concept, input);
     const category = concept.passHints?.category || "intermediate";
 
-    return { concept, score, reasons, category };
+    return { concept, score, reasons, typedReasons, category };
   });
 
   // Sort by score descending, limit to 8-12 for pass concepts
@@ -180,31 +203,99 @@ function scorePassConcept(concept: Concept, input: PassSuggestionInput): number 
   return Math.max(10, Math.min(score, 95)); // Cap at 95, floor at 10
 }
 
-function generatePassReasons(concept: Concept, input: PassSuggestionInput): string[] {
-  const reasons: string[] = [];
+interface ReasonsResult {
+  reasons: string[];
+  typedReasons: RecommendationReason[];
+}
 
-  // Structure reason
-  if (concept.requirements?.preferredStructures?.includes(input.structure as any)) {
-    reasons.push(`Fits ${input.structure} structure`);
-  }
+function generatePassReasons(concept: Concept, input: PassSuggestionInput): ReasonsResult {
+  const typedReasons: RecommendationReason[] = [];
 
-  // Coverage stress reason
+  // 1. Structure reason (required)
+  const structureMatch = concept.requirements?.preferredStructures?.includes(input.structure as any);
+  typedReasons.push(createReason(
+    "structure",
+    structureMatch
+      ? `Fits ${input.structure} formation structure`
+      : `Works with ${input.structure} structure`,
+    structureMatch ?? false,
+    structureMatch
+      ? "Route combinations align with receiver splits"
+      : "May require minor adjustments"
+  ));
+
+  // 2. Coverage stress reason (required)
   const stress = concept.passHints?.stress || [];
   if (stress.length > 0) {
-    const stressText = stress.slice(0, 2).join(", ");
-    reasons.push(`Stresses: ${stressText}`);
-  }
-
-  // Man/Zone beater reason
-  if (concept.passHints?.manBeater && concept.passHints?.zoneBeater) {
-    reasons.push("Beats man and zone");
+    typedReasons.push(createReason(
+      "coverage",
+      `Stresses: ${stress.slice(0, 2).join(", ")}`,
+      true,
+      "Creates difficult coverage decisions for defense"
+    ));
+  } else if (concept.passHints?.manBeater && concept.passHints?.zoneBeater) {
+    typedReasons.push(createReason(
+      "coverage",
+      "Beats both man and zone",
+      true,
+      "Versatile concept with answers for multiple coverages"
+    ));
   } else if (concept.passHints?.manBeater) {
-    reasons.push("Man coverage beater");
+    typedReasons.push(createReason(
+      "coverage",
+      "Man coverage beater",
+      true,
+      "Route combinations create natural picks and separation"
+    ));
   } else if (concept.passHints?.zoneBeater) {
-    reasons.push("Zone coverage beater");
+    typedReasons.push(createReason(
+      "coverage",
+      "Zone coverage beater",
+      true,
+      "Finds soft spots in zone coverage"
+    ));
+  } else {
+    typedReasons.push(createReason(
+      "coverage",
+      "General purpose concept",
+      true,
+      "Adaptable to different coverage looks"
+    ));
   }
 
-  return reasons.slice(0, 3);
+  // 3. Situational / numbers reason (required)
+  const minReceivers = concept.requirements?.minEligibleReceivers || 1;
+  const hasEnoughReceivers = input.eligibleReceivers >= minReceivers;
+  typedReasons.push(createReason(
+    "numbers",
+    hasEnoughReceivers
+      ? `${input.eligibleReceivers} eligible receivers available`
+      : `Needs ${minReceivers}+ receivers (have ${input.eligibleReceivers})`,
+    hasEnoughReceivers,
+    hasEnoughReceivers
+      ? "Formation provides enough route runners"
+      : "Consider different formation or concept"
+  ));
+
+  // Ensure minimum 3 reasons - add category reason if needed
+  if (typedReasons.length < 3) {
+    const category = concept.passHints?.category || "intermediate";
+    typedReasons.push(createReason(
+      "situational",
+      `${category.charAt(0).toUpperCase() + category.slice(1)} timing concept`,
+      true,
+      category === "quick"
+        ? "Fast release, protects against pressure"
+        : category === "deep"
+        ? "Big play potential with proper protection"
+        : "Balanced timing for most situations"
+    ));
+  }
+
+  // Legacy string reasons for backward compatibility
+  const reasons = typedReasons.map(r => r.text).slice(0, 3);
+
+  return { reasons, typedReasons };
 }
 
 // ============================================
@@ -228,10 +319,10 @@ export function getRunSuggestions(input: RunSuggestionInput): SuggestionResult[]
   // Score and sort
   const results: SuggestionResult[] = concepts.map((concept) => {
     const score = scoreRunConcept(concept, input);
-    const reasons = generateRunReasons(concept, input);
+    const { reasons, typedReasons } = generateRunReasons(concept, input);
     const category = concept.runHints?.category || "zone";
 
-    return { concept, score, reasons, category };
+    return { concept, score, reasons, typedReasons, category };
   });
 
   // Sort by score descending, limit to 5, then normalize
@@ -299,37 +390,69 @@ function scoreRunConcept(concept: Concept, input: RunSuggestionInput): number {
   return Math.max(10, Math.min(score, 95)); // Cap at 95, floor at 10
 }
 
-function generateRunReasons(concept: Concept, input: RunSuggestionInput): string[] {
-  const reasons: string[] = [];
+function generateRunReasons(concept: Concept, input: RunSuggestionInput): ReasonsResult {
+  const typedReasons: RecommendationReason[] = [];
   const hints = concept.runHints;
 
-  // Numbers reason
-  if (hints?.bestWhenBox?.includes(String(input.box) as any)) {
-    reasons.push(`Numbers: Box ${input.box} favorable`);
-  } else {
-    reasons.push(`Numbers: Box ${input.box}`);
-  }
+  // 1. Numbers reason (box count) - critical for run plays
+  const boxFavorable = hints?.bestWhenBox?.includes(String(input.box) as any);
+  typedReasons.push(createReason(
+    "numbers",
+    boxFavorable
+      ? `Box ${input.box}: Numbers advantage`
+      : `Box ${input.box}: Neutral numbers`,
+    boxFavorable ?? false,
+    boxFavorable
+      ? "Defense doesn't have enough defenders to stop run"
+      : input.box >= 8
+        ? "Loaded box - consider play action or different concept"
+        : "Manageable box count"
+  ));
 
-  // Angle reason
-  if (hints?.bestVsFront?.includes(input.front)) {
-    reasons.push(`Angle: ${input.front} front favorable`);
-  } else {
-    reasons.push(`Angle: ${input.front} front`);
-  }
+  // 2. Angle reason (front type)
+  const frontFavorable = hints?.bestVsFront?.includes(input.front);
+  typedReasons.push(createReason(
+    "angle",
+    frontFavorable
+      ? `${input.front.charAt(0).toUpperCase() + input.front.slice(1)} front: Good blocking angles`
+      : `${input.front.charAt(0).toUpperCase() + input.front.slice(1)} front: Workable angles`,
+    frontFavorable ?? false,
+    frontFavorable
+      ? "OL has favorable leverage and double team opportunities"
+      : "May need combo blocks to create movement"
+  ));
 
-  // Surface/3T reason
+  // 3. Surface/3T reason
   if (input.threeTech) {
-    if (hints?.bestVs3T?.includes(input.threeTech)) {
-      reasons.push(`Surface: 3T ${input.threeTech} - good angle`);
-    } else {
-      reasons.push(`Surface: 3T ${input.threeTech}`);
-    }
+    const threeTechFavorable = hints?.bestVs3T?.includes(input.threeTech);
+    typedReasons.push(createReason(
+      "surface",
+      threeTechFavorable
+        ? `3T ${input.threeTech}: Favorable alignment`
+        : `3T ${input.threeTech}: Standard surface`,
+      threeTechFavorable ?? false,
+      threeTechFavorable
+        ? "Point of attack has natural running lane"
+        : "OL can create lane with proper technique"
+    ));
   } else {
     const aim = hints?.aim || "inside";
-    reasons.push(`Target: ${aim.replace("_", " ")}`);
+    typedReasons.push(createReason(
+      "surface",
+      `Target: ${aim.replace("_", " ")} running lane`,
+      true,
+      aim === "inside"
+        ? "Attacks A/B gaps with downhill path"
+        : aim === "outside"
+        ? "Stretches defense horizontally to perimeter"
+        : "Flexible aiming point based on read"
+    ));
   }
 
-  return reasons.slice(0, 3);
+  // Legacy string reasons for backward compatibility
+  const reasons = typedReasons.map(r => r.text).slice(0, 3);
+
+  return { reasons, typedReasons };
 }
 
 // ============================================
@@ -433,6 +556,7 @@ export function getEnhancedSuggestions(
     const score = scoreConceptWithContext(concept, context);
     const fit = generateFitAnalysis(concept, context);
     const why = generateWhyReasons(concept, context);
+    const typedReasons = generateTypedReasons(concept, context);
     const alerts = generateAlerts(concept, context);
 
     return {
@@ -442,6 +566,7 @@ export function getEnhancedSuggestions(
       score,
       fit,
       why,
+      typedReasons,
       alerts: alerts.length > 0 ? alerts : undefined,
       autoBuildProfile: {
         style: "nfl_style",
@@ -732,6 +857,241 @@ function generateWhyReasons(concept: Concept, context: SuggestionContext): strin
   }
 
   return reasons.slice(0, 4);
+}
+
+function generateTypedReasons(concept: Concept, context: SuggestionContext): RecommendationReason[] {
+  const typedReasons: RecommendationReason[] = [];
+  const { offense, defense, situation } = context;
+
+  if (concept.conceptType === "run") {
+    const hints = concept.runHints;
+
+    // 1. Numbers reason (box count) - always include
+    const boxStr = String(defense.boxCount) as "6" | "7" | "8";
+    const boxFavorable = hints?.bestWhenBox?.includes(boxStr);
+    typedReasons.push(createReason(
+      "numbers",
+      boxFavorable
+        ? `Box ${defense.boxCount}: Numbers advantage`
+        : defense.boxCount >= 8
+        ? `Box ${defense.boxCount}: Loaded box`
+        : `Box ${defense.boxCount}: Neutral numbers`,
+      boxFavorable ?? defense.boxCount < 8,
+      boxFavorable
+        ? "Defense doesn't have enough defenders in the box to stop this concept"
+        : defense.boxCount >= 8
+        ? "Consider play action, RPO, or different concept to move defenders"
+        : "Standard box count - execution matters"
+    ));
+
+    // 2. Angle reason (front type) - always include
+    const frontType = defense.front === "even" || defense.front === "over" ? "even" : "odd";
+    const frontFavorable = hints?.bestVsFront?.includes(frontType);
+    typedReasons.push(createReason(
+      "angle",
+      frontFavorable
+        ? `${defense.front} front: Favorable angles`
+        : `${defense.front} front: Workable angles`,
+      frontFavorable ?? false,
+      frontFavorable
+        ? "Blocking scheme creates natural double teams and combo blocks"
+        : "May need adjustment blocks to create lanes"
+    ));
+
+    // 3. Surface reason (3T position) - always include
+    if (defense.threeTech !== "none") {
+      const threeTechFavorable = hints?.bestVs3T?.includes(defense.threeTech as any);
+      typedReasons.push(createReason(
+        "surface",
+        threeTechFavorable
+          ? `3T ${defense.threeTech}: Good leverage`
+          : `3T ${defense.threeTech}: Standard`,
+        threeTechFavorable ?? false,
+        threeTechFavorable
+          ? "Point of attack alignment creates natural running lane"
+          : "OL technique will determine success"
+      ));
+    } else {
+      typedReasons.push(createReason(
+        "surface",
+        `Target: ${(hints?.aim || "inside").replace(/_/g, " ")} lanes`,
+        true,
+        "Primary aiming point for the ball carrier"
+      ));
+    }
+
+  } else {
+    const hints = concept.passHints;
+
+    // 1. Coverage stress reason - always include
+    const stress = hints?.stress || [];
+    if (stress.length > 0) {
+      typedReasons.push(createReason(
+        "coverage",
+        `Stresses: ${stress.slice(0, 2).join(", ")}`,
+        true,
+        "Creates difficult coverage decisions for defenders"
+      ));
+    } else if (hints?.manBeater && hints?.zoneBeater) {
+      typedReasons.push(createReason(
+        "coverage",
+        "Beats both man and zone",
+        true,
+        "Versatile concept with answers for multiple coverages"
+      ));
+    } else if (hints?.manBeater) {
+      typedReasons.push(createReason(
+        "coverage",
+        "Man coverage beater",
+        true,
+        "Route combinations create separation against man"
+      ));
+    } else if (hints?.zoneBeater) {
+      typedReasons.push(createReason(
+        "coverage",
+        "Zone coverage beater",
+        true,
+        "Finds soft spots between zone defenders"
+      ));
+    } else {
+      typedReasons.push(createReason(
+        "coverage",
+        "General purpose concept",
+        true,
+        "Adaptable to different coverage looks"
+      ));
+    }
+
+    // 2. Structure reason - always include
+    const structureMatch = concept.requirements?.preferredStructures?.includes(offense.structure);
+    typedReasons.push(createReason(
+      "structure",
+      structureMatch
+        ? `Fits ${offense.structure} formation`
+        : `Works with ${offense.structure} formation`,
+      structureMatch ?? false,
+      structureMatch
+        ? "Receiver alignment naturally sets up route combinations"
+        : "May require slight formation adjustment"
+    ));
+
+    // 3. Situational reason - always include
+    const isManCoverage = defense.shell === "cover0" || defense.shell === "cover1";
+    const matchesCoverage = (isManCoverage && hints?.manBeater) || (!isManCoverage && hints?.zoneBeater);
+    typedReasons.push(createReason(
+      "situational",
+      matchesCoverage
+        ? `Effective vs ${defense.shell}`
+        : defense.shell !== "unknown"
+        ? `Can work vs ${defense.shell}`
+        : `${hints?.category || "Intermediate"} timing`,
+      matchesCoverage ?? false,
+      matchesCoverage
+        ? "Designed to attack this coverage structure"
+        : "Execution and reads will determine success"
+    ));
+  }
+
+  // Rank, deduplicate, and return top 3 strongest reasons
+  return rankAndDeduplicateReasons(typedReasons);
+}
+
+// ============================================
+// Reason Ranking and Deduplication
+// ============================================
+
+/**
+ * Reason strength scoring:
+ * - Favorable reasons score higher
+ * - Specific types (numbers, coverage) score higher than generic (situational)
+ * - Reasons with detailed explanations score higher
+ */
+function scoreReason(reason: RecommendationReason): number {
+  let score = 0;
+
+  // Favorable reasons are stronger
+  if (reason.favorable) score += 50;
+
+  // Type priority (specificity matters)
+  const typePriority: Record<ReasonType, number> = {
+    numbers: 40,
+    coverage: 35,
+    angle: 30,
+    surface: 25,
+    structure: 20,
+    situational: 10,
+  };
+  score += typePriority[reason.type] || 0;
+
+  // Has detailed explanation
+  if (reason.details && reason.details.length > 20) score += 10;
+
+  // Penalize generic/filler phrases
+  const genericPhrases = [
+    "can work",
+    "may require",
+    "standard",
+    "general purpose",
+    "consider",
+    "workable",
+    "neutral",
+  ];
+  const lowerText = reason.text.toLowerCase();
+  if (genericPhrases.some((p) => lowerText.includes(p))) {
+    score -= 15;
+  }
+
+  return score;
+}
+
+/**
+ * Check if two reasons are semantically similar (for deduplication)
+ */
+function areSimilarReasons(a: RecommendationReason, b: RecommendationReason): boolean {
+  // Same type is a signal
+  if (a.type === b.type) {
+    // Check for very similar text
+    const aWords = a.text.toLowerCase().split(/\s+/);
+    const bWords = b.text.toLowerCase().split(/\s+/);
+    const commonWords = aWords.filter((w) => bWords.includes(w) && w.length > 3);
+    return commonWords.length >= 2;
+  }
+  return false;
+}
+
+/**
+ * Rank reasons by strength, deduplicate, and return top 3
+ */
+function rankAndDeduplicateReasons(reasons: RecommendationReason[]): RecommendationReason[] {
+  if (reasons.length <= 3) return reasons;
+
+  // Score all reasons
+  const scored = reasons.map((r) => ({ reason: r, score: scoreReason(r) }));
+
+  // Sort by score descending
+  scored.sort((a, b) => b.score - a.score);
+
+  // Deduplicate: keep first occurrence (higher scored)
+  const result: RecommendationReason[] = [];
+  for (const { reason } of scored) {
+    const isDuplicate = result.some((r) => areSimilarReasons(r, reason));
+    if (!isDuplicate) {
+      result.push(reason);
+    }
+    if (result.length >= 3) break;
+  }
+
+  // Ensure we have 3 (fill with remaining if needed)
+  if (result.length < 3) {
+    for (const { reason } of scored) {
+      if (!result.includes(reason)) {
+        result.push(reason);
+        if (result.length >= 3) break;
+      }
+    }
+  }
+
+  return result.slice(0, 3);
 }
 
 function generateAlerts(concept: Concept, context: SuggestionContext): string[] {

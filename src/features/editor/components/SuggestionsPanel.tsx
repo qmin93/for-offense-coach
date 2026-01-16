@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useEditorStore } from "../store";
 import {
   getEnhancedSuggestions,
@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { getRunConceptById } from "@/domain/engine/concepts-run";
 import { getPassConceptById } from "@/domain/engine/concepts-pass";
 import { getDefensePresetById } from "@/domain/engine/defense-presets";
+import { telemetry, setLastAutobuildContext } from "@/lib/telemetry";
 
 export function SuggestionsPanel() {
   const {
@@ -46,6 +47,9 @@ export function SuggestionsPanel() {
 
   // Collapsed state for context form
   const [contextCollapsed, setContextCollapsed] = useState(false);
+
+  // Track if we've already tracked the panel open
+  const hasTrackedOpen = useRef(false);
 
   // Get current defense preset info
   const defensePreset = defensePresetId ? getDefensePresetById(defensePresetId) : null;
@@ -74,9 +78,42 @@ export function SuggestionsPanel() {
   const suggestions = comprehensiveSuggestions?.enhanced || [];
   const familySuggestions = comprehensiveSuggestions?.families || [];
 
+  // Track panel open telemetry
+  useEffect(() => {
+    if (suggestionsOpen && !hasTrackedOpen.current && play?.meta?.formationId) {
+      telemetry.suggestionsOpened({
+        formationId: play.meta.formationId,
+        mode: context.playType as "pass" | "run",
+        conceptCount: suggestions.length,
+      });
+      hasTrackedOpen.current = true;
+    }
+    // Reset tracking when panel closes
+    if (!suggestionsOpen) {
+      hasTrackedOpen.current = false;
+    }
+  }, [suggestionsOpen, play?.meta?.formationId, context.playType, suggestions.length]);
+
   if (!suggestionsOpen) return null;
 
-  const handleBuild = (result: EnhancedSuggestionResult) => {
+  const handleBuild = (result: EnhancedSuggestionResult, position?: number, source: "suggestions" | "library" = "suggestions") => {
+    // Track concept click telemetry
+    telemetry.conceptClicked({
+      conceptId: result.conceptId,
+      conceptName: result.name,
+      conceptType: result.conceptType as "pass" | "run",
+      source,
+      position,
+    });
+
+    // Track why viewed if reasons exist
+    if (result.typedReasons && result.typedReasons.length > 0) {
+      telemetry.whyViewed({
+        conceptId: result.conceptId,
+        reasonCount: result.typedReasons.length,
+      });
+    }
+
     // Find the concept from the library
     const concept =
       result.conceptType === "run"
@@ -88,15 +125,37 @@ export function SuggestionsPanel() {
       return;
     }
 
-    const prevActionCount = play?.actions.length || 0;
-    buildFromConcept(concept);
+    // Update autobuild context with reason count for undo tracking
+    setLastAutobuildContext({
+      conceptId: result.conceptId,
+      conceptName: result.name,
+      reasonCount: result.typedReasons?.length || 0,
+      startedAt: Date.now(),
+    });
 
-    // Show toast with undo option
-    const newActionCount = useEditorStore.getState().play?.actions.length || 0;
-    const actionsAdded = newActionCount - prevActionCount;
+    const buildResult = buildFromConcept(concept);
 
+    // Handle failure with detailed message
+    if (!buildResult?.success) {
+      const failure = buildResult?.failure;
+      toast.error(`Auto-build failed: ${failure?.message || "Unknown error"}`, {
+        description: failure?.suggestion || "Try a different concept or formation",
+        duration: 5000,
+      });
+      return;
+    }
+
+    // Show warnings if any
+    if (buildResult.warnings && buildResult.warnings.length > 0) {
+      toast.warning(`Built with warnings: ${result.name}`, {
+        description: buildResult.warnings[0],
+        duration: 4000,
+      });
+    }
+
+    // Show success toast with undo option
     toast.success(`Built: ${result.name}`, {
-      description: `${actionsAdded} actions added`,
+      description: `${buildResult.appliedActions || 0} actions added`,
       action: canUndo()
         ? {
             label: "Undo",
@@ -208,7 +267,7 @@ export function SuggestionsPanel() {
                 key={result.conceptId}
                 result={result}
                 rank={index + 1}
-                onBuild={() => handleBuild(result)}
+                onBuild={() => handleBuild(result, index, "suggestions")}
               />
             ))
           )}
@@ -349,13 +408,32 @@ function EnhancedConceptCard({
           )}
         </div>
 
-        {/* Why reasons */}
-        {why.length > 0 && (
-          <div className="text-xs text-muted-foreground space-y-0.5 mb-2">
-            {why.slice(0, 3).map((reason, i) => (
-              <div key={i} className="flex items-start gap-1">
-                <span className="text-green-500">✓</span>
-                <span>{reason}</span>
+        {/* Typed Reasons with Details (추천 신뢰 강화) */}
+        {result.typedReasons && result.typedReasons.length > 0 && (
+          <div className="space-y-1.5 mb-2 border rounded-lg p-2 bg-slate-50 dark:bg-slate-900/50">
+            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+              Why this concept?
+            </div>
+            {result.typedReasons.slice(0, 3).map((reason, i) => (
+              <div key={i} className="group">
+                <div className="flex items-start gap-1.5 text-xs">
+                  <span className={reason.favorable ? "text-green-500" : "text-amber-500"}>
+                    {reason.favorable ? "✓" : "○"}
+                  </span>
+                  <div className="flex-1">
+                    <span className={`font-medium ${reason.favorable ? "text-green-700 dark:text-green-400" : "text-amber-700 dark:text-amber-400"}`}>
+                      {reason.text}
+                    </span>
+                    {reason.details && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
+                        {reason.details}
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-[9px] text-muted-foreground uppercase">
+                    {reason.type}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

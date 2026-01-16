@@ -3,7 +3,7 @@
 // Comprehensive inputs for diverse recommendations
 // ============================================
 
-import type { Personnel, Strength, FormationMeta } from "../dsl/types";
+import type { Personnel, Strength, FormationMeta, RecommendationReason } from "../dsl/types";
 
 // ============================================
 // Play Type
@@ -171,7 +171,8 @@ export interface EnhancedSuggestionResult {
     structure?: string;
     coverage?: string;
   };
-  why: string[];
+  why: string[]; // Legacy string reasons
+  typedReasons: RecommendationReason[]; // Typed reasons with details (3+ guaranteed)
   variations?: Array<{
     conceptId: string;
     label: string;
