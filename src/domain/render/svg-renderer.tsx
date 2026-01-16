@@ -43,8 +43,8 @@ const FONT_SIZE = 11;
 // This matches professional playbook tools where defense has more visual space
 const LOS_POSITION = 0.62;
 // Yard scale: controls how much vertical space each yard takes
-// Lower value = more yards visible, higher = more zoom
-const YARD_SCALE = 0.065; // pixels per normalized yard (tuned for new layout)
+// Tuned so 40 yards above LOS reaches near top, 15 yards below reaches near bottom
+const YARD_SCALE = 0.14; // Fills the full canvas height
 
 // ============================================
 // Coordinate Conversion
@@ -87,9 +87,9 @@ function Field({ showGrid = true, showHash = true }: FieldProps) {
   const hashRightX = toSvgX(0.645);
 
   // Generate 5-yard lines relative to LOS
-  // More lines above LOS (defense space) than below (offense backfield)
+  // With LOS at 62% and full scale, show -15 to +40 yards
   const yardLines: { yards: number; y: number }[] = [];
-  for (let yds = -10; yds <= 40; yds += 5) {
+  for (let yds = -15; yds <= 40; yds += 5) {
     const normalizedY = yds * 0.02; // 1 yard = 0.02 normalized
     yardLines.push({ yards: yds, y: toSvgY(normalizedY) });
   }
