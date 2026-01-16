@@ -433,9 +433,20 @@ export function Canvas() {
           const { removeAction } = useEditorStore.getState();
           removeAction(selectedActionId);
         }
+      } else if (e.key === "c" || e.key === "C") {
+        // Toggle curveMode on selected route
+        if (selectedActionId && play && !textInput) {
+          const action = play.actions.find((a) => a.id === selectedActionId);
+          if (action && action.actionType === "route") {
+            const newCurveMode = !(action.route.curveMode ?? false);
+            updateAction(action.id, {
+              route: { ...action.route, curveMode: newCurveMode },
+            });
+          }
+        }
       }
     },
-    [drawing.isDrawing, cancelDrawing, isBoxSelecting, textInput, addAction, selectedActionId, play, clearSelection]
+    [drawing.isDrawing, cancelDrawing, isBoxSelecting, textInput, addAction, selectedActionId, play, clearSelection, updateAction]
   );
 
   // Reset view
@@ -538,8 +549,11 @@ export function Canvas() {
     if (!action) return null;
 
     let points: Point[] = [];
+    let isCurveRoute = false;
+
     if (action.actionType === "route") {
       points = action.route.controlPoints;
+      isCurveRoute = action.route.curveMode ?? false;
     } else if (action.actionType === "block" && action.block.pathPoints) {
       points = action.block.pathPoints;
     } else if (action.actionType === "motion") {
@@ -548,28 +562,161 @@ export function Canvas() {
 
     if (points.length === 0) return null;
 
+    // For curve routes with only 2 points, show an auto-generated curve control handle
+    // Position it at the midpoint, offset perpendicular to the line
+    const renderCurveControlHandle = () => {
+      if (!isCurveRoute || points.length !== 2) return null;
+
+      const start = points[0];
+      const end = points[1];
+
+      // Calculate midpoint
+      const midX = (start.x + end.x) / 2;
+      const midY = (start.y + end.y) / 2;
+
+      // Calculate perpendicular offset (normalized)
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      const perpX = -dy / len;
+      const perpY = dx / len;
+
+      // Default offset amount (creates a nice curve)
+      const offsetAmount = 0.05;
+      const controlPoint: Point = {
+        x: midX + perpX * offsetAmount,
+        y: midY + perpY * offsetAmount,
+      };
+
+      const svgPoint = normalizedToSvg(controlPoint);
+
+      // When dragged, insert a new control point to make it a 3-point curve
+      const handleCurveControlDrag = (e: React.MouseEvent) => {
+        e.stopPropagation();
+
+        // Type guard - this function only runs for route actions
+        if (action.actionType !== "route") return;
+
+        // Insert the control point between start and end
+        const newPoints = [start, controlPoint, end];
+        updateAction(action.id, {
+          route: { ...action.route, controlPoints: newPoints },
+        });
+
+        // Set up dragging for the newly inserted point
+        dragActionId.current = action.id;
+        dragPointIndex.current = 1; // Middle point
+      };
+
+      return (
+        <g className="curve-control-handle">
+          {/* Dashed line showing the control position */}
+          <line
+            x1={normalizedToSvg(start).x}
+            y1={normalizedToSvg(start).y}
+            x2={svgPoint.x}
+            y2={svgPoint.y}
+            stroke="#F59E0B"
+            strokeWidth={1}
+            strokeDasharray="4,3"
+            opacity={0.6}
+            pointerEvents="none"
+          />
+          <line
+            x1={svgPoint.x}
+            y1={svgPoint.y}
+            x2={normalizedToSvg(end).x}
+            y2={normalizedToSvg(end).y}
+            stroke="#F59E0B"
+            strokeWidth={1}
+            strokeDasharray="4,3"
+            opacity={0.6}
+            pointerEvents="none"
+          />
+          {/* Curve control point (amber/orange color) */}
+          <circle
+            cx={svgPoint.x}
+            cy={svgPoint.y}
+            r={10}
+            fill="#F59E0B"
+            stroke="#ffffff"
+            strokeWidth={2}
+            style={{ cursor: "move" }}
+            onMouseDown={handleCurveControlDrag}
+          />
+          {/* Label */}
+          <text
+            x={svgPoint.x}
+            y={svgPoint.y - 16}
+            textAnchor="middle"
+            fill="#F59E0B"
+            fontSize={10}
+            fontWeight="bold"
+            pointerEvents="none"
+          >
+            Drag to curve
+          </text>
+        </g>
+      );
+    };
+
     return (
       <g className="edit-handles">
         {points.map((point, i) => {
           const svgPoint = normalizedToSvg(point);
+
+          // For 3-point curve routes, middle point is the curve control (amber color)
+          const isCurveControl = isCurveRoute && points.length === 3 && i === 1;
+          const isEndpoint = i === 0 || i === points.length - 1;
+
           return (
-            <circle
-              key={i}
-              cx={svgPoint.x}
-              cy={svgPoint.y}
-              r={8}
-              fill="#ffffff"
-              stroke="#3b82f6"
-              strokeWidth={2}
-              style={{ cursor: "move" }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                dragActionId.current = action.id;
-                dragPointIndex.current = i;
-              }}
-            />
+            <g key={i}>
+              {/* Show control lines for curve control point */}
+              {isCurveControl && (
+                <>
+                  <line
+                    x1={normalizedToSvg(points[0]).x}
+                    y1={normalizedToSvg(points[0]).y}
+                    x2={svgPoint.x}
+                    y2={svgPoint.y}
+                    stroke="#F59E0B"
+                    strokeWidth={1}
+                    strokeDasharray="4,3"
+                    opacity={0.6}
+                    pointerEvents="none"
+                  />
+                  <line
+                    x1={svgPoint.x}
+                    y1={svgPoint.y}
+                    x2={normalizedToSvg(points[2]).x}
+                    y2={normalizedToSvg(points[2]).y}
+                    stroke="#F59E0B"
+                    strokeWidth={1}
+                    strokeDasharray="4,3"
+                    opacity={0.6}
+                    pointerEvents="none"
+                  />
+                </>
+              )}
+              <circle
+                cx={svgPoint.x}
+                cy={svgPoint.y}
+                r={isCurveControl ? 10 : 8}
+                fill={isCurveControl ? "#F59E0B" : "#ffffff"}
+                stroke={isCurveControl ? "#ffffff" : isEndpoint ? "#3b82f6" : "#9CA3AF"}
+                strokeWidth={2}
+                style={{ cursor: "move" }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  dragActionId.current = action.id;
+                  dragPointIndex.current = i;
+                }}
+              />
+            </g>
           );
         })}
+        {/* Auto-generated curve handle for 2-point routes */}
+        {renderCurveControlHandle()}
       </g>
     );
   };
@@ -713,7 +860,7 @@ export function Canvas() {
 
       {/* Help text */}
       <div className="absolute bottom-4 left-4 z-10 px-2 py-1 bg-slate-800/70 rounded text-white/80 text-xs">
-        Scroll to zoom • Space+drag to pan • Shift+click multi-select • Drag box to select • Delete to remove
+        Scroll to zoom • Space+drag to pan • Shift+click multi-select • Drag box to select • Delete to remove • C to toggle curve
       </div>
 
       {/* Canvas */}
