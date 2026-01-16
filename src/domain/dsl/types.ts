@@ -12,6 +12,73 @@ export interface Point {
   y: number; // -1.0 ~ +1.0 (LOS at 0)
 }
 
+// ============================================
+// Path Types (Curve Routes/Motion)
+// ============================================
+
+export type PathKind = "line" | "polyline" | "quadratic";
+
+export interface PathStyle {
+  dashed?: boolean;
+  thickness?: 1 | 2 | 3;
+  arrow?: "end" | "none";
+  colorKey?: "route" | "motion" | "block";
+}
+
+export interface PathMeta {
+  editable?: boolean;
+  lockStartToPlayer?: boolean;
+}
+
+export interface PathSpec {
+  kind: PathKind;
+  start: Point;
+  end: Point;
+  points?: Point[];      // For polyline (intermediate waypoints)
+  control?: Point;       // For quadratic bezier (single control point)
+  style?: PathStyle;
+  meta?: PathMeta;
+}
+
+// ============================================
+// Gap Anchors (Defense Tech Positioning)
+// ============================================
+
+// Gap x-coordinates relative to center (in yards)
+export const GAP_X = {
+  A: 0.75,
+  B: 1.75,
+  C: 2.75,
+  D: 3.75,
+} as const;
+
+// Defensive line techniques
+export type DefenseTechValue = "0" | "1" | "2i" | "2" | "3" | "4i" | "5" | "7" | "9";
+
+// Tech to normalized x-coordinate mapping
+export function techToNormalizedX(tech: DefenseTechValue, sideSign: 1 | -1): number {
+  // sideSign: +1 for strong side (right by default), -1 for weak side
+  // Returns normalized x (0-1 range, center at 0.5)
+  const CENTER_X = 0.5;
+  const YARD_TO_NORMALIZED = 0.06; // ~1 yard in normalized coords
+
+  let offsetYards: number;
+  switch (tech) {
+    case "0":  offsetYards = 0; break;
+    case "1":  offsetYards = GAP_X.A; break;
+    case "2i": offsetYards = GAP_X.B - 0.25; break;
+    case "2":  offsetYards = GAP_X.B; break;
+    case "3":  offsetYards = GAP_X.B + 0.25; break;
+    case "4i": offsetYards = GAP_X.C - 0.25; break;
+    case "5":  offsetYards = GAP_X.C; break;
+    case "7":  offsetYards = GAP_X.D - 0.25; break;
+    case "9":  offsetYards = GAP_X.D; break;
+    default:   offsetYards = 0;
+  }
+
+  return CENTER_X + sideSign * offsetYards * YARD_TO_NORMALIZED;
+}
+
 export type Facing = "up" | "down" | "left" | "right";
 export type Stance = "two_point" | "three_point" | "none";
 export type SplitPreset = "wide" | "normal" | "reduced" | "slot";
@@ -58,9 +125,12 @@ export type PlayerRole = OffenseRole | DefenseRole;
 // ============================================
 
 export type DefensePresetFamily = "front" | "shell";
-export type DefenseFront = "even" | "odd" | "over" | "under" | "bear" | "tite";
-export type DefenseShell = "cover0" | "cover1" | "cover2" | "cover3" | "cover4" | "cover6" | "nickel" | "dime" | "unknown";
-export type DefenseTechnique = "0" | "1" | "2i" | "3" | "4i" | "5" | "6" | "7" | "9";
+export type DefenseFront = "even" | "odd" | "over" | "under" | "bear" | "tite" | "okie" | "mint";
+export type DefenseShell = "cover0" | "cover1" | "cover2" | "cover3" | "cover4" | "cover6" | "nickel" | "dime" | "1high" | "2high" | "unknown";
+export type DefenseTechnique = "0" | "1" | "2i" | "2" | "3" | "4i" | "5" | "6" | "7" | "9";
+
+// 3-Tech position option for defense configuration
+export type ThreeTechSide = "strong" | "weak" | "none";
 
 export interface DefenseAlignment {
   role: DefenseRole;
@@ -77,6 +147,7 @@ export interface DefensePreset {
   front: DefenseFront;
   boxCount: 5 | 6 | 7 | 8;
   shell: DefenseShell;
+  threeTechSide?: ThreeTechSide; // Where 3-tech is positioned
   alignments: DefenseAlignment[];
   tags: string[];
 }
@@ -183,7 +254,8 @@ export interface RouteData {
   direction?: "inside" | "outside" | "straight";
   controlPoints: Point[];
   endMarker?: EndMarker;
-  curveMode?: boolean; // If true, use Bezier curves between points
+  curveMode?: boolean;       // If true, use Bezier curves between points
+  curveControl?: Point;      // Single control point for quadratic bezier (MVP)
 }
 
 // Playback/Timeline Types
@@ -299,6 +371,8 @@ export interface MotionData {
   motionType: MotionType;
   pathPoints: Point[];
   endAlignment?: Point;
+  curveMode?: boolean;       // If true, use Bezier curves
+  curveControl?: Point;      // Single control point for quadratic bezier
 }
 
 export interface MotionAction extends ActionBase {
