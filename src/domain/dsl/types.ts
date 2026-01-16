@@ -761,6 +761,46 @@ export interface ValidationResult {
 }
 
 // ============================================
+// Field Landmark Overlay Types (EMOL/Gap markers)
+// ============================================
+
+// Landmark IDs for field overlay (auto-generated from formation)
+export type FieldLandmarkId =
+  // End Man On Line markers
+  | "EMOL_STRONG"
+  | "EMOL_WEAK"
+  // A Gap markers
+  | "A_GAP_STRONG"
+  | "A_GAP_WEAK"
+  // B Gap markers
+  | "B_GAP_STRONG"
+  | "B_GAP_WEAK"
+  // C Gap markers
+  | "C_GAP_STRONG"
+  | "C_GAP_WEAK"
+  // D Gap (outside edge)
+  | "D_GAP";
+
+// Field landmark for gap/EMOL overlay display
+export interface FieldLandmark {
+  id: FieldLandmarkId;
+  label: string;         // "A", "B", "C", "D", "EMOL"
+  displayLabel: string;  // "A (S)", "EMOL (W)" with side indicator
+  x: number;             // Normalized x coordinate
+  y: number;             // Normalized y coordinate (typically on LOS)
+  side: "strong" | "weak" | "center";
+  type: "gap" | "emol";
+}
+
+// Landmark overlay settings
+export interface LandmarkOverlaySettings {
+  showLandmarks: boolean;
+  showGaps: boolean;
+  showEmol: boolean;
+  autoShowInBlockMode: boolean;  // Auto-enable when in Block mode
+}
+
+// ============================================
 // Playbook Types
 // ============================================
 
@@ -770,11 +810,18 @@ export interface PlaybookSection {
   playIds: string[];
 }
 
+// Export Overlay Mode - controls what labels appear on export
+export type ExportOverlayMode = "off" | "defense" | "landmarks" | "both";
+
 export interface ExportSettings {
   pageStyle?: "classic" | "minimal";
   includeNotes?: boolean;
   includeGrid?: boolean;
   footer?: "playName+page" | "page" | "none";
+  // Overlay options for PDF/PNG export
+  overlayMode?: ExportOverlayMode;    // What labels to include (default: based on pageStyle)
+  overlayOpacity?: number;             // 0-1, opacity of overlay labels (default: 1.0)
+  includeLegend?: boolean;             // Include tech/gap legend box (default: false)
 }
 
 export interface Playbook {

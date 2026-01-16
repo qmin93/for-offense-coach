@@ -3,7 +3,7 @@
 import React, { useCallback, useRef, useState, useEffect } from "react";
 import { useEditorStore } from "../store";
 import { PlayRenderer, FIELD_WIDTH, FIELD_HEIGHT } from "@/domain/render/svg-renderer";
-import type { Player, Point, Action } from "@/domain/dsl/types";
+import type { Player, Point, Action, FieldLandmark } from "@/domain/dsl/types";
 import { v4 as uuid } from "uuid";
 import { Button } from "@/components/ui/button";
 import { snapPoint, getSnapIndicators } from "@/domain/engine/snap";
@@ -50,6 +50,8 @@ export function Canvas() {
     toggleSnap,
     showDefense,
     createQuickBlock,
+    showLandmarks,
+    toggleLandmarkVisibility,
   } = useEditorStore();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -84,6 +86,9 @@ export function Canvas() {
 
   // Text input state
   const [textInput, setTextInput] = useState<{ x: number; y: number; value: string } | null>(null);
+
+  // Landmark targeting state (for block mode)
+  const [highlightedLandmarkId, setHighlightedLandmarkId] = useState<string | null>(null);
 
   // Track modifier keys
   const [shiftPressed, setShiftPressed] = useState(false);
@@ -187,6 +192,23 @@ export function Canvas() {
       }
     },
     [mode, selectPlayer, togglePlayerSelection, startDrawing, spacePressed, isPanning, shiftPressed]
+  );
+
+  // Handle landmark click (for block targeting in Block mode)
+  const handleLandmarkClick = useCallback(
+    (landmark: FieldLandmark) => {
+      if (mode === "block" && blockDrag) {
+        // Set landmark as the target for the current block being drawn
+        setHighlightedLandmarkId(landmark.id);
+        // Create a block targeting this landmark
+        createQuickBlock(blockDrag.playerId, { x: landmark.x, y: landmark.y });
+        setBlockDrag(null);
+      } else if (mode === "select" || mode === "block") {
+        // Toggle highlight for visual feedback
+        setHighlightedLandmarkId((prev) => (prev === landmark.id ? null : landmark.id));
+      }
+    },
+    [mode, blockDrag, createQuickBlock]
   );
 
   // Handle action click (for selecting routes/blocks to edit)
@@ -444,9 +466,14 @@ export function Canvas() {
             });
           }
         }
+      } else if (e.key === "l" || e.key === "L") {
+        // Toggle landmark overlay
+        if (!textInput) {
+          toggleLandmarkVisibility();
+        }
       }
     },
-    [drawing.isDrawing, cancelDrawing, isBoxSelecting, textInput, addAction, selectedActionId, play, clearSelection, updateAction]
+    [drawing.isDrawing, cancelDrawing, isBoxSelecting, textInput, addAction, selectedActionId, play, clearSelection, updateAction, toggleLandmarkVisibility]
   );
 
   // Reset view
@@ -860,7 +887,7 @@ export function Canvas() {
 
       {/* Help text */}
       <div className="absolute bottom-4 left-4 z-10 px-2 py-1 bg-slate-800/70 rounded text-white/80 text-xs">
-        Scroll to zoom • Space+drag to pan • Shift+click multi-select • Drag box to select • Delete to remove • C to toggle curve
+        Scroll to zoom • Space+drag to pan • Shift+click multi-select • Drag box to select • Delete to remove • C curve • L landmarks
       </div>
 
       {/* Canvas */}
@@ -887,6 +914,10 @@ export function Canvas() {
             selectedPlayerId={selectedPlayerId || undefined}
             onPlayerClick={handlePlayerClick}
             showDefense={showDefense}
+            showLandmarks={showLandmarks}
+            formation={null}
+            onLandmarkClick={handleLandmarkClick}
+            highlightedLandmarkId={highlightedLandmarkId}
           />
           {renderDrawingPreview()}
           {renderBlockDragPreview()}

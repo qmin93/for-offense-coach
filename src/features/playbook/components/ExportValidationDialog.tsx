@@ -8,7 +8,7 @@
 import React, { useMemo, useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import type { Play, Playbook } from "@/domain/dsl/types";
+import type { Play, Playbook, ExportOverlayMode } from "@/domain/dsl/types";
 import {
   validatePlaybookForExport,
   type PlaybookValidationResult,
@@ -32,7 +32,7 @@ import {
 interface ExportValidationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onExport: () => void;
+  onExport: (overlayMode: ExportOverlayMode) => void;
   playbook: Playbook | null;
   plays: Map<string, Play>;
   isExporting?: boolean;
@@ -120,6 +120,7 @@ export function ExportValidationDialog({
   exportProgress = 0,
 }: ExportValidationDialogProps) {
   const [expandedPlayId, setExpandedPlayId] = React.useState<string | null>(null);
+  const [overlayMode, setOverlayMode] = React.useState<ExportOverlayMode>("both");
   const hasTrackedBlock = useRef(false);
 
   // Run validation
@@ -146,10 +147,17 @@ export function ExportValidationDialog({
     }
   }, [isOpen, validationResult.canExport, playbook, summary.errorCount, validationResult.issues]);
 
-  // Wrap onExport to track
+  // Wrap onExport to track and pass overlay mode
   const handleExport = useCallback(() => {
-    onExport();
-  }, [onExport]);
+    // Track overlay mode selection
+    if (playbook) {
+      telemetry.exportOverlayModeSelected({
+        mode: overlayMode,
+        playbookId: playbook.id,
+      });
+    }
+    onExport(overlayMode);
+  }, [onExport, overlayMode, playbook]);
 
   if (!isOpen) return null;
 
@@ -261,6 +269,63 @@ export function ExportValidationDialog({
               </div>
             </div>
           )}
+
+          {/* Overlay Labels section */}
+          <div className="space-y-2 p-3 bg-slate-800/50 rounded-lg">
+            <p className="text-xs text-slate-300 font-medium">Overlay Labels</p>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="overlayMode"
+                  value="off"
+                  checked={overlayMode === "off"}
+                  onChange={() => setOverlayMode("off")}
+                  className="text-blue-500 focus:ring-blue-500"
+                />
+                <span className="text-sm text-slate-300">Off (clean)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="overlayMode"
+                  value="defense"
+                  checked={overlayMode === "defense"}
+                  onChange={() => setOverlayMode("defense")}
+                  className="text-blue-500 focus:ring-blue-500"
+                />
+                <span className="text-sm text-slate-300">Defense only</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="overlayMode"
+                  value="landmarks"
+                  checked={overlayMode === "landmarks"}
+                  onChange={() => setOverlayMode("landmarks")}
+                  className="text-blue-500 focus:ring-blue-500"
+                />
+                <span className="text-sm text-slate-300">Landmarks only</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="overlayMode"
+                  value="both"
+                  checked={overlayMode === "both"}
+                  onChange={() => setOverlayMode("both")}
+                  className="text-blue-500 focus:ring-blue-500"
+                />
+                <span className="text-sm text-slate-300">Both</span>
+              </label>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              {overlayMode === "off" && "Clean diagram without labels"}
+              {overlayMode === "defense" && "Shows 3T/5T/N/9 tech labels on DL"}
+              {overlayMode === "landmarks" && "Shows A/B/C/D/EMOL gap markers"}
+              {overlayMode === "both" && "Shows both defense tech labels and gap markers"}
+            </p>
+          </div>
 
           {/* Progress bar */}
           {isExporting && (

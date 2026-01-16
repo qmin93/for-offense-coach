@@ -18,7 +18,10 @@ import type {
   Point,
   GridDensity,
   BlockEndCap,
+  FieldLandmark,
+  Formation,
 } from "../dsl/types";
+import { buildAllLandmarks } from "../engine/landmark-utils";
 
 // ============================================
 // Constants - Whiteboard Theme
@@ -39,6 +42,8 @@ const PULL_COLOR = "#059669"; // Emerald green for pull blocks
 const MOTION_COLOR = "#7C3AED"; // Purple for motion (distinct on white)
 const PLAYER_RADIUS = 14;
 const FONT_SIZE = 11;
+const LANDMARK_GAP_COLOR = "#10B981"; // Emerald for gap markers
+const LANDMARK_EMOL_COLOR = "#F97316"; // Orange for EMOL markers
 
 // Field measurements (GoArmy Edge style)
 // LOS at 62% from top: gives 62% for defense, 38% for offense/backfield
@@ -800,6 +805,128 @@ function TextNode({ action }: TextNodeProps) {
 }
 
 // ============================================
+// Field Landmark Overlay Component (EMOL/Gap markers)
+// ============================================
+
+interface FieldLandmarkOverlayProps {
+  landmarks: FieldLandmark[];
+  onLandmarkClick?: (landmark: FieldLandmark) => void;
+  highlightedId?: string | null;
+}
+
+function FieldLandmarkOverlay({
+  landmarks,
+  onLandmarkClick,
+  highlightedId,
+}: FieldLandmarkOverlayProps) {
+  return (
+    <g className="field-landmark-overlay">
+      {landmarks.map((landmark) => {
+        const pos = toSvgPoint({ x: landmark.x, y: landmark.y });
+        const isGap = landmark.type === "gap";
+        const color = isGap ? LANDMARK_GAP_COLOR : LANDMARK_EMOL_COLOR;
+        const isHighlighted = highlightedId === landmark.id;
+
+        // Gap markers: pill-shaped label
+        // EMOL markers: triangle pointing at line
+        if (isGap) {
+          return (
+            <g
+              key={landmark.id}
+              className="landmark-gap"
+              onClick={() => onLandmarkClick?.(landmark)}
+              style={{ cursor: onLandmarkClick ? "pointer" : "default" }}
+            >
+              {/* Pill background */}
+              <rect
+                x={pos.x - 14}
+                y={pos.y - 10}
+                width={28}
+                height={20}
+                rx={10}
+                fill={isHighlighted ? color : "white"}
+                stroke={color}
+                strokeWidth={isHighlighted ? 3 : 2}
+                opacity={0.95}
+              />
+              {/* Gap letter */}
+              <text
+                x={pos.x}
+                y={pos.y + 4}
+                textAnchor="middle"
+                fill={isHighlighted ? "white" : color}
+                fontSize={12}
+                fontWeight="bold"
+              >
+                {landmark.label}
+              </text>
+              {/* Side indicator (small) */}
+              {landmark.side !== "center" && (
+                <text
+                  x={pos.x}
+                  y={pos.y + 22}
+                  textAnchor="middle"
+                  fill="#6B7280"
+                  fontSize={8}
+                >
+                  {landmark.side === "strong" ? "S" : "W"}
+                </text>
+              )}
+            </g>
+          );
+        }
+
+        // EMOL markers
+        return (
+          <g
+            key={landmark.id}
+            className="landmark-emol"
+            onClick={() => onLandmarkClick?.(landmark)}
+            style={{ cursor: onLandmarkClick ? "pointer" : "default" }}
+          >
+            {/* Diamond shape for EMOL */}
+            <polygon
+              points={`
+                ${pos.x},${pos.y - 12}
+                ${pos.x + 10},${pos.y}
+                ${pos.x},${pos.y + 12}
+                ${pos.x - 10},${pos.y}
+              `}
+              fill={isHighlighted ? color : "white"}
+              stroke={color}
+              strokeWidth={isHighlighted ? 3 : 2}
+              opacity={0.95}
+            />
+            {/* EMOL text label */}
+            <text
+              x={pos.x}
+              y={pos.y - 18}
+              textAnchor="middle"
+              fill={color}
+              fontSize={9}
+              fontWeight="bold"
+            >
+              EMOL
+            </text>
+            {/* Side indicator */}
+            <text
+              x={pos.x}
+              y={pos.y + 4}
+              textAnchor="middle"
+              fill={isHighlighted ? "white" : color}
+              fontSize={8}
+              fontWeight="bold"
+            >
+              {landmark.side === "strong" ? "S" : "W"}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+// ============================================
 // Main SVG Renderer Component
 // ============================================
 
@@ -809,6 +936,11 @@ export interface PlayRendererProps {
   onPlayerClick?: (player: Player) => void;
   className?: string;
   showDefense?: boolean;
+  // Landmark overlay options
+  showLandmarks?: boolean;
+  formation?: Formation | null;
+  onLandmarkClick?: (landmark: FieldLandmark) => void;
+  highlightedLandmarkId?: string | null;
 }
 
 export function PlayRenderer({
@@ -817,6 +949,10 @@ export function PlayRenderer({
   onPlayerClick,
   className = "",
   showDefense = true,
+  showLandmarks = false,
+  formation = null,
+  onLandmarkClick,
+  highlightedLandmarkId,
 }: PlayRendererProps) {
   const fieldSettings = play.field || {};
 
@@ -824,6 +960,12 @@ export function PlayRenderer({
   const visiblePlayers = showDefense
     ? play.roster.players
     : play.roster.players.filter((p) => p.unit !== "defense");
+
+  // Generate field landmarks from formation
+  const fieldLandmarks = React.useMemo(() => {
+    if (!showLandmarks) return [];
+    return buildAllLandmarks(formation);
+  }, [showLandmarks, formation]);
 
   return (
     <svg
@@ -866,7 +1008,7 @@ export function PlayRenderer({
         })}
       </g>
 
-      {/* Landmarks layer */}
+      {/* User-placed landmarks layer */}
       <g className="landmarks-layer">
         {play.actions.map((action) => {
           if (action.actionType === "landmark") {
@@ -897,6 +1039,15 @@ export function PlayRenderer({
           return null;
         })}
       </g>
+
+      {/* Field Landmark Overlay layer (EMOL/Gap markers) - on top */}
+      {showLandmarks && fieldLandmarks.length > 0 && (
+        <FieldLandmarkOverlay
+          landmarks={fieldLandmarks}
+          onLandmarkClick={onLandmarkClick}
+          highlightedId={highlightedLandmarkId}
+        />
+      )}
     </svg>
   );
 }

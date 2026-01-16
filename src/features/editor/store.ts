@@ -166,6 +166,17 @@ export interface EditorState {
   defensePresetId: string | null;
   showDefense: boolean;
 
+  // Landmark overlay state
+  showLandmarks: boolean;
+  autoShowLandmarksInBlockMode: boolean;
+
+  // Export render override (for PDF/PNG export)
+  exportOverride: {
+    showDefenseLabels: boolean;
+    showLandmarks: boolean;
+    showGrid: boolean;
+  } | null;
+
   // Playback state
   playbackState: {
     isPlaying: boolean;
@@ -237,6 +248,14 @@ export interface EditorState {
   toggleDefenseVisibility: () => void;
   resetDefense: () => void;
 
+  // Landmark actions
+  toggleLandmarkVisibility: () => void;
+  setAutoShowLandmarksInBlockMode: (value: boolean) => void;
+
+  // Export override actions
+  applyExportOverride: (override: { showDefenseLabels: boolean; showLandmarks: boolean; showGrid: boolean }) => void;
+  clearExportOverride: () => void;
+
   // Whiteboard actions
   resetAll: () => void;
 
@@ -305,6 +324,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // Defense state
   defensePresetId: null,
   showDefense: true,
+
+  // Landmark overlay state
+  showLandmarks: false,
+  autoShowLandmarksInBlockMode: true,
+
+  // Export render override (for PDF/PNG export)
+  exportOverride: null,
 
   // Playback state
   playbackState: {
@@ -511,7 +537,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   setMode: (mode: EditorMode) => {
-    set({ mode, selectedActionId: null });
+    const state = get();
+    // Auto-show landmarks when entering block mode (if setting enabled)
+    const showLandmarks = mode === "block" && state.autoShowLandmarksInBlockMode
+      ? true
+      : state.showLandmarks;
+    set({ mode, selectedActionId: null, showLandmarks });
   },
 
   selectPlayer: (playerId: string | null) => {
@@ -1147,6 +1178,24 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     set({ defensePresetId: null });
     get().setPlay(newPlay);
+  },
+
+  // Landmark actions
+  toggleLandmarkVisibility: () => {
+    set((state) => ({ showLandmarks: !state.showLandmarks }));
+  },
+
+  setAutoShowLandmarksInBlockMode: (value: boolean) => {
+    set({ autoShowLandmarksInBlockMode: value });
+  },
+
+  // Export override actions
+  applyExportOverride: (override) => {
+    set({ exportOverride: override });
+  },
+
+  clearExportOverride: () => {
+    set({ exportOverride: null });
   },
 
   // Whiteboard actions

@@ -33,6 +33,7 @@ export type TelemetryEventName =
   // Export
   | "export_png"
   | "export_pdf"
+  | "export_overlay_mode_selected"
   // Share & Fork
   | "share_link_created"
   | "fork_created"
@@ -162,6 +163,12 @@ export interface ExportPdfPayload {
   error?: string;
 }
 
+export interface ExportOverlayModeSelectedPayload {
+  mode: "off" | "defense" | "landmarks" | "both";
+  playbookId?: string;
+  playId?: string;
+}
+
 export interface ShareLinkCreatedPayload {
   type: "play" | "playbook";
   targetId: string;
@@ -208,6 +215,7 @@ export interface TelemetryEventPayloads {
   export_blocked_by_validation: ExportBlockedByValidationPayload;
   export_png: ExportPngPayload;
   export_pdf: ExportPdfPayload;
+  export_overlay_mode_selected: ExportOverlayModeSelectedPayload;
   share_link_created: ShareLinkCreatedPayload;
   fork_created: ForkCreatedPayload;
   install_focus_opened: InstallFocusOpenedPayload;
@@ -411,6 +419,10 @@ export const telemetry = {
 
   exportPdf: (payload: ExportPdfPayload) => {
     track("export_pdf", payload);
+  },
+
+  exportOverlayModeSelected: (payload: ExportOverlayModeSelectedPayload) => {
+    track("export_overlay_mode_selected", payload);
   },
 
   // Share & Fork
