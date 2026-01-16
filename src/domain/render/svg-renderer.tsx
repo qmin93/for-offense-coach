@@ -16,6 +16,8 @@ import type {
   LandmarkAction,
   TextAction,
   Point,
+  GridDensity,
+  BlockEndCap,
 } from "../dsl/types";
 
 // ============================================
@@ -73,25 +75,44 @@ function toSvgPoint(point: Point): { x: number; y: number } {
 }
 
 // ============================================
-// Field Component - Whiteboard Style
+// Field Component - Whiteboard Style with Grid Density
 // ============================================
 
 interface FieldProps {
   showGrid?: boolean;
   showHash?: boolean;
+  gridDensity?: GridDensity; // low = 10yd, medium = 5yd, high = 5yd + 1yd ticks
 }
 
-function Field({ showGrid = true, showHash = true }: FieldProps) {
+function Field({ showGrid = true, showHash = true, gridDensity = "medium" }: FieldProps) {
   const losY = toSvgY(0);
   const hashLeftX = toSvgX(0.355); // College hash (closer to center)
   const hashRightX = toSvgX(0.645);
 
-  // Generate 5-yard lines relative to LOS
+  // Determine grid step based on density
+  const gridStep = gridDensity === "low" ? 10 : 5;
+  const show1YardTicks = gridDensity === "high";
+
+  // Generate yard lines relative to LOS
   // With LOS at 62% and full scale, show -15 to +40 yards
-  const yardLines: { yards: number; y: number }[] = [];
-  for (let yds = -15; yds <= 40; yds += 5) {
+  const yardLines: { yards: number; y: number; isMajor: boolean }[] = [];
+  for (let yds = -15; yds <= 40; yds += gridStep) {
     const normalizedY = yds * 0.02; // 1 yard = 0.02 normalized
-    yardLines.push({ yards: yds, y: toSvgY(normalizedY) });
+    yardLines.push({ yards: yds, y: toSvgY(normalizedY), isMajor: yds % 10 === 0 });
+  }
+
+  // Generate 1-yard tick positions for high density
+  const oneYardTicks: { yards: number; y: number }[] = [];
+  if (show1YardTicks) {
+    for (let yds = -15; yds <= 40; yds += 1) {
+      // Skip major (5-yard) lines
+      if (yds % 5 === 0) continue;
+      const normalizedY = yds * 0.02;
+      const y = toSvgY(normalizedY);
+      if (y >= 0 && y <= FIELD_HEIGHT) {
+        oneYardTicks.push({ yards: yds, y });
+      }
+    }
   }
 
   return (
@@ -116,10 +137,59 @@ function Field({ showGrid = true, showHash = true }: FieldProps) {
         strokeWidth={2}
       />
 
-      {/* 5-yard grid lines */}
+      {/* 1-yard tick marks (high density only) */}
+      {showGrid && show1YardTicks && (
+        <g className="one-yard-ticks">
+          {oneYardTicks.map(({ yards, y }) => (
+            <g key={`tick-${yards}`}>
+              {/* Left sideline tick */}
+              <line
+                x1={20}
+                y1={y}
+                x2={35}
+                y2={y}
+                stroke={LINE_COLOR}
+                strokeWidth={0.5}
+                opacity={0.4}
+              />
+              {/* Right sideline tick */}
+              <line
+                x1={FIELD_WIDTH - 35}
+                y1={y}
+                x2={FIELD_WIDTH - 20}
+                y2={y}
+                stroke={LINE_COLOR}
+                strokeWidth={0.5}
+                opacity={0.4}
+              />
+              {/* Hash area ticks */}
+              <line
+                x1={hashLeftX - 4}
+                y1={y}
+                x2={hashLeftX + 4}
+                y2={y}
+                stroke={LINE_COLOR}
+                strokeWidth={0.5}
+                opacity={0.3}
+              />
+              <line
+                x1={hashRightX - 4}
+                y1={y}
+                x2={hashRightX + 4}
+                y2={y}
+                stroke={LINE_COLOR}
+                strokeWidth={0.5}
+                opacity={0.3}
+              />
+            </g>
+          ))}
+        </g>
+      )}
+
+      {/* 5/10-yard grid lines */}
       {showGrid && (
         <g className="yard-lines">
-          {yardLines.map(({ yards, y }) => {
+          {yardLines.map(({ yards, y, isMajor }) => {
             // Skip if out of viewBox
             if (y < 0 || y > FIELD_HEIGHT) return null;
 
@@ -134,17 +204,29 @@ function Field({ showGrid = true, showHash = true }: FieldProps) {
                   x2={FIELD_WIDTH - 20}
                   y2={y}
                   stroke={LINE_COLOR}
-                  strokeWidth={1}
-                  opacity={0.6}
+                  strokeWidth={isMajor ? 1.5 : 1}
+                  opacity={isMajor ? 0.7 : 0.5}
                 />
-                {/* Yard number on left */}
-                {yards > 0 && yards % 10 === 0 && (
+                {/* Yard number on left (every 10 yards) */}
+                {yards > 0 && isMajor && (
                   <text
                     x={8}
                     y={y + 4}
                     fill={YARD_NUMBER_COLOR}
                     fontSize={10}
                     fontWeight="500"
+                  >
+                    {yards}
+                  </text>
+                )}
+                {/* Also show 5-yard markers for medium/high density */}
+                {yards > 0 && !isMajor && gridDensity !== "low" && (
+                  <text
+                    x={8}
+                    y={y + 4}
+                    fill={YARD_NUMBER_COLOR}
+                    fontSize={8}
+                    opacity={0.6}
                   >
                     {yards}
                   </text>
@@ -409,11 +491,111 @@ function RoutePath({ action }: RoutePathProps) {
 }
 
 // ============================================
-// Block Component
+// Block Component with EndCap Styles
 // ============================================
 
 interface BlockPathProps {
   action: BlockAction;
+}
+
+// Render different end cap styles
+function renderBlockEndCap(
+  lastPoint: { x: number; y: number },
+  angle: number,
+  endCap: BlockEndCap | undefined,
+  color: string
+): React.ReactNode {
+  const defaultEndCap = endCap || "slash"; // Default to slash for coach-style
+
+  switch (defaultEndCap) {
+    case "arrow":
+      // Traditional arrow head
+      return (
+        <polygon
+          points={`
+            ${lastPoint.x},${lastPoint.y}
+            ${lastPoint.x - 12 * Math.cos(angle - 0.5)},${lastPoint.y - 12 * Math.sin(angle - 0.5)}
+            ${lastPoint.x - 12 * Math.cos(angle + 0.5)},${lastPoint.y - 12 * Math.sin(angle + 0.5)}
+          `}
+          fill={color}
+          stroke="rgba(0,0,0,0.15)"
+          strokeWidth={1}
+        />
+      );
+
+    case "slash":
+      // Slash "/" style - perpendicular line at end, rotated to match direction
+      // The slash is perpendicular to the line direction
+      const slashLength = 12;
+      const slashAngle = angle + Math.PI / 2; // Perpendicular to direction
+      return (
+        <line
+          x1={lastPoint.x - slashLength * Math.cos(slashAngle)}
+          y1={lastPoint.y - slashLength * Math.sin(slashAngle)}
+          x2={lastPoint.x + slashLength * Math.cos(slashAngle)}
+          y2={lastPoint.y + slashLength * Math.sin(slashAngle)}
+          stroke={color}
+          strokeWidth={4}
+          strokeLinecap="round"
+        />
+      );
+
+    case "flat":
+      // Flat end - just a thicker line cap at the end
+      const flatLength = 10;
+      const flatAngle = angle + Math.PI / 2;
+      return (
+        <line
+          x1={lastPoint.x - flatLength * Math.cos(flatAngle)}
+          y1={lastPoint.y - flatLength * Math.sin(flatAngle)}
+          x2={lastPoint.x + flatLength * Math.cos(flatAngle)}
+          y2={lastPoint.y + flatLength * Math.sin(flatAngle)}
+          stroke={color}
+          strokeWidth={6}
+          strokeLinecap="butt"
+        />
+      );
+
+    case "hand":
+      // Hand symbol - small circle or half-circle representing hand placement
+      return (
+        <g>
+          <circle
+            cx={lastPoint.x}
+            cy={lastPoint.y}
+            r={6}
+            fill={color}
+            stroke="rgba(255,255,255,0.8)"
+            strokeWidth={2}
+          />
+        </g>
+      );
+
+    default:
+      return null;
+  }
+}
+
+// Get scheme label abbreviation
+function getSchemeLabel(scheme: string | undefined): string | null {
+  if (!scheme) return null;
+  const labels: Record<string, string> = {
+    reach: "RCH",
+    zone_step: "ZN",
+    combo: "CMB",
+    climb: "CLM",
+    down: "DN",
+    kick: "KCK",
+    wrap: "WRP",
+    pull_lead: "PL",
+    pull_kick: "PK",
+    trap: "TRP",
+    wham: "WHM",
+    arc: "ARC",
+    sift: "SFT",
+    seal: "SEL",
+  };
+  return labels[scheme] || null;
 }
 
 function BlockPath({ action }: BlockPathProps) {
@@ -437,6 +619,13 @@ function BlockPath({ action }: BlockPathProps) {
 
   const isPull = action.block.scheme?.includes("pull") || action.block.scheme === "wrap";
   const color = isPull ? PULL_COLOR : BLOCK_COLOR;
+  const endCap = action.block.endCap;
+  const showLabel = action.block.showLabel;
+  const schemeLabel = getSchemeLabel(action.block.scheme);
+
+  // Calculate label position (midpoint of path)
+  const midIdx = Math.floor(points.length / 2);
+  const labelPos = points[midIdx] || points[0];
 
   return (
     <g className="block-action">
@@ -459,17 +648,34 @@ function BlockPath({ action }: BlockPathProps) {
         strokeLinejoin="round"
         strokeDasharray={isPull ? "10,5" : undefined}
       />
-      {/* Arrow head */}
-      <polygon
-        points={`
-          ${lastPoint.x},${lastPoint.y}
-          ${lastPoint.x - 12 * Math.cos(angle - 0.5)},${lastPoint.y - 12 * Math.sin(angle - 0.5)}
-          ${lastPoint.x - 12 * Math.cos(angle + 0.5)},${lastPoint.y - 12 * Math.sin(angle + 0.5)}
-        `}
-        fill={color}
-        stroke="rgba(0,0,0,0.15)"
-        strokeWidth={1}
-      />
+      {/* End cap (slash, arrow, flat, or hand) */}
+      {renderBlockEndCap(lastPoint, angle, endCap, color)}
+
+      {/* Scheme label (optional) */}
+      {showLabel && schemeLabel && (
+        <g>
+          <rect
+            x={labelPos.x - 12}
+            y={labelPos.y - 8}
+            width={24}
+            height={14}
+            fill="white"
+            stroke={color}
+            strokeWidth={1}
+            rx={2}
+          />
+          <text
+            x={labelPos.x}
+            y={labelPos.y + 3}
+            textAnchor="middle"
+            fill={color}
+            fontSize={8}
+            fontWeight="bold"
+          >
+            {schemeLabel}
+          </text>
+        </g>
+      )}
     </g>
   );
 }
@@ -629,6 +835,7 @@ export function PlayRenderer({
       <Field
         showGrid={fieldSettings.showGrid !== false}
         showHash={fieldSettings.showHash !== false}
+        gridDensity={fieldSettings.gridDensity || "medium"}
       />
 
       {/* Actions layer (routes, blocks, motions) */}

@@ -13,7 +13,7 @@ import {
   EnhancedSuggestionResult,
   DEFAULT_SUGGESTION_CONTEXT,
 } from "@/domain/engine/suggestion-context";
-import { ContextInputForm } from "./ContextInputForm";
+import { ContextSummaryPanel } from "./ContextSummaryPanel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,9 +34,10 @@ export function SuggestionsPanel() {
     canUndo,
     undo,
     defensePresetId,
+    context: storeContext,
   } = useEditorStore();
 
-  // Context state with defaults
+  // Context state with defaults, synced with active context from store
   const [context, setContext] = useState<SuggestionContext>({
     ...DEFAULT_SUGGESTION_CONTEXT,
     playType: suggestionsType || "run",
@@ -45,8 +46,21 @@ export function SuggestionsPanel() {
   // View mode: concepts or families
   const [viewMode, setViewMode] = useState<"concepts" | "families">("concepts");
 
-  // Collapsed state for context form
-  const [contextCollapsed, setContextCollapsed] = useState(false);
+  // Sync context with activeContext from store
+  React.useEffect(() => {
+    const activeContext = storeContext.active;
+    if (activeContext) {
+      setContext((prev) => ({
+        ...prev,
+        playType: activeContext.playType,
+        defense: {
+          ...prev.defense,
+          boxCount: activeContext.boxCount === "unknown" ? prev.defense.boxCount : activeContext.boxCount,
+          front: activeContext.front === "unknown" ? prev.defense.front : activeContext.front,
+        },
+      }));
+    }
+  }, [storeContext.active]);
 
   // Track if we've already tracked the panel open
   const hasTrackedOpen = useRef(false);
@@ -182,6 +196,9 @@ export function SuggestionsPanel() {
         </Button>
       </div>
 
+      {/* Context Summary Panel (Summary + Adjust) */}
+      <ContextSummaryPanel />
+
       {/* Defense Preset Info */}
       {defensePreset && (
         <div className="px-3 py-2 bg-red-50 dark:bg-red-950/20 border-b">
@@ -195,20 +212,6 @@ export function SuggestionsPanel() {
           </div>
         </div>
       )}
-
-      {/* Context Input Form (collapsible) */}
-      <div className="border-b">
-        <button
-          onClick={() => setContextCollapsed(!contextCollapsed)}
-          className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium text-muted-foreground hover:bg-muted/50"
-        >
-          <span>Context Input</span>
-          <span>{contextCollapsed ? "▼" : "▲"}</span>
-        </button>
-        {!contextCollapsed && (
-          <ContextInputForm context={context} onChange={setContext} />
-        )}
-      </div>
 
       {/* View Mode Tabs */}
       <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "concepts" | "families")} className="flex-1 flex flex-col">

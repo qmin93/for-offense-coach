@@ -249,6 +249,93 @@ export function verifyUndoAfterAutobuild(): boolean {
 }
 
 /**
+ * Verify context flow (intent_selected → context_initialized → suggestions_opened)
+ */
+export function verifyContextFlow(): { passed: boolean; sequence: string[]; issues: string[] } {
+  const issues: string[] = [];
+  const sequence: string[] = [];
+
+  // Get events in order
+  const relevantEvents = telemetryLog.filter((e) =>
+    ["intent_selected", "context_initialized", "context_adjusted", "suggestions_opened", "autobuild_success"].includes(e.event)
+  );
+
+  for (const entry of relevantEvents) {
+    sequence.push(entry.event);
+  }
+
+  // Check sequence
+  const intentIndex = sequence.indexOf("intent_selected");
+  const initIndex = sequence.indexOf("context_initialized");
+  const suggestionsIndex = sequence.indexOf("suggestions_opened");
+
+  if (intentIndex === -1) {
+    issues.push("Missing intent_selected event");
+  }
+  if (initIndex === -1) {
+    issues.push("Missing context_initialized event");
+  }
+  if (intentIndex !== -1 && initIndex !== -1 && intentIndex > initIndex) {
+    issues.push("intent_selected should come before context_initialized");
+  }
+  if (initIndex !== -1 && suggestionsIndex !== -1 && initIndex > suggestionsIndex) {
+    issues.push("context_initialized should come before suggestions_opened");
+  }
+
+  const passed = issues.length === 0;
+
+  console.log(
+    `%c[QA] Context Flow: ${passed ? "PASS" : "FAIL"}`,
+    passed ? "color: #4CAF50; font-weight: bold" : "color: #FF5722; font-weight: bold"
+  );
+  console.log("  Sequence:", sequence.join(" → "));
+  if (issues.length > 0) {
+    console.log("  Issues:", issues);
+  }
+
+  return { passed, sequence, issues };
+}
+
+/**
+ * Calculate funnel conversion rates
+ */
+export function funnelReport(): void {
+  console.log("\n%c=== CONTEXT FUNNEL REPORT ===", "font-size: 16px; font-weight: bold; color: #9C27B0");
+
+  const stats = getTelemetryStats();
+  const counts = stats.eventCounts;
+
+  const intentCount = counts["intent_selected"] || 0;
+  const initCount = counts["context_initialized"] || 0;
+  const suggestionsCount = counts["suggestions_opened"] || 0;
+  const autobuildCount = counts["autobuild_success"] || 0;
+  const exportCount = (counts["export_png"] || 0) + (counts["export_pdf"] || 0);
+
+  console.log("\n%cFunnel Steps:", "font-weight: bold");
+  console.log(`  1. Intent Selected: ${intentCount}`);
+  console.log(`  2. Context Initialized: ${initCount} (${intentCount > 0 ? Math.round((initCount / intentCount) * 100) : 0}%)`);
+  console.log(`  3. Suggestions Opened: ${suggestionsCount} (${initCount > 0 ? Math.round((suggestionsCount / initCount) * 100) : 0}%)`);
+  console.log(`  4. Auto-build Success: ${autobuildCount} (${suggestionsCount > 0 ? Math.round((autobuildCount / suggestionsCount) * 100) : 0}%)`);
+  console.log(`  5. Export (PNG/PDF): ${exportCount} (${autobuildCount > 0 ? Math.round((exportCount / autobuildCount) * 100) : 0}%)`);
+
+  // Context adjustment stats
+  const adjustedCount = counts["context_adjusted"] || 0;
+  console.log("\n%cContext Adjustments:", "font-weight: bold");
+  console.log(`  Adjustments made: ${adjustedCount}`);
+  console.log(`  Adjustment rate: ${initCount > 0 ? Math.round((adjustedCount / initCount) * 100) : 0}%`);
+
+  // Overall conversion
+  const overallConversion = intentCount > 0 ? Math.round((exportCount / intentCount) * 100) : 0;
+  console.log("\n%cOverall Conversion:", "font-weight: bold");
+  console.log(
+    `  Intent → Export: ${overallConversion}%`,
+    overallConversion >= 50 ? "(Good)" : overallConversion >= 25 ? "(Fair)" : "(Needs Improvement)"
+  );
+
+  console.log("\n%c=== END FUNNEL REPORT ===\n", "font-size: 14px; color: #9C27B0");
+}
+
+/**
  * Print full QA report
  */
 export function printQAReport(): void {
@@ -267,6 +354,7 @@ export function printQAReport(): void {
   verifyActivationScenario();
   verifyAutobuildFailScenario();
   verifyUndoAfterAutobuild();
+  verifyContextFlow();
 
   console.log("\n%c=== END REPORT ===\n", "font-size: 14px; color: #2196F3");
 }
@@ -311,6 +399,8 @@ if (typeof window !== "undefined") {
     verifyActivation: verifyActivationScenario,
     verifyFail: verifyAutobuildFailScenario,
     verifyUndo: verifyUndoAfterAutobuild,
+    verifyContextFlow: verifyContextFlow,
+    funnelReport: funnelReport,
   };
 
   console.info(
@@ -320,6 +410,8 @@ if (typeof window !== "undefined") {
   console.info(
     "  - __telemetry.setDebug(true) - Enable verbose logging\n" +
     "  - __telemetry.qaReport() - Print QA verification report\n" +
+    "  - __telemetry.verifyContextFlow() - Verify context event sequence\n" +
+    "  - __telemetry.funnelReport() - Show conversion funnel\n" +
     "  - __telemetry.getStats() - Get event statistics\n" +
     "  - __telemetry.export() - Export log as JSON"
   );

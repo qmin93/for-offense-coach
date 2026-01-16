@@ -16,6 +16,8 @@ import {
   PlaybackControls,
   BlockHUD,
   RecoveryDialog,
+  PreContextScreen,
+  type PreContext,
 } from "@/features/editor/components";
 import { ValidationPanel, ValidationStatusBadge } from "@/features/editor/components/ValidationPanel";
 import {
@@ -80,6 +82,8 @@ export default function EditorPage() {
     selectAction,
     applyFormation,
     buildFromConcept,
+    hasCompletedPreContext,
+    initializeContext,
   } = useEditorStore();
 
   // Check if selected action is a block
@@ -167,6 +171,15 @@ export default function EditorPage() {
     setShowRecoveryDialog(false);
     toast.info("Continuing with current state");
   }, []);
+
+  // Pre-Context completion handler
+  const handlePreContextComplete = useCallback(
+    (context: PreContext) => {
+      initializeContext(context);
+      initPlay(); // Initialize empty play after context is set
+    },
+    [initializeContext, initPlay]
+  );
 
   // Hard Onboarding concept selection handler
   const handleOnboardingConceptSelect = useCallback(
@@ -265,6 +278,11 @@ export default function EditorPage() {
         </div>
       </div>
     );
+  }
+
+  // Pre-Context Screen for new plays (before editor)
+  if (playId === "new" && !hasCompletedPreContext) {
+    return <PreContextScreen onComplete={handlePreContextComplete} />;
   }
 
   return (

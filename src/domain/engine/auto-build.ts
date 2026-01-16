@@ -414,9 +414,14 @@ function buildBlockAction(
     block: {
       scheme: scheme as BlockScheme,
       target: {
+        type: "landmark",
         landmark: target,
       },
       pathPoints,
+      lineStyle: {
+        endCap: "slash",
+        line: "solid",
+      },
     },
     style: {
       line: "solid",

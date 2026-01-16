@@ -11,6 +11,10 @@ import "./telemetry-kpi"; // Side-effect import for window.__kpi
 // ============================================
 
 export type TelemetryEventName =
+  // Pre-Context & Intent
+  | "intent_selected"
+  | "context_initialized"
+  | "context_adjusted"
   // Onboarding
   | "onboarding_completed"
   | "onboarding_skipped"
@@ -39,6 +43,29 @@ export type TelemetryEventName =
 // ============================================
 // Event Payload Schemas (필드 고정)
 // ============================================
+
+// Pre-Context & Intent
+export interface IntentSelectedPayload {
+  playType: "pass" | "run" | "rpo";
+  boxCount: 5 | 6 | 7 | 8 | "unknown";
+  front: "even" | "odd" | "over" | "under" | "bear" | "unknown";
+}
+
+export interface ContextInitializedPayload {
+  source: "default" | "precontext" | "restored";
+  contextSummary: {
+    playType: string;
+    boxCount: string | number;
+    front: string;
+    pressure: string;
+  };
+}
+
+export interface ContextAdjustedPayload {
+  origin: "panel" | "quickbar" | "reset";
+  changedKeysCount: number;
+  changedKeys: string[];
+}
 
 export interface OnboardingCompletedPayload {
   timeToCompleteMs: number;
@@ -165,6 +192,9 @@ export interface DrillVideoClickedPayload {
 // ============================================
 
 export interface TelemetryEventPayloads {
+  intent_selected: IntentSelectedPayload;
+  context_initialized: ContextInitializedPayload;
+  context_adjusted: ContextAdjustedPayload;
   onboarding_completed: OnboardingCompletedPayload;
   onboarding_skipped: OnboardingSkippedPayload;
   first_play_created: FirstPlayCreatedPayload;
@@ -302,6 +332,24 @@ export function track<E extends TelemetryEventName>(
 // ============================================
 
 export const telemetry = {
+  // Generic track (for custom events)
+  track,
+
+  // Pre-Context & Intent
+  intentSelected: (payload: IntentSelectedPayload) => {
+    track("intent_selected", payload);
+  },
+
+  contextInitialized: (payload: ContextInitializedPayload) => {
+    track("context_initialized", payload);
+  },
+
+  contextAdjusted: (payload: ContextAdjustedPayload) => {
+    track("context_adjusted", payload, {
+      dedupKey: `context_adjusted_${payload.changedKeysCount}`,
+    });
+  },
+
   // Onboarding
   onboardingCompleted: (payload: OnboardingCompletedPayload) => {
     track("onboarding_completed", payload, { sessionOnce: true });

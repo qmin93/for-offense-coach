@@ -86,6 +86,8 @@ export interface PlayerAlignment extends Point {
   facing?: Facing;
   stance?: Stance;
   splitPreset?: SplitPreset;
+  depthYards?: number; // Off-ball depth in yards (0 = on LOS, 1 = 1 yard back, etc.)
+  onLOS?: boolean; // Explicit on/off LOS flag
 }
 
 export interface PlayerAppearance {
@@ -223,25 +225,66 @@ export type BlockScheme =
   | "custom";
 
 // Block Target & Style Types
-export type BlockTargetType = "landmark" | "defender" | "gap" | "none";
+export type BlockTargetType = "player" | "landmark" | "gap" | "none";
 export type BlockStyle = "drive" | "reach" | "down" | "pull_pass" | "zone_step" | "combo" | "custom";
 export type GapName = "A_strong" | "A_weak" | "B_strong" | "B_weak" | "C_strong" | "C_weak" | "D";
+export type BlockEndCap = "arrow" | "slash" | "flat" | "hand"; // End cap style for block lines
+
+// Block Aim - where on the target to aim
+export type BlockAimType = "center" | "inside_shoulder" | "outside_shoulder" | "playside_number" | "backside_number";
+
+// Block Finish - what the blocker does after contact
+export type BlockFinishType = "drive" | "seal_inside" | "seal_outside" | "kick" | "log" | "reach" | "hinge";
+
+// Block Landmark IDs for when no defense is present
+export type BlockLandmarkId =
+  | "EMOL_STRONG" | "EMOL_WEAK"
+  | "PSDE" | "BSDE"
+  | "A_GAP_STRONG" | "A_GAP_WEAK"
+  | "B_GAP_STRONG" | "B_GAP_WEAK"
+  | "C_GAP_STRONG" | "C_GAP_WEAK"
+  | "3T_STRONG" | "3T_WEAK"
+  | "MIKE" | "WILL" | "SAM";
 
 export interface BlockTarget {
-  targetType?: BlockTargetType;
-  toPlayerId?: string;
-  landmark?: Point;
-  gapName?: GapName;
+  type: BlockTargetType;
+  playerId?: string;      // When type = "player", the defender's player ID
+  landmarkId?: BlockLandmarkId; // When type = "landmark", use predefined landmark
+  landmark?: Point;       // When type = "landmark", custom coordinates
+  gapName?: GapName;      // When type = "gap"
+}
+
+export interface BlockAim {
+  type: BlockAimType;
+  offsetYards?: number;   // Shoulder offset (default 0.35 yards)
+}
+
+export interface BlockFinish {
+  type: BlockFinishType;
+}
+
+export interface BlockLineStyle {
+  endCap?: BlockEndCap;   // Default: "slash"
+  line?: "solid" | "dashed";
 }
 
 export interface BlockData {
   scheme: BlockScheme;
-  target: BlockTarget;
-  angleDeg?: number;        // 0-359 degree for block direction
+  // Legacy target (for backward compatibility)
+  target?: BlockTarget;
+  // New targeting system
+  aim?: BlockAim;
+  finish?: BlockFinish;
+  lineStyle?: BlockLineStyle;
+  // Computed/Display
+  angleDeg?: number;        // 0-359 degree for block direction (can be computed)
   length?: number;          // Block length in field units
-  style?: BlockStyle;       // Visual style of block
+  style?: BlockStyle;       // Visual style of block (legacy)
+  endCap?: BlockEndCap;     // End cap style (legacy, use lineStyle.endCap)
+  showLabel?: boolean;      // Show scheme label on block
   notes?: string;
-  pathPoints?: Point[];
+  pathPoints?: Point[];     // SVG path points (computed from from/target/aim)
+  tags?: string[];          // Tags like ["run", "down", "gap"]
 }
 
 export interface BlockAction extends ActionBase {
@@ -340,11 +383,15 @@ export function formatDistance(distance: ScoutCardDistance): string {
   return distance.charAt(0).toUpperCase() + distance.slice(1);
 }
 
+// Grid density levels for field rendering
+export type GridDensity = "low" | "medium" | "high";
+
 export interface FieldSettings {
   orientation?: "up" | "down";
   showGrid?: boolean;
   showHash?: boolean;
   showNumbers?: boolean;
+  gridDensity?: GridDensity; // low = 10yd only, medium = 5yd, high = 5yd + 1yd ticks
 }
 
 export interface PlayNotes {

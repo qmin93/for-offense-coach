@@ -15,6 +15,57 @@ import type {
   DefensePreset,
   AutoBuildFailure,
 } from "@/domain/dsl/types";
+import type { PreContext } from "./components/PreContextScreen";
+import { DEFAULT_PRE_CONTEXT } from "./components/PreContextScreen";
+
+// ============================================
+// Context Management Types
+// ============================================
+
+export type ContextSource = "default" | "precontext" | "restored";
+
+export interface ContextState {
+  initial: PreContext | null;
+  active: PreContext;
+  source: ContextSource;
+  lastUpdatedAt: number;
+}
+
+// Helper to get changed keys between initial and active context
+export function getContextDiff(initial: PreContext | null, active: PreContext): string[] {
+  if (!initial) return [];
+
+  const changedKeys: string[] = [];
+
+  if (initial.playType !== active.playType) changedKeys.push("playType");
+  if (initial.boxCount !== active.boxCount) changedKeys.push("boxCount");
+  if (initial.front !== active.front) changedKeys.push("front");
+  if (initial.threeTech !== active.threeTech) changedKeys.push("threeTech");
+  if (initial.shell !== active.shell) changedKeys.push("shell");
+  if (initial.pressure !== active.pressure) changedKeys.push("pressure");
+
+  // Check situation fields
+  if (initial.situation?.down !== active.situation?.down) changedKeys.push("down");
+  if (initial.situation?.distance !== active.situation?.distance) changedKeys.push("distance");
+  if (initial.situation?.hash !== active.situation?.hash) changedKeys.push("hash");
+
+  return changedKeys;
+}
+
+// Helper to create context summary for telemetry
+export function createContextSummary(context: PreContext): {
+  playType: string;
+  boxCount: string | number;
+  front: string;
+  pressure: string;
+} {
+  return {
+    playType: context.playType,
+    boxCount: context.boxCount,
+    front: context.front,
+    pressure: context.pressure,
+  };
+}
 
 // ============================================
 // Auto-build Result Type for UI
@@ -129,6 +180,10 @@ export interface EditorState {
   autoApplyDefaults: boolean; // Auto-apply role-based defaults
   playerDefaults: PlayerDefaults;
 
+  // Context management (initial vs active)
+  context: ContextState;
+  hasCompletedPreContext: boolean;
+
   // Actions
   initPlay: (play?: Play) => void;
   loadPlay: (dbId: string) => Promise<void>;
@@ -204,6 +259,13 @@ export interface EditorState {
   // Save
   markDirty: () => void;
   markSaved: () => void;
+
+  // Pre-Context
+  initializeContext: (context: PreContext, source?: ContextSource) => void;
+  updateContext: (updates: Partial<PreContext>, origin?: "panel" | "quickbar") => void;
+  resetContextToInitial: () => void;
+  clearContext: () => void;
+  getContextDiff: () => string[];
 }
 
 // ============================================
@@ -257,6 +319,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // Player defaults
   autoApplyDefaults: true, // Auto-apply defaults by default
   playerDefaults: loadPlayerDefaults(),
+
+  // Context management (initial vs active)
+  context: {
+    initial: null,
+    active: DEFAULT_PRE_CONTEXT,
+    source: "default" as ContextSource,
+    lastUpdatedAt: Date.now(),
+  },
+  hasCompletedPreContext: false,
 
   // Initialize play (for new plays)
   initPlay: (play?: Play) => {
@@ -1224,5 +1295,117 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   markSaved: () => {
     set({ isDirty: false, lastSaved: new Date() });
+  },
+
+  // Pre-Context actions
+  initializeContext: (context: PreContext, source: ContextSource = "precontext") => {
+    const contextSummary = createContextSummary(context);
+
+    editorLog.event("CONTEXT_INITIALIZED", {
+      source,
+      contextSummary,
+    });
+
+    // Track intent_selected telemetry
+    telemetry.intentSelected({
+      playType: context.playType,
+      boxCount: context.boxCount,
+      front: context.front,
+    });
+
+    // Track context_initialized telemetry
+    telemetry.contextInitialized({
+      source,
+      contextSummary,
+    });
+
+    set({
+      context: {
+        initial: deepClone(context),
+        active: deepClone(context),
+        source,
+        lastUpdatedAt: Date.now(),
+      },
+      hasCompletedPreContext: true,
+      // Auto-set suggestions type based on play type
+      suggestionsType: context.playType === "pass" ? "pass" : "run",
+    });
+  },
+
+  updateContext: (updates: Partial<PreContext>, origin: "panel" | "quickbar" = "panel") => {
+    const state = get();
+
+    // Merge updates with active context
+    const newActive: PreContext = {
+      ...state.context.active,
+      ...updates,
+      // Handle nested situation object
+      situation: {
+        ...state.context.active.situation,
+        ...(updates.situation || {}),
+      },
+    };
+
+    const changedKeys = getContextDiff(state.context.initial, newActive);
+
+    editorLog.event("CONTEXT_ADJUSTED", {
+      origin,
+      changedKeysCount: changedKeys.length,
+      changedKeys,
+    });
+
+    // Track telemetry (debounced in telemetry system)
+    telemetry.contextAdjusted({
+      origin,
+      changedKeysCount: changedKeys.length,
+      changedKeys,
+    });
+
+    set({
+      context: {
+        ...state.context,
+        active: newActive,
+        lastUpdatedAt: Date.now(),
+      },
+      // Update suggestions type if play type changed
+      suggestionsType: newActive.playType === "pass" ? "pass" : "run",
+    });
+  },
+
+  resetContextToInitial: () => {
+    const state = get();
+    if (!state.context.initial) return;
+
+    editorLog.event("CONTEXT_ADJUSTED", {
+      origin: "reset",
+      changedKeysCount: 0,
+      changedKeys: [],
+    });
+
+    set({
+      context: {
+        ...state.context,
+        active: deepClone(state.context.initial),
+        lastUpdatedAt: Date.now(),
+      },
+      suggestionsType: state.context.initial.playType === "pass" ? "pass" : "run",
+    });
+  },
+
+  clearContext: () => {
+    set({
+      context: {
+        initial: null,
+        active: DEFAULT_PRE_CONTEXT,
+        source: "default",
+        lastUpdatedAt: Date.now(),
+      },
+      hasCompletedPreContext: false,
+    });
+  },
+
+  getContextDiff: () => {
+    const state = get();
+    return getContextDiff(state.context.initial, state.context.active);
   },
 }));

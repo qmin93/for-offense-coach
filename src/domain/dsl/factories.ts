@@ -143,7 +143,12 @@ export function createBlockAction(
     block: {
       scheme,
       target: {
+        type: "landmark",
         landmark: target,
+      },
+      lineStyle: {
+        endCap: "slash",
+        line: "solid",
       },
     },
     style: {

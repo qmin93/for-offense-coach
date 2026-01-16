@@ -104,7 +104,9 @@ export type EditorEvent =
   | "TOGGLE_DEFENSE_VISIBILITY"
   | "PLAYBACK_PLAY"
   | "PLAYBACK_PAUSE"
-  | "PLAYBACK_SEEK";
+  | "PLAYBACK_SEEK"
+  | "CONTEXT_INITIALIZED"
+  | "CONTEXT_ADJUSTED";
 
 // ============================================
 // Telemetry Events (MVP 필수 12+)

@@ -30,7 +30,8 @@
       "Bash(dir:*)",
       "Bash(npm run typecheck:*)",
       "Bash(vercel --version:*)",
-      "Bash(vercel --yes:*)"
+      "Bash(vercel --yes:*)",
+      "Bash(vercel --prod --yes:*)"
     ]
   }
 }
