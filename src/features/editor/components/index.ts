@@ -6,6 +6,7 @@ export * from "./PlaybackControls";
 export * from "./ExamplesPanel";
 export * from "./SuggestionsPanel";
 export * from "./InstallFocusPanel";
+export * from "./ConceptLibrary";
 export * from "./Canvas";
 export * from "./ExportButton";
 export * from "./RouteTemplatesPanel";

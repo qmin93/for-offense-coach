@@ -8,6 +8,7 @@ import {
   FormationPanel,
   SuggestionsPanel,
   InstallFocusPanel,
+  ConceptLibrary,
   Canvas,
   ExportButton,
   RouteTemplatesPanel,
@@ -226,14 +227,14 @@ export default function EditorPage() {
                 Defense
               </TabsTrigger>
               <TabsTrigger
-                value="routes"
-                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-2 text-xs"
+                value="concepts"
+                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent py-2 text-xs"
               >
-                Routes
+                Concepts
               </TabsTrigger>
               <TabsTrigger
                 value="install"
-                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-2 text-xs"
+                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-transparent py-2 text-xs"
               >
                 Install
               </TabsTrigger>
@@ -244,8 +245,8 @@ export default function EditorPage() {
             <TabsContent value="defense" className="mt-0 flex-1 overflow-y-auto">
               <DefensePanel />
             </TabsContent>
-            <TabsContent value="routes" className="mt-0 flex-1 overflow-y-auto">
-              <RouteTemplatesPanel />
+            <TabsContent value="concepts" className="mt-0 flex-1 overflow-y-auto">
+              <ConceptLibrary />
             </TabsContent>
             <TabsContent value="install" className="mt-0 flex-1 overflow-y-auto">
               <InstallFocusPanel />
