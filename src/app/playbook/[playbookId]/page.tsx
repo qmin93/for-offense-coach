@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { usePlaybookStore } from "@/features/playbook/store";
 import { Button } from "@/components/ui";
 import { PlayRenderer } from "@/domain/render/svg-renderer";
+import { exportPlaybookToPdf, capturePlaySvgAsImage } from "@/lib/pdf-export";
+import { toast } from "sonner";
+import type { Play } from "@/domain/dsl/types";
 
 export default function PlaybookPage() {
   const params = useParams();
@@ -24,6 +27,8 @@ export default function PlaybookPage() {
   } = usePlaybookStore();
 
   const [showExportModal, setShowExportModal] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const exportContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (playbookId === "new") {
@@ -32,17 +37,80 @@ export default function PlaybookPage() {
     // TODO: Load existing playbook from DB
   }, [playbookId, initPlaybook]);
 
+  // Get all plays from all sections
+  const getAllPlays = useCallback((): Play[] => {
+    if (!playbook) return [];
+    const allPlays: Play[] = [];
+    playbook.sections.forEach((section) => {
+      section.playIds.forEach((playId) => {
+        const play = plays.get(playId);
+        if (play) allPlays.push(play);
+      });
+    });
+    return allPlays;
+  }, [playbook, plays]);
+
   const handleExportPdf = async () => {
     if (!playbook) return;
+
+    const allPlays = getAllPlays();
+    if (allPlays.length === 0) {
+      toast.error("No plays to export");
+      return;
+    }
+
     setExporting(true);
+    setExportProgress(0);
 
     try {
-      // In a real implementation, this would call a server endpoint
-      // For now, we'll just show a placeholder
-      alert("PDF Export would be generated here.\n\nIn production, this calls a server endpoint that renders each play to PDF pages.");
+      // Wait for export container to render
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // Capture each play's diagram
+      const diagramImages: (string | null)[] = [];
+      const container = exportContainerRef.current;
+
+      if (container) {
+        const playContainers = container.querySelectorAll("[data-play-export]");
+        for (let i = 0; i < playContainers.length; i++) {
+          const playContainer = playContainers[i] as HTMLElement;
+          const image = await capturePlaySvgAsImage(playContainer);
+          diagramImages.push(image);
+          setExportProgress(Math.round(((i + 1) / playContainers.length) * 80));
+        }
+      }
+
+      setExportProgress(90);
+
+      // Generate PDF
+      const pdfBlob = await exportPlaybookToPdf(
+        {
+          plays: allPlays.slice(0, 10), // Max 10 pages
+          playbookName: playbook.name,
+          settings: playbook.exportSettings,
+          maxPages: 10,
+        },
+        diagramImages
+      );
+
+      setExportProgress(100);
+
+      // Download the PDF
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${playbook.name || "playbook"}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast.success("PDF exported successfully!");
+      setShowExportModal(false);
+    } catch (error) {
+      console.error("PDF export failed:", error);
+      toast.error("Failed to export PDF");
     } finally {
       setExporting(false);
-      setShowExportModal(false);
+      setExportProgress(0);
     }
   };
 
@@ -169,6 +237,22 @@ export default function PlaybookPage() {
             <h3 className="text-lg font-semibold mb-4">Export PDF</h3>
 
             <div className="space-y-4">
+              {/* Play count info */}
+              <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600">
+                {(() => {
+                  const count = getAllPlays().length;
+                  const limitedCount = Math.min(count, 10);
+                  return (
+                    <>
+                      <span className="font-medium">{limitedCount} plays</span>
+                      {count > 10 && (
+                        <span className="text-amber-600"> (max 10 per export)</span>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Page Style
@@ -181,8 +265,9 @@ export default function PlaybookPage() {
                     })
                   }
                   className="w-full border rounded-lg p-2"
+                  disabled={isExporting}
                 >
-                  <option value="classic">Classic</option>
+                  <option value="classic">Classic (Scout Card)</option>
                   <option value="minimal">Minimal</option>
                 </select>
               </div>
@@ -196,6 +281,7 @@ export default function PlaybookPage() {
                     setExportSettings({ includeNotes: e.target.checked })
                   }
                   className="rounded"
+                  disabled={isExporting}
                 />
                 <label htmlFor="includeNotes" className="text-sm">
                   Include coaching notes
@@ -211,26 +297,66 @@ export default function PlaybookPage() {
                     setExportSettings({ includeGrid: e.target.checked })
                   }
                   className="rounded"
+                  disabled={isExporting}
                 />
                 <label htmlFor="includeGrid" className="text-sm">
                   Include alignment grid
                 </label>
               </div>
+
+              {/* Progress bar */}
+              {isExporting && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Generating PDF...</span>
+                    <span>{exportProgress}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${exportProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setShowExportModal(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowExportModal(false)}
+                disabled={isExporting}
+              >
                 Cancel
               </Button>
               <Button
                 variant="default"
                 onClick={handleExportPdf}
-                disabled={isExporting}
+                disabled={isExporting || getAllPlays().length === 0}
               >
-                {isExporting ? "Exporting..." : "Export"}
+                {isExporting ? "Exporting..." : "Export PDF"}
               </Button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Hidden container for rendering plays during export */}
+      {showExportModal && (
+        <div
+          ref={exportContainerRef}
+          className="fixed top-0 left-[-9999px] w-[800px]"
+          aria-hidden="true"
+        >
+          {getAllPlays().slice(0, 10).map((play, index) => (
+            <div
+              key={play.id}
+              data-play-export={index}
+              className="w-[800px] h-[600px]"
+            >
+              <PlayRenderer play={play} />
+            </div>
+          ))}
         </div>
       )}
     </div>

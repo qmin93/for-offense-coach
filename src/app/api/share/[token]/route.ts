@@ -32,9 +32,9 @@ export async function GET(
     // Fetch the target content
     let content = null;
 
-    if (shareLink.targetType === "play") {
+    if (shareLink.targetType === "PLAY" && shareLink.playId) {
       content = await prisma.play.findUnique({
-        where: { id: shareLink.targetId },
+        where: { id: shareLink.playId },
         select: {
           id: true,
           name: true,
@@ -45,20 +45,30 @@ export async function GET(
           updatedAt: true,
         },
       });
-    } else if (shareLink.targetType === "playbook") {
-      content = await prisma.playbook.findUnique({
-        where: { id: shareLink.targetId },
+    } else if (shareLink.targetType === "PLAYBOOK" && shareLink.playbookId) {
+      const playbook = await prisma.playbook.findUnique({
+        where: { id: shareLink.playbookId },
         include: {
           plays: {
-            select: {
-              id: true,
-              name: true,
-              description: true,
-              dslJson: true,
+            include: {
+              play: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  dslJson: true,
+                },
+              },
             },
           },
         },
       });
+      if (playbook) {
+        content = {
+          ...playbook,
+          plays: playbook.plays.map((pp) => pp.play),
+        };
+      }
     }
 
     if (!content) {

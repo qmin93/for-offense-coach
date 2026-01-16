@@ -313,6 +313,8 @@ export type Action =
 export type Personnel = "10" | "11" | "12" | "13" | "20" | "21" | "22" | "23";
 export type Strength = "left" | "right" | "none";
 
+export type HashPosition = "L" | "M" | "R";
+
 export interface PlayMeta {
   personnel?: Personnel;
   unit?: Unit;
@@ -320,6 +322,11 @@ export interface PlayMeta {
   formationId?: string;
   conceptId?: string;
   nflStyle?: boolean;
+  // Scout Card fields
+  down?: string;
+  distance?: string;
+  hash?: HashPosition;
+  callName?: string;
 }
 
 export interface FieldSettings {

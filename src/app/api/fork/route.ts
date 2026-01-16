@@ -74,7 +74,11 @@ export async function POST(request: NextRequest) {
       const sourcePlaybook = await prisma.playbook.findUnique({
         where: { id: targetId },
         include: {
-          plays: true,
+          plays: {
+            include: {
+              play: true,
+            },
+          },
         },
       });
 
@@ -90,13 +94,15 @@ export async function POST(request: NextRequest) {
         data: {
           name: `${sourcePlaybook.name} (Fork)`,
           description: sourcePlaybook.description,
+          sections: sourcePlaybook.sections || [],
           workspaceId,
           createdBy: userId,
         },
       });
 
       // Fork all plays in the playbook
-      for (const play of sourcePlaybook.plays) {
+      for (const playbookPlay of sourcePlaybook.plays) {
+        const play = playbookPlay.play;
         const sourceDsl = play.dslJson as Record<string, unknown>;
         const forkedDsl = {
           ...sourceDsl,
@@ -114,7 +120,8 @@ export async function POST(request: NextRequest) {
           updatedAt: new Date().toISOString(),
         };
 
-        await prisma.play.create({
+        // Create the forked play
+        const forkedPlay = await prisma.play.create({
           data: {
             name: play.name,
             description: play.description,
@@ -122,8 +129,17 @@ export async function POST(request: NextRequest) {
             schemaVersion: play.schemaVersion,
             dslJson: forkedDsl as unknown as Prisma.InputJsonValue,
             workspaceId,
-            playbookId: forkedPlaybook.id,
             createdBy: userId,
+          },
+        });
+
+        // Link to the forked playbook
+        await prisma.playbookPlay.create({
+          data: {
+            playbookId: forkedPlaybook.id,
+            playId: forkedPlay.id,
+            sectionId: playbookPlay.sectionId,
+            order: playbookPlay.order,
           },
         });
       }

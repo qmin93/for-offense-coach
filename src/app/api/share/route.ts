@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { targetType, targetId, permission = "view_only" } = body;
+    const { targetType, targetId, permission = "VIEW_ONLY", createdBy } = body;
 
     if (!targetType || !targetId) {
       return NextResponse.json(
@@ -24,13 +24,18 @@ export async function POST(request: NextRequest) {
     // Generate a unique token
     const token = crypto.randomUUID();
 
+    // Map permission to enum
+    const permissionEnum = permission === "view_only" ? "VIEW_ONLY" : "VIEW_DOWNLOAD";
+
     // Create share link in database
     const shareLink = await prisma.shareLink.create({
       data: {
         token,
-        targetType,
-        targetId,
-        permission,
+        targetType: targetType === "play" ? "PLAY" : "PLAYBOOK",
+        playId: targetType === "play" ? targetId : null,
+        playbookId: targetType === "playbook" ? targetId : null,
+        permission: permissionEnum,
+        createdBy: createdBy || "anonymous",
       },
     });
 
