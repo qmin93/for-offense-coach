@@ -162,11 +162,13 @@ export function SuggestionsPanel() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Results header - Top 5 only */}
+        {/* Results header */}
         <div className="px-3 py-2 bg-muted/30 border-b mt-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">
-              Top {viewMode === "concepts" ? suggestions.length : familySuggestions.length}
+              {context.playType === "pass"
+                ? `Showing ${suggestions.length} of 12 max`
+                : `Top ${suggestions.length}`}
             </span>
             <Badge variant="outline" className="text-xs">
               {context.playType.toUpperCase()}
@@ -178,9 +180,27 @@ export function SuggestionsPanel() {
         <TabsContent value="concepts" className="flex-1 overflow-y-auto p-3 space-y-2 mt-0">
           {suggestions.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground text-sm">
-              No matching concepts found.
-              <br />
-              Try adjusting the context inputs.
+              {context.playType === "run" && !defensePresetId ? (
+                <>
+                  <div className="text-amber-600 font-medium mb-2">
+                    Defense Required for Run Suggestions
+                  </div>
+                  <p className="text-xs">
+                    Select a defense preset first to get<br />
+                    context-based run concept recommendations.
+                  </p>
+                  <p className="text-xs mt-2 text-muted-foreground">
+                    Box count and front type are required<br />
+                    to suggest the best run plays.
+                  </p>
+                </>
+              ) : (
+                <>
+                  No matching concepts found.
+                  <br />
+                  Try adjusting the context inputs.
+                </>
+              )}
             </div>
           ) : (
             suggestions.map((result, index) => (

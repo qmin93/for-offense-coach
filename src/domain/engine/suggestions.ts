@@ -141,8 +141,8 @@ export function getPassSuggestions(input: PassSuggestionInput): SuggestionResult
     return { concept, score, reasons, category };
   });
 
-  // Sort by score descending, limit to 5 (Top 5 only), then normalize
-  const sorted = results.sort((a, b) => b.score - a.score).slice(0, 5);
+  // Sort by score descending, limit to 8-12 for pass concepts
+  const sorted = results.sort((a, b) => b.score - a.score).slice(0, 12);
   return normalizeScores(sorted);
 }
 
@@ -213,6 +213,12 @@ function generatePassReasons(concept: Concept, input: PassSuggestionInput): stri
 
 export function getRunSuggestions(input: RunSuggestionInput): SuggestionResult[] {
   const { structure, box, front, threeTech } = input;
+
+  // REQUIRED: box and front must be specified for run suggestions
+  // This prevents generic suggestions without defensive context
+  if (!box || !front) {
+    return []; // Return empty - UI should prompt user to input box/front
+  }
 
   // Get concepts that fit the formation structure
   let concepts = structure
@@ -453,8 +459,9 @@ export function getEnhancedSuggestions(
     sorted = sorted.filter((r) => !r.alerts?.some((a) => a.includes("risky")));
   }
 
-  // Return top 5 results with normalized scores
-  const topResults = sorted.slice(0, 5);
+  // Return top results: 8-12 for pass, top 5 for run
+  const limit = context.playType === "pass" ? 12 : 5;
+  const topResults = sorted.slice(0, limit);
   return normalizeScores(topResults);
 }
 
