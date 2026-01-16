@@ -6,6 +6,7 @@ import Link from "next/link";
 import { PlayRenderer } from "@/domain/render/svg-renderer";
 import { Button } from "@/components/ui";
 import type { Play } from "@/domain/dsl/types";
+import { toast } from "sonner";
 
 export default function SharePage() {
   const params = useParams();
@@ -16,16 +17,41 @@ export default function SharePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // TODO: Fetch shared play/playbook from API
-    // For now, show a placeholder
-    setLoading(false);
-    setError("Share link not found or expired");
+    async function fetchSharedContent() {
+      try {
+        const response = await fetch(`/api/share/${token}`);
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to fetch shared content");
+        }
+
+        const data = await response.json();
+
+        if (data.content?.dslJson) {
+          setPlay(data.content.dslJson as Play);
+        } else {
+          throw new Error("No play data found");
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unknown error");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchSharedContent();
   }, [token]);
+
+  const handleFork = async () => {
+    // For now, just show a message - requires auth
+    toast.info("Sign in to fork this play to your workspace");
+  };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-gray-500">Loading...</div>
+        <div className="text-gray-500">Loading shared play...</div>
       </div>
     );
   }
@@ -39,7 +65,7 @@ export default function SharePage() {
             Share Link Not Found
           </h1>
           <p className="text-gray-600 mb-6">
-            This share link may have expired or been revoked.
+            {error || "This share link may have expired or been revoked."}
           </p>
           <Link href="/">
             <Button>Go to ForOffenseCoach</Button>
@@ -62,7 +88,9 @@ export default function SharePage() {
             <span className="text-gray-600">Shared Play</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline">Fork to My Workspace</Button>
+            <Button variant="outline" onClick={handleFork}>
+              Fork to My Workspace
+            </Button>
           </div>
         </div>
       </header>
@@ -82,7 +110,7 @@ export default function SharePage() {
           </div>
 
           {/* Play diagram */}
-          <div className="aspect-video bg-gray-800">
+          <div className="aspect-video bg-white">
             <PlayRenderer play={play} />
           </div>
 

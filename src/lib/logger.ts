@@ -106,6 +106,45 @@ export type EditorEvent =
   | "PLAYBACK_PAUSE"
   | "PLAYBACK_SEEK";
 
+// ============================================
+// Telemetry Events (MVP 필수 12+)
+// ============================================
+
+export type TelemetryEvent =
+  | "signup_complete"
+  | "first_play_created"
+  | "formation_selected"
+  | "suggestions_opened"
+  | "concept_clicked"
+  | "auto_build_completed"
+  | "auto_build_failed"
+  | "undo_after_autobuild"
+  | "export_png"
+  | "export_pdf"
+  | "share_link_created"
+  | "fork_play"
+  | "install_focus_opened"
+  | "drill_video_clicked";
+
+export interface TelemetryContext extends LogContext {
+  userId?: string;
+  playId?: string;
+  conceptId?: string;
+  conceptType?: "pass" | "run";
+  formationId?: string;
+  exportFormat?: string;
+  shareToken?: string;
+  sourcePlayId?: string;
+  drillName?: string;
+}
+
+export const telemetry = {
+  track: (event: TelemetryEvent, context?: TelemetryContext) => {
+    log.info(`[Telemetry] ${event}`, context);
+    // TODO: Send to analytics service (Mixpanel, Amplitude, etc.)
+  },
+};
+
 export interface EditorEventContext extends LogContext {
   playId?: string;
   playDbId?: string;
