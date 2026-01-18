@@ -577,6 +577,45 @@ export interface Formation {
 }
 
 // ============================================
+// Formation Package Types (Grouped Formations)
+// ============================================
+
+export type FormationPackagePhilosophy =
+  | "spread_the_defense"      // Trips, Quads, Empty - maximize horizontal spacing
+  | "condensed_power"         // Bunch, Tight, Wing - create leverage at POA
+  | "balance_flexibility"     // 2x2, Twins, Pro - multiple options each way
+  | "misdirection"            // Motion-heavy packages
+  | "personnel_based";        // 12, 21, 13 personnel packages
+
+export interface FormationPackageRelation {
+  formationId: string;
+  role: "base" | "variation" | "complement" | "motion_shift";
+  situationBias?: string[]; // e.g., ["redzone", "short_yardage"]
+  notes?: string;
+}
+
+export interface FormationPackage {
+  id: string;
+  name: string;
+  philosophy: FormationPackagePhilosophy;
+  summary: string; // Brief description of package purpose
+  formations: FormationPackageRelation[];
+  personnel?: Personnel[];
+  tags?: string[];
+  installOrder?: number; // Suggested order for teaching (1 = first)
+  strengthVs?: {
+    defense?: string[];    // e.g., ["nickel", "dime"]
+    coverage?: string[];   // e.g., ["cover_2", "cover_3"]
+    front?: string[];      // e.g., ["even", "odd"]
+  };
+  weaknessVs?: {
+    defense?: string[];
+    coverage?: string[];
+    front?: string[];
+  };
+}
+
+// ============================================
 // Concept Types
 // ============================================
 

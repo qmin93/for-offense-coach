@@ -8,6 +8,7 @@ import type {
   TeamProfile,
   FormationStyleTag,
   FormationRiskTag,
+  FormationPackage,
 } from "../dsl/types";
 import { FORMATIONS, getFormationById } from "./formations";
 import {
@@ -16,6 +17,12 @@ import {
   type TeamCapabilities,
   type FormationFeasibility,
 } from "@/lib/team-profile";
+import {
+  FORMATION_PACKAGES,
+  getPackageById,
+  getPackageByFormation,
+  PHILOSOPHY_DESCRIPTIONS,
+} from "./formation-packages";
 
 // ============================================
 // Types
@@ -423,6 +430,222 @@ export function getFormationsForPersonnel(
 }
 
 // ============================================
+// Package Recommendation Types
+// ============================================
+
+export interface PackageRecommendation {
+  package: FormationPackage;
+  score: number;
+  baseFormation: Formation | undefined;
+  availableFormations: Formation[];
+  reasons: string[];
+  warnings: string[];
+  philosophyDescription: string;
+}
+
+export interface PackageRecommendationContext {
+  defense?: string;
+  coverage?: string;
+  front?: string;
+  situation?: "standard" | "short_yardage" | "long_yardage" | "red_zone" | "goal_line" | "2_minute";
+  playType?: "run" | "pass" | "balanced";
+}
+
+// ============================================
+// Package Recommendation Engine
+// ============================================
+
+export function getPackageRecommendations(
+  profile: TeamProfile,
+  context: PackageRecommendationContext = {}
+): PackageRecommendation[] {
+  const capabilities = computeTeamCapabilities(profile);
+
+  return FORMATION_PACKAGES
+    .map((pkg) => scorePackage(pkg, profile, capabilities, context))
+    .filter((r) => r.availableFormations.length > 0)
+    .sort((a, b) => b.score - a.score);
+}
+
+function scorePackage(
+  pkg: FormationPackage,
+  profile: TeamProfile,
+  capabilities: TeamCapabilities,
+  context: PackageRecommendationContext
+): PackageRecommendation {
+  let score = 50;
+  const reasons: string[] = [];
+  const warnings: string[] = [];
+
+  // Check which formations in the package the team can run
+  const availableFormations: Formation[] = [];
+  let baseFormation: Formation | undefined;
+
+  for (const relation of pkg.formations) {
+    const formation = getFormationById(relation.formationId);
+    if (!formation) continue;
+
+    const feasibility = checkFormationFeasibility(profile, formation);
+    if (feasibility.canRun) {
+      availableFormations.push(formation);
+      if (relation.role === "base" && !baseFormation) {
+        baseFormation = formation;
+      }
+    }
+  }
+
+  // Score based on available formations
+  const coverage = availableFormations.length / pkg.formations.length;
+  score += coverage * 20; // Up to +20 for full coverage
+
+  // Personnel match
+  if (pkg.personnel) {
+    const personnelMatch = pkg.personnel.some((p) => {
+      switch (p) {
+        case "10": return capabilities.canRun10Personnel;
+        case "11": return capabilities.canRun11Personnel;
+        case "12": return capabilities.canRun12Personnel;
+        case "21": return capabilities.canRun21Personnel;
+        case "22": return capabilities.canRun22Personnel;
+        default: return false;
+      }
+    });
+    if (personnelMatch) {
+      score += 15;
+      reasons.push(`Personnel group (${pkg.personnel.join("/")}) fits roster`);
+    } else {
+      score -= 10;
+      warnings.push("Personnel requirements may be challenging");
+    }
+  }
+
+  // Philosophy match with style preferences
+  const { philosophy } = pkg;
+  if (philosophy === "spread_the_defense" && profile.stylePreferences.runPassBalance === "pass_heavy") {
+    score += 15;
+    reasons.push("Spread philosophy matches passing style");
+  }
+  if (philosophy === "condensed_power" && profile.stylePreferences.runPassBalance === "run_heavy") {
+    score += 15;
+    reasons.push("Power philosophy matches run-heavy style");
+  }
+  if (philosophy === "balance_flexibility") {
+    score += 5;
+    reasons.push("Versatile package with run/pass balance");
+  }
+  if (philosophy === "misdirection" && profile.stylePreferences.motionUsage === "high") {
+    score += 10;
+    reasons.push("Motion-heavy package matches coaching style");
+  }
+
+  // Defense match (if context provided)
+  if (context.defense || context.coverage || context.front) {
+    let defenseMatchScore = 0;
+    const matchReasons: string[] = [];
+
+    if (context.defense && pkg.strengthVs?.defense?.includes(context.defense)) {
+      defenseMatchScore += 10;
+      matchReasons.push(`Strong vs ${context.defense}`);
+    }
+    if (context.coverage && pkg.strengthVs?.coverage?.includes(context.coverage)) {
+      defenseMatchScore += 10;
+      matchReasons.push(`Attacks ${context.coverage}`);
+    }
+    if (context.front && pkg.strengthVs?.front?.includes(context.front)) {
+      defenseMatchScore += 10;
+      matchReasons.push(`Effective vs ${context.front} front`);
+    }
+
+    // Check weaknesses
+    if (context.defense && pkg.weaknessVs?.defense?.includes(context.defense)) {
+      defenseMatchScore -= 15;
+      warnings.push(`May struggle vs ${context.defense}`);
+    }
+    if (context.coverage && pkg.weaknessVs?.coverage?.includes(context.coverage)) {
+      defenseMatchScore -= 15;
+      warnings.push(`Coverage may limit options`);
+    }
+
+    score += defenseMatchScore;
+    reasons.push(...matchReasons);
+  }
+
+  // Situation match
+  if (context.situation) {
+    const situationBias = pkg.formations.some((f) =>
+      f.situationBias?.includes(context.situation!)
+    );
+    if (situationBias) {
+      score += 10;
+      reasons.push(`Good fit for ${context.situation.replace("_", " ")} situation`);
+    }
+  }
+
+  // Install order bonus (prefer simpler packages)
+  if (pkg.installOrder && pkg.installOrder <= 2) {
+    score += 5;
+    reasons.push("Easy to install");
+  }
+
+  // Cap score
+  score = Math.max(0, Math.min(100, score));
+
+  // Ensure at least one reason
+  if (reasons.length === 0) {
+    reasons.push(pkg.summary);
+  }
+
+  return {
+    package: pkg,
+    score: Math.round(score),
+    baseFormation,
+    availableFormations,
+    reasons,
+    warnings,
+    philosophyDescription: PHILOSOPHY_DESCRIPTIONS[philosophy],
+  };
+}
+
+/**
+ * Get the package that a formation belongs to, with recommendation context
+ */
+export function getFormationPackageInfo(
+  formationId: string,
+  profile?: TeamProfile
+): {
+  package: FormationPackage | undefined;
+  relatedFormations: Formation[];
+  role: string;
+} {
+  const pkg = getPackageByFormation(formationId);
+  if (!pkg) {
+    return { package: undefined, relatedFormations: [], role: "standalone" };
+  }
+
+  const relation = pkg.formations.find((f) => f.formationId === formationId);
+  const role = relation?.role || "unknown";
+
+  // Get related formations
+  const relatedFormations = pkg.formations
+    .filter((f) => f.formationId !== formationId)
+    .map((f) => getFormationById(f.formationId))
+    .filter((f): f is Formation => f !== undefined);
+
+  return { package: pkg, relatedFormations, role };
+}
+
+/**
+ * Get top packages for a team
+ */
+export function getTopPackages(
+  profile: TeamProfile,
+  count: number = 3,
+  context: PackageRecommendationContext = {}
+): PackageRecommendation[] {
+  return getPackageRecommendations(profile, context).slice(0, count);
+}
+
+// ============================================
 // Export
 // ============================================
 
@@ -431,4 +654,7 @@ export default {
   getTopFormations,
   isFormationRecommended,
   getFormationsForPersonnel,
+  getPackageRecommendations,
+  getTopPackages,
+  getFormationPackageInfo,
 };

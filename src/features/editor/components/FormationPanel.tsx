@@ -2,11 +2,12 @@
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useEditorStore } from "../store";
-import { FORMATIONS } from "@/domain/engine/formations";
+import { FORMATIONS, getFormationById } from "@/domain/engine/formations";
+import { FORMATION_PACKAGES, PHILOSOPHY_DESCRIPTIONS } from "@/domain/engine/formation-packages";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useTeamProfile } from "@/lib/team-profile";
-import { getTopFormations, type FormationRecommendation } from "@/domain/engine/formation-recommendation";
+import { getTopFormations, getTopPackages, type FormationRecommendation, type PackageRecommendation } from "@/domain/engine/formation-recommendation";
 import { telemetry } from "@/lib/telemetry";
 import { toast } from "sonner";
 import {
@@ -16,8 +17,10 @@ import {
   AlertTriangle,
   Settings2,
   Sparkles,
+  Layers,
+  Users,
 } from "lucide-react";
-import type { Formation } from "@/domain/dsl/types";
+import type { Formation, FormationPackage } from "@/domain/dsl/types";
 
 // ============================================
 // Formation Card Component
@@ -204,13 +207,20 @@ export function FormationPanel() {
   const { profile, loading: profileLoading } = useTeamProfile();
   const currentFormationId = play?.meta?.formationId;
   const [showAll, setShowAll] = useState(false);
-  const [viewMode, setViewMode] = useState<"recommended" | "all">("recommended");
+  const [viewMode, setViewMode] = useState<"recommended" | "all" | "packages">("recommended");
+  const [expandedPackage, setExpandedPackage] = useState<string | null>(null);
   const hasTrackedRecoShown = useRef(false);
 
   // Get recommendations based on team profile
   const recommendations = useMemo(() => {
     if (!profile) return [];
     return getTopFormations(profile, 10);
+  }, [profile]);
+
+  // Get package recommendations
+  const packageRecommendations = useMemo(() => {
+    if (!profile) return [];
+    return getTopPackages(profile, 6);
   }, [profile]);
 
   // Track when recommendations are shown (once per session)
@@ -293,8 +303,8 @@ export function FormationPanel() {
       {/* Header with view toggle */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-foreground">Formations</h3>
-        {profile && recommendations.length > 0 && (
-          <div className="flex items-center gap-1 text-xs">
+        <div className="flex items-center gap-1 text-xs">
+          {profile && recommendations.length > 0 && (
             <button
               onClick={() => setViewMode("recommended")}
               className={cn(
@@ -307,19 +317,31 @@ export function FormationPanel() {
               <Sparkles className="w-3 h-3 inline mr-1" />
               For You
             </button>
-            <button
-              onClick={() => setViewMode("all")}
-              className={cn(
-                "px-2 py-1 rounded transition-colors",
-                viewMode === "all"
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              All
-            </button>
-          </div>
-        )}
+          )}
+          <button
+            onClick={() => setViewMode("packages")}
+            className={cn(
+              "px-2 py-1 rounded transition-colors",
+              viewMode === "packages"
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Layers className="w-3 h-3 inline mr-1" />
+            Packages
+          </button>
+          <button
+            onClick={() => setViewMode("all")}
+            className={cn(
+              "px-2 py-1 rounded transition-colors",
+              viewMode === "all"
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            All
+          </button>
+        </div>
       </div>
 
       {/* Team profile hint */}
@@ -332,43 +354,228 @@ export function FormationPanel() {
         </div>
       )}
 
-      {/* Formation list */}
-      <div className="grid grid-cols-1 gap-2">
-        {displayFormations.map((formation) => {
-          const isSelected = currentFormationId === formation.id;
-          const recommendation = recommendationMap.get(formation.id);
-          const isRecommendationView = viewMode === "recommended" && !!recommendation;
-          return (
-            <FormationCard
-              key={formation.id}
-              formation={formation}
-              isSelected={isSelected}
-              onSelect={() => handleSelectFormation(formation, isRecommendationView)}
-              recommendation={recommendation}
-              showRecommendation={isRecommendationView}
+      {/* Packages view */}
+      {viewMode === "packages" && (
+        <div className="space-y-3">
+          {(profile ? packageRecommendations : FORMATION_PACKAGES.slice(0, 6).map(pkg => ({
+            package: pkg,
+            score: 70,
+            baseFormation: getFormationById(pkg.formations.find(f => f.role === "base")?.formationId || ""),
+            availableFormations: pkg.formations.map(f => getFormationById(f.formationId)).filter((f): f is Formation => !!f),
+            reasons: [pkg.summary],
+            warnings: [],
+            philosophyDescription: PHILOSOPHY_DESCRIPTIONS[pkg.philosophy],
+          }))).map((pkgReco) => (
+            <PackageCard
+              key={pkgReco.package.id}
+              recommendation={pkgReco}
+              expanded={expandedPackage === pkgReco.package.id}
+              onToggle={() => setExpandedPackage(
+                expandedPackage === pkgReco.package.id ? null : pkgReco.package.id
+              )}
+              onSelectFormation={(formation) => handleSelectFormation(formation, false)}
+              currentFormationId={currentFormationId}
             />
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* Show more/less button */}
-      {hasMoreFormations && (
-        <button
-          onClick={() => setShowAll(!showAll)}
-          className="w-full mt-2 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {showAll ? (
-            <>
-              <ChevronUp className="w-3 h-3 inline mr-1" />
-              Show Less
-            </>
-          ) : (
-            <>
-              <ChevronDown className="w-3 h-3 inline mr-1" />
-              Show More ({viewMode === "recommended" ? recommendations.length : FORMATIONS.length} total)
-            </>
+      {/* Formation list */}
+      {viewMode !== "packages" && (
+        <>
+          <div className="grid grid-cols-1 gap-2">
+            {displayFormations.map((formation) => {
+              const isSelected = currentFormationId === formation.id;
+              const recommendation = recommendationMap.get(formation.id);
+              const isRecommendationView = viewMode === "recommended" && !!recommendation;
+              return (
+                <FormationCard
+                  key={formation.id}
+                  formation={formation}
+                  isSelected={isSelected}
+                  onSelect={() => handleSelectFormation(formation, isRecommendationView)}
+                  recommendation={recommendation}
+                  showRecommendation={isRecommendationView}
+                />
+              );
+            })}
+          </div>
+
+          {/* Show more/less button */}
+          {hasMoreFormations && (
+            <button
+              onClick={() => setShowAll(!showAll)}
+              className="w-full mt-2 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showAll ? (
+                <>
+                  <ChevronUp className="w-3 h-3 inline mr-1" />
+                  Show Less
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-3 h-3 inline mr-1" />
+                  Show More ({viewMode === "recommended" ? recommendations.length : FORMATIONS.length} total)
+                </>
+              )}
+            </button>
           )}
-        </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// Package Card Component
+// ============================================
+
+interface PackageCardProps {
+  recommendation: PackageRecommendation;
+  expanded: boolean;
+  onToggle: () => void;
+  onSelectFormation: (formation: Formation) => void;
+  currentFormationId?: string;
+}
+
+function PackageCard({
+  recommendation,
+  expanded,
+  onToggle,
+  onSelectFormation,
+  currentFormationId,
+}: PackageCardProps) {
+  const { package: pkg, score, availableFormations, reasons, philosophyDescription } = recommendation;
+
+  // Philosophy colors
+  const philosophyColors: Record<string, string> = {
+    spread_the_defense: "bg-purple-100 text-purple-700 border-purple-200",
+    condensed_power: "bg-amber-100 text-amber-700 border-amber-200",
+    balance_flexibility: "bg-blue-100 text-blue-700 border-blue-200",
+    misdirection: "bg-green-100 text-green-700 border-green-200",
+    personnel_based: "bg-slate-100 text-slate-700 border-slate-200",
+  };
+
+  const hasSelectedFormation = availableFormations.some(f => f.id === currentFormationId);
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl border-2 transition-all overflow-hidden",
+        hasSelectedFormation
+          ? "border-primary bg-primary/5"
+          : "border-slate-200 hover:border-slate-300"
+      )}
+    >
+      {/* Header */}
+      <button
+        onClick={onToggle}
+        className="w-full p-3 text-left hover:bg-slate-50/50"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+              <Layers className="w-5 h-5 text-slate-600" />
+            </div>
+            <div>
+              <div className="font-semibold text-sm text-slate-800">{pkg.name}</div>
+              <div className="flex items-center gap-1 mt-1">
+                <span
+                  className={cn(
+                    "text-[10px] font-medium px-1.5 py-0.5 rounded-md border",
+                    philosophyColors[pkg.philosophy] || philosophyColors.balance_flexibility
+                  )}
+                >
+                  {pkg.philosophy.replace(/_/g, " ")}
+                </span>
+                {pkg.personnel && (
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
+                    <Users className="w-2.5 h-2.5 inline mr-0.5" />
+                    {pkg.personnel.join("/")}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-slate-500">
+              {availableFormations.length} formations
+            </span>
+            {expanded ? (
+              <ChevronUp className="w-4 h-4 text-slate-400" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-slate-400" />
+            )}
+          </div>
+        </div>
+        <p className="text-xs text-slate-500 mt-2 line-clamp-2">{pkg.summary}</p>
+      </button>
+
+      {/* Expanded content */}
+      {expanded && (
+        <div className="border-t border-slate-200 p-3 bg-slate-50/50">
+          {/* Philosophy description */}
+          <div className="text-xs text-slate-600 mb-3 italic">
+            {philosophyDescription}
+          </div>
+
+          {/* Formations list */}
+          <div className="space-y-1.5">
+            {pkg.formations.map((relation) => {
+              const formation = availableFormations.find(f => f.id === relation.formationId);
+              if (!formation) return null;
+
+              const isSelected = formation.id === currentFormationId;
+
+              return (
+                <button
+                  key={formation.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectFormation(formation);
+                  }}
+                  className={cn(
+                    "w-full flex items-center gap-2 p-2 rounded-lg text-left transition-all",
+                    isSelected
+                      ? "bg-primary/10 border border-primary/30"
+                      : "bg-white border border-slate-200 hover:border-primary/50"
+                  )}
+                >
+                  <span className="text-sm font-medium flex-1">{formation.name}</span>
+                  <span className={cn(
+                    "text-[10px] px-1.5 py-0.5 rounded",
+                    relation.role === "base"
+                      ? "bg-blue-100 text-blue-700"
+                      : relation.role === "variation"
+                      ? "bg-slate-100 text-slate-600"
+                      : "bg-green-100 text-green-700"
+                  )}>
+                    {relation.role}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Strengths */}
+          {pkg.strengthVs && (
+            <div className="mt-3 pt-3 border-t border-slate-200">
+              <div className="text-[10px] font-medium text-slate-500 uppercase mb-1">Strong vs</div>
+              <div className="flex flex-wrap gap-1">
+                {pkg.strengthVs.defense?.map(d => (
+                  <span key={d} className="text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-700">
+                    {d}
+                  </span>
+                ))}
+                {pkg.strengthVs.coverage?.map(c => (
+                  <span key={c} className="text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-700">
+                    {c}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
