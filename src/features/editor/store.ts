@@ -80,7 +80,7 @@ export interface BuildFromConceptResult {
 import { createPlay, createPlayFromFormation } from "@/domain/dsl/factories";
 import { type SnapConfig, DEFAULT_SNAP_CONFIG } from "@/domain/engine/snap";
 import { autoBuildFromConcept, applyAutoBuildToPlay } from "@/domain/engine/auto-build";
-import { getDefensePresetById } from "@/domain/engine/defense-presets";
+import { getDefensePresetById, computeOffensiveStrength } from "@/domain/engine/defense-presets";
 import {
   loadPlayerDefaults,
   applyDefaultsToPlay,
@@ -1120,27 +1120,71 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const preset = getDefensePresetById(presetId);
     if (!preset) return;
 
-    // Create defense players from preset
-    const defensePlayers: Player[] = preset.alignments.map((alignment, index) => ({
-      id: `p_def_${alignment.role.toLowerCase()}_${index}`,
-      role: alignment.role,
-      label: alignment.label,
-      unit: "defense" as const,
-      alignment: {
-        x: alignment.x,
-        y: alignment.y,
-        facing: "down" as const,
-        stance: "three_point" as const,
-      },
-      appearance: {
-        icon: "circle" as const,
-        colorToken: "defense" as const,
-        showLabel: true,
-      },
-    }));
+    // Detect offensive strength from formation
+    // If we have a formation ID, try to compute strength from offense players
+    const offensePlayers = state.play.roster.players.filter(p => p.unit === "offense");
+
+    // Build a minimal formation object to compute strength
+    // Strength defaults to "right" if we can't detect
+    let offensiveStrength: "left" | "right" = "right";
+
+    if (offensePlayers.length > 0) {
+      // Check for TE position (Y role, typically x > 0.65 or x < 0.35)
+      const te = offensePlayers.find(p => p.role === "Y" && p.label === "TE");
+      if (te) {
+        offensiveStrength = te.alignment.x > 0.5 ? "right" : "left";
+      } else {
+        // Count receivers on each side
+        const receivers = offensePlayers.filter(p => ["X", "Y", "Z", "H"].includes(p.role as string));
+        const leftCount = receivers.filter(p => p.alignment.x < 0.4).length;
+        const rightCount = receivers.filter(p => p.alignment.x > 0.6).length;
+
+        if (leftCount >= 3) offensiveStrength = "left";
+        else if (rightCount >= 3) offensiveStrength = "right";
+        // Default to "right" otherwise
+      }
+    }
+
+    // Presets assume strength="right", so flip x if strength is "left"
+    const shouldMirror = offensiveStrength === "left";
+
+    // Create defense players from preset (mirrored if needed)
+    const defensePlayers: Player[] = preset.alignments.map((alignment, index) => {
+      // Mirror x around center (0.5) if offensive strength is left
+      const finalX = shouldMirror ? 1 - alignment.x : alignment.x;
+
+      // For mirrored positions, swap strong/weak labels if present
+      let label = alignment.label;
+      if (shouldMirror) {
+        // Swap Sam/Will labels since they switch sides
+        if (label === "Sam") label = "Will";
+        else if (label === "Will") label = "Sam";
+      }
+
+      return {
+        id: `p_def_${alignment.role.toLowerCase()}_${index}`,
+        role: alignment.role,
+        label,
+        unit: "defense" as const,
+        alignment: {
+          x: finalX,
+          y: alignment.y,
+          facing: "down" as const,
+          stance: "three_point" as const,
+        },
+        appearance: {
+          icon: "circle" as const,
+          colorToken: "defense" as const,
+          showLabel: true,
+        },
+        extensions: alignment.technique
+          ? { technique: alignment.technique }
+          : undefined,
+      };
+    });
 
     // Remove existing defense players and add new ones
-    const offensePlayers = state.play.roster.players.filter(
+    const currentOffensePlayers = state.play.roster.players.filter(
       (p) => p.unit !== "defense"
     );
 
@@ -1148,7 +1192,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       ...state.play,
       roster: {
         ...state.play.roster,
-        players: [...offensePlayers, ...defensePlayers],
+        players: [...currentOffensePlayers, ...defensePlayers],
       },
       updatedAt: new Date().toISOString(),
     };
@@ -1157,6 +1201,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       presetId,
       playId: newPlay.id,
       defensePlayerCount: defensePlayers.length,
+      offensiveStrength,
+      mirrored: shouldMirror,
     });
 
     set({ defensePresetId: presetId });

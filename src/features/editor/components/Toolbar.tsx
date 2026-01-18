@@ -9,159 +9,173 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown, Undo2, Redo2, RotateCcw, MousePointer2, Route, Square, MoveHorizontal, Type } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const MODES: { mode: EditorMode; key: string; icon: string; shortcut: string }[] = [
-  { mode: "select", key: "select", icon: "↖", shortcut: "V" },
-  { mode: "route", key: "route", icon: "↗", shortcut: "R" },
-  { mode: "block", key: "block", icon: "→", shortcut: "B" },
-  { mode: "motion", key: "motion", icon: "↔", shortcut: "M" },
-  { mode: "text", key: "text", icon: "T", shortcut: "T" },
+const MODES: { mode: EditorMode; key: string; icon: React.ReactNode; shortcut: string }[] = [
+  { mode: "select", key: "select", icon: <MousePointer2 className="w-4 h-4" />, shortcut: "V" },
+  { mode: "route", key: "route", icon: <Route className="w-4 h-4" />, shortcut: "R" },
+  { mode: "block", key: "block", icon: <Square className="w-4 h-4" />, shortcut: "B" },
+  { mode: "motion", key: "motion", icon: <MoveHorizontal className="w-4 h-4" />, shortcut: "M" },
+  { mode: "text", key: "text", icon: <Type className="w-4 h-4" />, shortcut: "T" },
+];
+
+const OL_RULES = [
+  { id: "inside_zone", name: "Inside Zone" },
+  { id: "outside_zone", name: "Outside Zone" },
+  { id: "duo", name: "Duo" },
+  { id: "power", name: "Power" },
+  { id: "counter", name: "Counter" },
+  { id: "pass_pro", name: "Pass Pro" },
 ];
 
 export function Toolbar() {
   const t = useTranslations("editor.toolbar");
-  const { mode, setMode, undo, redo, canUndo, canRedo, toggleSuggestions, resetAll, play, curveMode, toggleCurveMode, autoApplyDefaults, toggleAutoApplyDefaults, applyPlayerDefaults } =
+  const { mode, setMode, undo, redo, canUndo, canRedo, resetAll, play, curveMode, toggleCurveMode, autoApplyDefaults, toggleAutoApplyDefaults, applyPlayerDefaults } =
     useEditorStore();
 
   return (
-    <div className="flex items-center gap-2 p-2 bg-background border-b">
-      {/* Mode buttons */}
-      <div className="flex items-center gap-1 border-r pr-2">
-        {MODES.map((m) => (
-          <Tooltip key={m.mode}>
+    <div className="bg-background border-b">
+      {/* Main Toolbar Row */}
+      <div className="flex items-center h-10 px-2 gap-1">
+        {/* Mode Tabs */}
+        <div className="flex items-center bg-muted/50 rounded-lg p-0.5">
+          {MODES.map((m) => (
+            <Tooltip key={m.mode}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setMode(m.mode)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                    mode === m.mode
+                      ? "bg-white text-primary shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                >
+                  {m.icon}
+                  <span className="hidden sm:inline">{t(m.key)}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>{t(m.key)} <kbd className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded">{m.shortcut}</kbd></p>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+
+        {/* Curve Toggle (in route mode) */}
+        {mode === "route" && (
+          <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant={mode === m.mode ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setMode(m.mode)}
-                className={mode === m.mode ? "bg-primary/10 text-primary" : ""}
+              <button
+                onClick={toggleCurveMode}
+                className={cn(
+                  "flex items-center gap-1 px-2.5 py-1.5 rounded-md text-sm font-medium transition-all ml-1",
+                  curveMode
+                    ? "bg-blue-100 text-blue-700"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}
               >
-                <span className="mr-1.5">{m.icon}</span>
-                {t(m.key)}
-              </Button>
+                〰 Curve
+              </button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p>{t(m.key)} <kbd className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded">{m.shortcut}</kbd></p>
+              <p>Bezier curves <kbd className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded">C</kbd></p>
             </TooltipContent>
           </Tooltip>
-        ))}
-      </div>
+        )}
 
-      {/* Curve Mode Toggle (only in route mode) */}
-      {mode === "route" && (
-        <div className="flex items-center gap-1 border-r pr-2">
+        {/* Divider */}
+        <div className="w-px h-5 bg-border mx-2" />
+
+        {/* Undo/Redo */}
+        <div className="flex items-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant={curveMode ? "secondary" : "ghost"}
-                size="sm"
-                onClick={toggleCurveMode}
-                className={curveMode ? "bg-primary/10 text-primary" : ""}
+                variant="ghost"
+                size="icon"
+                onClick={undo}
+                disabled={!canUndo()}
+                className="h-8 w-8"
               >
-                <span className="mr-1.5">〰</span>
-                Curve
+                <Undo2 className="w-4 h-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              <p>Draw smooth Bezier curves <kbd className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded">C</kbd></p>
+              <p>{t("undo")} <kbd className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded">Ctrl+Z</kbd></p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={redo}
+                disabled={!canRedo()}
+                className="h-8 w-8"
+              >
+                <Redo2 className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>{t("redo")} <kbd className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded">Ctrl+Y</kbd></p>
             </TooltipContent>
           </Tooltip>
         </div>
-      )}
 
-      {/* Undo/Redo */}
-      <div className="flex items-center gap-1 border-r pr-2">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={undo}
-              disabled={!canUndo()}
-              className="h-8 w-8"
-            >
-              ↩
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <p>{t("undo")} <kbd className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded">Ctrl+Z</kbd></p>
-          </TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={redo}
-              disabled={!canRedo()}
-              className="h-8 w-8"
-            >
-              ↪
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <p>{t("redo")} <kbd className="ml-1 px-1.5 py-0.5 text-xs bg-muted rounded">Ctrl+Y</kbd></p>
-          </TooltipContent>
-        </Tooltip>
-      </div>
+        {/* Divider */}
+        <div className="w-px h-5 bg-border mx-2" />
 
-      {/* Suggestions */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => toggleSuggestions("pass")}
-        >
-          {t("passConcepts")}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => toggleSuggestions("run")}
-        >
-          {t("runConcepts")}
-        </Button>
-      </div>
-
-      {/* Spacer */}
-      <div className="flex-1" />
-
-      {/* Auto Defaults Toggle */}
-      <div className="flex items-center gap-1 border-r pr-2">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={autoApplyDefaults ? "secondary" : "ghost"}
-              size="sm"
+        {/* OL Rules Dropdown */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant={autoApplyDefaults ? "secondary" : "outline"}
+                  size="sm"
+                  className={cn(
+                    "h-8 gap-1",
+                    autoApplyDefaults && "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                  )}
+                >
+                  OL Rules
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Auto OL blocking rules</p>
+            </TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="start" className="w-40">
+            <DropdownMenuItem
               onClick={toggleAutoApplyDefaults}
-              className={autoApplyDefaults ? "bg-primary/10 text-primary" : ""}
+              className={cn(autoApplyDefaults && "bg-green-50")}
             >
-              Auto OL
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <p>Auto-apply OL blocks when formation changes</p>
-          </TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={applyPlayerDefaults}
-              disabled={!play}
-            >
-              Apply
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">
-            <p>Apply default blocks to OL now</p>
-          </TooltipContent>
-        </Tooltip>
-      </div>
+              <span className="mr-2">{autoApplyDefaults ? "✓" : " "}</span>
+              Auto Apply
+            </DropdownMenuItem>
+            <div className="h-px bg-border my-1" />
+            {OL_RULES.map((rule) => (
+              <DropdownMenuItem key={rule.id} onClick={applyPlayerDefaults}>
+                {rule.name}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-      {/* Reset All */}
-      <div className="flex items-center gap-2">
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Reset All */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -169,13 +183,14 @@ export function Toolbar() {
               size="sm"
               onClick={resetAll}
               disabled={!play || play.actions.length === 0}
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="h-8 gap-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             >
-              Reset All
+              <RotateCcw className="w-3.5 h-3.5" />
+              Reset
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom">
-            <p>Clear all actions and reset to formation</p>
+            <p>Clear all actions</p>
           </TooltipContent>
         </Tooltip>
       </div>

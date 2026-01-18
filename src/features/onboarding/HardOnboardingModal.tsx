@@ -1,9 +1,11 @@
 "use client";
 
 // ============================================
-// HardOnboardingModal
-// 첫 진입 시 강제 컨셉 선택 게이트
-// 3개 옵션만 제공 (자유도는 독!)
+// HardOnboardingModal - QuickStart Wizard
+// 3-Step guided onboarding flow
+// Step 1: Choose concept
+// Step 2: Formation & defense setup
+// Step 3: Success + guidance
 // ============================================
 
 import React, { useState, useMemo, useCallback, useEffect } from "react";
@@ -15,14 +17,22 @@ import {
   TrendingUp,
   Target,
   ArrowRight,
+  ArrowLeft,
   Sparkles,
+  CheckCircle,
+  Shield,
+  LayoutGrid,
+  Play,
+  BookOpen,
+  MousePointerClick,
+  Settings,
 } from "lucide-react";
 
 // ============================================
 // Constants
 // ============================================
 
-const HARD_ONBOARDING_KEY = "foroffense_hard_onboarding_v1";
+const HARD_ONBOARDING_KEY = "foroffense_hard_onboarding_v2";
 
 export interface OnboardingConcept {
   id: string;
@@ -32,9 +42,10 @@ export interface OnboardingConcept {
   icon: React.ReactNode;
   tags: string[];
   formation: string;
+  formationName: string;
 }
 
-const ONBOARDING_CONCEPTS: OnboardingConcept[] = [
+export const ONBOARDING_CONCEPTS: OnboardingConcept[] = [
   {
     id: "concept_run_power",
     name: "Power",
@@ -43,6 +54,7 @@ const ONBOARDING_CONCEPTS: OnboardingConcept[] = [
     icon: <TrendingUp className="w-8 h-8" />,
     tags: ["Gap Scheme", "Physical", "Pro Style"],
     formation: "i_form",
+    formationName: "I-Formation",
   },
   {
     id: "concept_pass_flood",
@@ -52,6 +64,7 @@ const ONBOARDING_CONCEPTS: OnboardingConcept[] = [
     icon: <Zap className="w-8 h-8" />,
     tags: ["Zone Beater", "3x1", "Trips"],
     formation: "trips_right",
+    formationName: "Trips Right",
   },
   {
     id: "concept_pass_stick",
@@ -61,7 +74,37 @@ const ONBOARDING_CONCEPTS: OnboardingConcept[] = [
     icon: <Target className="w-8 h-8" />,
     tags: ["Quick Game", "Safe", "High %"],
     formation: "spread",
+    formationName: "Spread",
   },
+];
+
+// Formation options for Step 2
+interface FormationOption {
+  id: string;
+  name: string;
+  structure: string;
+  description: string;
+}
+
+const FORMATION_OPTIONS: FormationOption[] = [
+  { id: "spread", name: "Spread", structure: "2x2", description: "4 WR spread look" },
+  { id: "trips_right", name: "Trips Right", structure: "3x1", description: "3 receivers to one side" },
+  { id: "ace", name: "Ace", structure: "1x2x1", description: "Balanced 2 TE set" },
+  { id: "i_form", name: "I-Formation", structure: "I", description: "Traditional pro set" },
+];
+
+// Defense presets for Step 2
+interface DefenseOption {
+  id: string;
+  name: string;
+  description: string;
+}
+
+const DEFENSE_OPTIONS: DefenseOption[] = [
+  { id: "none", name: "No Defense", description: "Focus on your play only" },
+  { id: "even_4_3", name: "Even 4-3", description: "Standard 4 down front" },
+  { id: "odd_3_4", name: "Odd 3-4", description: "3 down with 4 LBs" },
+  { id: "nickel", name: "Nickel", description: "5 DBs for passing situations" },
 ];
 
 // ============================================
@@ -72,14 +115,20 @@ interface HardOnboardingState {
   completed: boolean;
   completedAt: string | null;
   selectedConceptId: string | null;
+  selectedFormationId: string | null;
+  selectedDefenseId: string | null;
   startedAt: string | null;
+  lastStep: number;
 }
 
 const DEFAULT_STATE: HardOnboardingState = {
   completed: false,
   completedAt: null,
   selectedConceptId: null,
+  selectedFormationId: null,
+  selectedDefenseId: null,
   startedAt: null,
+  lastStep: 0,
 };
 
 function getHardOnboardingState(): HardOnboardingState {
@@ -127,76 +176,224 @@ export function resetHardOnboarding(): void {
 }
 
 // ============================================
-// Concept Card Component
+// Step Components
 // ============================================
 
-interface ConceptCardProps {
-  concept: OnboardingConcept;
-  isSelected: boolean;
-  onSelect: () => void;
+// Step 1: Choose Concept
+interface Step1Props {
+  selectedId: string | null;
+  onSelect: (concept: OnboardingConcept) => void;
 }
 
-function ConceptCard({ concept, isSelected, onSelect }: ConceptCardProps) {
+function Step1ConceptSelect({ selectedId, onSelect }: Step1Props) {
   return (
-    <button
-      onClick={onSelect}
-      className={cn(
-        "relative w-full p-4 rounded-xl border-2 transition-all duration-200",
-        "text-left hover:scale-[1.02] active:scale-[0.98]",
-        isSelected
-          ? "border-blue-500 bg-blue-500/10 ring-2 ring-blue-500/30"
-          : "border-slate-700 bg-slate-800/50 hover:border-slate-600"
-      )}
-    >
-      {/* Type badge */}
-      <div
-        className={cn(
-          "absolute top-2 right-2 px-2 py-0.5 rounded text-xs font-medium",
-          concept.type === "run"
-            ? "bg-green-500/20 text-green-400"
-            : "bg-blue-500/20 text-blue-400"
-        )}
-      >
-        {concept.type === "run" ? "RUN" : "PASS"}
-      </div>
-
-      {/* Icon and Name */}
-      <div className="flex items-center gap-3 mb-2">
-        <div
-          className={cn(
-            "p-2 rounded-lg",
-            isSelected ? "bg-blue-500/20 text-blue-400" : "bg-slate-700/50 text-slate-400"
-          )}
-        >
-          {concept.icon}
-        </div>
-        <div>
-          <h3 className="text-lg font-bold text-white">{concept.name}</h3>
-        </div>
-      </div>
-
-      {/* Description */}
-      <p className="text-sm text-slate-400 mb-3">{concept.description}</p>
-
-      {/* Tags */}
-      <div className="flex flex-wrap gap-1.5">
-        {concept.tags.map((tag) => (
-          <span
-            key={tag}
-            className="px-2 py-0.5 text-xs bg-slate-700/50 text-slate-400 rounded"
+    <div className="p-6">
+      <div className="space-y-3">
+        {ONBOARDING_CONCEPTS.map((concept) => (
+          <button
+            key={concept.id}
+            onClick={() => onSelect(concept)}
+            className={cn(
+              "relative w-full p-4 rounded-xl border-2 transition-all duration-200",
+              "text-left hover:scale-[1.02] active:scale-[0.98]",
+              selectedId === concept.id
+                ? "border-blue-500 bg-blue-500/10 ring-2 ring-blue-500/30"
+                : "border-slate-700 bg-slate-800/50 hover:border-slate-600"
+            )}
           >
-            {tag}
-          </span>
+            {/* Type badge */}
+            <div
+              className={cn(
+                "absolute top-2 right-2 px-2 py-0.5 rounded text-xs font-medium",
+                concept.type === "run"
+                  ? "bg-green-500/20 text-green-400"
+                  : "bg-blue-500/20 text-blue-400"
+              )}
+            >
+              {concept.type === "run" ? "RUN" : "PASS"}
+            </div>
+
+            {/* Icon and Name */}
+            <div className="flex items-center gap-3 mb-2">
+              <div
+                className={cn(
+                  "p-2 rounded-lg",
+                  selectedId === concept.id
+                    ? "bg-blue-500/20 text-blue-400"
+                    : "bg-slate-700/50 text-slate-400"
+                )}
+              >
+                {concept.icon}
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">{concept.name}</h3>
+              </div>
+            </div>
+
+            {/* Description */}
+            <p className="text-sm text-slate-400 mb-3">{concept.description}</p>
+
+            {/* Tags */}
+            <div className="flex flex-wrap gap-1.5">
+              {concept.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="px-2 py-0.5 text-xs bg-slate-700/50 text-slate-400 rounded"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+
+            {/* Selected indicator */}
+            {selectedId === concept.id && (
+              <div className="absolute -top-1 -left-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                <Sparkles className="w-3 h-3 text-white" />
+              </div>
+            )}
+          </button>
         ))}
       </div>
+    </div>
+  );
+}
 
-      {/* Selected indicator */}
-      {isSelected && (
-        <div className="absolute -top-1 -left-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-          <Sparkles className="w-3 h-3 text-white" />
+// Step 2: Formation & Defense Setup
+interface Step2Props {
+  selectedConcept: OnboardingConcept | null;
+  selectedFormationId: string | null;
+  selectedDefenseId: string | null;
+  onFormationSelect: (id: string) => void;
+  onDefenseSelect: (id: string) => void;
+}
+
+function Step2Setup({
+  selectedConcept,
+  selectedFormationId,
+  selectedDefenseId,
+  onFormationSelect,
+  onDefenseSelect,
+}: Step2Props) {
+  return (
+    <div className="p-6 space-y-6">
+      {/* Formation Selection */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <LayoutGrid className="w-4 h-4 text-blue-400" />
+          <h4 className="font-medium text-white">Formation</h4>
         </div>
-      )}
-    </button>
+        <div className="grid grid-cols-2 gap-2">
+          {FORMATION_OPTIONS.map((formation) => (
+            <button
+              key={formation.id}
+              onClick={() => onFormationSelect(formation.id)}
+              className={cn(
+                "p-3 rounded-lg border text-left transition-all",
+                selectedFormationId === formation.id
+                  ? "border-blue-500 bg-blue-500/10"
+                  : "border-slate-700 bg-slate-800/30 hover:border-slate-600"
+              )}
+            >
+              <div className="font-medium text-sm text-white">{formation.name}</div>
+              <div className="text-xs text-slate-500">{formation.description}</div>
+              {selectedConcept?.formation === formation.id && (
+                <div className="mt-1 text-[10px] text-blue-400">Recommended</div>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Defense Selection */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Shield className="w-4 h-4 text-red-400" />
+          <h4 className="font-medium text-white">Show Defense?</h4>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {DEFENSE_OPTIONS.map((defense) => (
+            <button
+              key={defense.id}
+              onClick={() => onDefenseSelect(defense.id)}
+              className={cn(
+                "p-3 rounded-lg border text-left transition-all",
+                selectedDefenseId === defense.id
+                  ? "border-red-500 bg-red-500/10"
+                  : "border-slate-700 bg-slate-800/30 hover:border-slate-600"
+              )}
+            >
+              <div className="font-medium text-sm text-white">{defense.name}</div>
+              <div className="text-xs text-slate-500">{defense.description}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Quick tip */}
+      <div className="p-3 bg-slate-800/50 border border-slate-700 rounded-lg">
+        <p className="text-xs text-slate-400">
+          💡 <span className="text-slate-300">Tip:</span> You can always change these later.
+          The editor has full control over formations and defenses.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Step 3: Success & Guidance
+interface Step3Props {
+  selectedConcept: OnboardingConcept | null;
+}
+
+function Step3Success({ selectedConcept }: Step3Props) {
+  return (
+    <div className="p-6 text-center">
+      {/* Success Animation */}
+      <div className="mb-6">
+        <div className="w-20 h-20 mx-auto bg-green-500/20 rounded-full flex items-center justify-center animate-pulse">
+          <CheckCircle className="w-10 h-10 text-green-500" />
+        </div>
+      </div>
+
+      <h3 className="text-xl font-bold text-white mb-2">You're all set!</h3>
+      <p className="text-slate-400 mb-6">
+        Your <span className="text-blue-400 font-medium">{selectedConcept?.name}</span> play
+        is ready for editing
+      </p>
+
+      {/* Quick guides */}
+      <div className="space-y-3 text-left mb-6">
+        <div className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+          <MousePointerClick className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <div className="font-medium text-sm text-white">Click players</div>
+            <div className="text-xs text-slate-500">to draw routes and blocks</div>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+          <Settings className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <div className="font-medium text-sm text-white">Use the toolbar</div>
+            <div className="text-xs text-slate-500">for routes, blocks, motion, and more</div>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+          <BookOpen className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <div className="font-medium text-sm text-white">Check Concepts panel</div>
+            <div className="text-xs text-slate-500">for suggested plays and variations</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Encouragement */}
+      <div className="p-4 bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-lg border border-blue-500/20">
+        <p className="text-sm text-slate-300">
+          🎯 <span className="font-medium text-white">Goal:</span> Draw your play and hit Save.
+          Your first play will be added to your playbook!
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -205,13 +402,16 @@ function ConceptCard({ concept, isSelected, onSelect }: ConceptCardProps) {
 // ============================================
 
 interface HardOnboardingModalProps {
-  onSelect: (concept: OnboardingConcept) => void;
+  onSelect: (concept: OnboardingConcept, formationId?: string, defenseId?: string) => void;
   onSkip?: () => void;
 }
 
 export function HardOnboardingModal({ onSelect, onSkip }: HardOnboardingModalProps) {
   const [isVisible, setIsVisible] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [step, setStep] = useState(1);
+  const [selectedConceptId, setSelectedConceptId] = useState<string | null>(null);
+  const [selectedFormationId, setSelectedFormationId] = useState<string | null>(null);
+  const [selectedDefenseId, setSelectedDefenseId] = useState<string | null>("none");
   const [isLoading, setIsLoading] = useState(false);
 
   // Check if should show on mount
@@ -229,15 +429,39 @@ export function HardOnboardingModal({ onSelect, onSkip }: HardOnboardingModalPro
   }, []);
 
   const selectedConcept = useMemo(() => {
-    if (!selectedId) return null;
-    return ONBOARDING_CONCEPTS.find((c) => c.id === selectedId) || null;
-  }, [selectedId]);
+    if (!selectedConceptId) return null;
+    return ONBOARDING_CONCEPTS.find((c) => c.id === selectedConceptId) || null;
+  }, [selectedConceptId]);
 
-  const handleSelect = useCallback((concept: OnboardingConcept) => {
-    setSelectedId(concept.id);
+  // Auto-select formation based on concept
+  useEffect(() => {
+    if (selectedConcept && !selectedFormationId) {
+      setSelectedFormationId(selectedConcept.formation);
+    }
+  }, [selectedConcept, selectedFormationId]);
+
+  const handleConceptSelect = useCallback((concept: OnboardingConcept) => {
+    setSelectedConceptId(concept.id);
+    setSelectedFormationId(concept.formation);
   }, []);
 
-  const handleContinue = useCallback(async () => {
+  const handleNext = useCallback(() => {
+    if (step === 1 && selectedConcept) {
+      setStep(2);
+      saveHardOnboardingState({ lastStep: 2 });
+    } else if (step === 2) {
+      setStep(3);
+      saveHardOnboardingState({ lastStep: 3 });
+    }
+  }, [step, selectedConcept]);
+
+  const handleBack = useCallback(() => {
+    if (step > 1) {
+      setStep(step - 1);
+    }
+  }, [step]);
+
+  const handleFinish = useCallback(async () => {
     if (!selectedConcept || isLoading) return;
 
     setIsLoading(true);
@@ -246,7 +470,7 @@ export function HardOnboardingModal({ onSelect, onSkip }: HardOnboardingModalPro
     const timeMs = endTimer("hard_onboarding");
     telemetry.onboardingCompleted({
       timeToCompleteMs: timeMs,
-      stepsCompleted: 1,
+      stepsCompleted: 3,
       selectedConcept: selectedConcept.id,
     });
 
@@ -260,19 +484,27 @@ export function HardOnboardingModal({ onSelect, onSkip }: HardOnboardingModalPro
 
     // Mark as completed
     completeHardOnboarding(selectedConcept.id);
+    saveHardOnboardingState({
+      selectedFormationId,
+      selectedDefenseId,
+    });
 
-    // Notify parent
-    onSelect(selectedConcept);
+    // Notify parent with all selections
+    onSelect(
+      selectedConcept,
+      selectedFormationId || undefined,
+      selectedDefenseId === "none" ? undefined : selectedDefenseId || undefined
+    );
 
     setIsVisible(false);
     setIsLoading(false);
-  }, [selectedConcept, isLoading, onSelect]);
+  }, [selectedConcept, selectedFormationId, selectedDefenseId, isLoading, onSelect]);
 
   const handleSkip = useCallback(() => {
     // Track skip
     const timeMs = endTimer("hard_onboarding");
     telemetry.onboardingSkipped({
-      stepIndex: 0,
+      stepIndex: step - 1,
       timeSpentMs: timeMs,
     });
 
@@ -280,9 +512,21 @@ export function HardOnboardingModal({ onSelect, onSkip }: HardOnboardingModalPro
     completeHardOnboarding("skipped");
     setIsVisible(false);
     onSkip?.();
-  }, [onSkip]);
+  }, [step, onSkip]);
 
   if (!isVisible) return null;
+
+  const stepTitles = [
+    "Choose a concept to start",
+    "Set up your canvas",
+    "Ready to create!",
+  ];
+
+  const stepSubtitles = [
+    "Pick one to see how it works",
+    "Formation and defense settings",
+    "You're all set to build your play",
+  ];
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
@@ -294,93 +538,116 @@ export function HardOnboardingModal({ onSelect, onSkip }: HardOnboardingModalPro
         {/* Header */}
         <div className="px-6 py-4 bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-b border-slate-700">
           <h1 className="text-2xl font-bold text-white">
-            Let's build your first play
+            {stepTitles[step - 1]}
           </h1>
           <p className="text-slate-400 mt-1">
-            Pick a concept to start. We'll set everything up automatically.
+            {stepSubtitles[step - 1]}
           </p>
         </div>
 
         {/* Content */}
-        <div className="p-6">
-          {/* Concept selection */}
-          <div className="space-y-3">
-            {ONBOARDING_CONCEPTS.map((concept) => (
-              <ConceptCard
-                key={concept.id}
-                concept={concept}
-                isSelected={selectedId === concept.id}
-                onSelect={() => handleSelect(concept)}
-              />
-            ))}
-          </div>
+        {step === 1 && (
+          <Step1ConceptSelect
+            selectedId={selectedConceptId}
+            onSelect={handleConceptSelect}
+          />
+        )}
+        {step === 2 && (
+          <Step2Setup
+            selectedConcept={selectedConcept}
+            selectedFormationId={selectedFormationId}
+            selectedDefenseId={selectedDefenseId}
+            onFormationSelect={setSelectedFormationId}
+            onDefenseSelect={setSelectedDefenseId}
+          />
+        )}
+        {step === 3 && <Step3Success selectedConcept={selectedConcept} />}
 
-          {/* What happens next */}
-          {selectedConcept && (
-            <div className="mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-              <p className="text-sm text-blue-300">
-                <span className="font-medium">What happens next:</span> We'll load{" "}
-                <span className="text-white font-medium">
-                  {selectedConcept.name}
-                </span>{" "}
-                on a{" "}
-                <span className="text-white">
-                  {selectedConcept.formation.replace(/_/g, " ")}
-                </span>{" "}
-                formation. You can edit everything after!
-              </p>
-            </div>
-          )}
-        </div>
+        {/* What happens next (Step 1 only) */}
+        {step === 1 && selectedConcept && (
+          <div className="mx-6 mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+            <p className="text-sm text-blue-300">
+              <span className="font-medium">What happens next:</span> We'll load{" "}
+              <span className="text-white font-medium">{selectedConcept.name}</span> on a{" "}
+              <span className="text-white">{selectedConcept.formationName}</span> formation.
+            </p>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-700 bg-slate-800/50">
-          <button
-            onClick={handleSkip}
-            className="text-sm text-slate-500 hover:text-slate-400 transition-colors"
-          >
-            Skip and start blank
-          </button>
-
-          <Button
-            onClick={handleContinue}
-            disabled={!selectedConcept || isLoading}
-            className={cn(
-              "min-w-[140px]",
-              selectedConcept
-                ? "bg-blue-600 hover:bg-blue-700"
-                : "bg-slate-700 cursor-not-allowed"
-            )}
-          >
-            {isLoading ? (
-              "Loading..."
+          <div className="flex items-center gap-2">
+            {step > 1 ? (
+              <Button
+                variant="ghost"
+                onClick={handleBack}
+                className="text-slate-400 hover:text-white"
+              >
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                Back
+              </Button>
             ) : (
-              <>
-                Build {selectedConcept?.name || "Play"}
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </>
+              <button
+                onClick={handleSkip}
+                className="text-sm text-slate-500 hover:text-slate-400 transition-colors"
+              >
+                Skip and start blank
+              </button>
             )}
-          </Button>
+          </div>
+
+          {step < 3 ? (
+            <Button
+              onClick={handleNext}
+              disabled={step === 1 && !selectedConcept}
+              className={cn(
+                "min-w-[140px]",
+                (step === 1 && selectedConcept) || step === 2
+                  ? "bg-blue-600 hover:bg-blue-700"
+                  : "bg-slate-700 cursor-not-allowed"
+              )}
+            >
+              Continue
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleFinish}
+              disabled={isLoading}
+              className="min-w-[160px] bg-green-600 hover:bg-green-700"
+            >
+              {isLoading ? (
+                "Loading..."
+              ) : (
+                <>
+                  <Play className="w-4 h-4 mr-2" />
+                  Start Building
+                </>
+              )}
+            </Button>
+          )}
         </div>
 
-        {/* Progress hint */}
+        {/* Progress indicator */}
         <div className="absolute top-4 right-4">
           <div className="flex items-center gap-1.5">
-            <div className="w-8 h-1 rounded-full bg-blue-500" />
-            <div className="w-8 h-1 rounded-full bg-slate-700" />
-            <div className="w-8 h-1 rounded-full bg-slate-700" />
+            {[1, 2, 3].map((s) => (
+              <div
+                key={s}
+                className={cn(
+                  "w-8 h-1 rounded-full transition-colors",
+                  s <= step ? "bg-blue-500" : "bg-slate-700"
+                )}
+              />
+            ))}
           </div>
-          <p className="text-[10px] text-slate-500 text-right mt-1">Step 1 of 3</p>
+          <p className="text-[10px] text-slate-500 text-right mt-1">
+            Step {step} of 3
+          </p>
         </div>
       </div>
     </div>
   );
 }
-
-// ============================================
-// Export Concepts for use elsewhere
-// ============================================
-
-export { ONBOARDING_CONCEPTS };
 
 export default HardOnboardingModal;

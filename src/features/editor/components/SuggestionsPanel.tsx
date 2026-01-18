@@ -14,6 +14,7 @@ import {
   DEFAULT_SUGGESTION_CONTEXT,
 } from "@/domain/engine/suggestion-context";
 import { ContextSummaryPanel } from "./ContextSummaryPanel";
+import { QuickSituationCards, type QuickSituation } from "./QuickSituationCards";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +46,9 @@ export function SuggestionsPanel() {
 
   // View mode: concepts or families
   const [viewMode, setViewMode] = useState<"concepts" | "families">("concepts");
+
+  // Quick situation filter
+  const [selectedSituation, setSelectedSituation] = useState<string | null>(null);
 
   // Sync context with activeContext from store
   React.useEffect(() => {
@@ -107,6 +111,36 @@ export function SuggestionsPanel() {
       hasTrackedOpen.current = false;
     }
   }, [suggestionsOpen, play?.meta?.formationId, context.playType, suggestions.length]);
+
+  // Handle quick situation selection
+  const handleQuickSituationSelect = (situation: QuickSituation) => {
+    if (selectedSituation === situation.id) {
+      setSelectedSituation(null);
+    } else {
+      setSelectedSituation(situation.id);
+      // Update play type based on situation
+      if (situation.context.playType) {
+        setContext((prev) => ({
+          ...prev,
+          playType: situation.context.playType || prev.playType,
+        }));
+      }
+    }
+  };
+
+  // Filter suggestions based on selected situation
+  const filteredSuggestions = useMemo(() => {
+    if (!selectedSituation) return suggestions;
+    const situation = [
+      { id: "3rd_long", concepts: ["mesh", "levels", "flood", "four_verticals"] },
+      { id: "redzone", concepts: ["naked_boot", "pa_boot", "fade_out", "slant_flat"] },
+      { id: "2min", concepts: ["stick", "speed_out", "drive", "levels"] },
+    ].find((s) => s.id === selectedSituation);
+    if (!situation) return suggestions;
+    return suggestions.filter((s) =>
+      situation.concepts.some((c) => s.conceptId.toLowerCase().includes(c))
+    );
+  }, [suggestions, selectedSituation]);
 
   if (!suggestionsOpen) return null;
 
@@ -196,6 +230,15 @@ export function SuggestionsPanel() {
         </Button>
       </div>
 
+      {/* Quick Situation Cards */}
+      <div className="px-3 pt-3 pb-2 border-b">
+        <div className="text-xs font-medium text-muted-foreground mb-2">Quick Situations</div>
+        <QuickSituationCards
+          onSelect={handleQuickSituationSelect}
+          selectedId={selectedSituation || undefined}
+        />
+      </div>
+
       {/* Context Summary Panel (Summary + Adjust) */}
       <ContextSummaryPanel />
 
@@ -217,7 +260,7 @@ export function SuggestionsPanel() {
       <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "concepts" | "families")} className="flex-1 flex flex-col">
         <TabsList className="mx-3 mt-2 grid grid-cols-2">
           <TabsTrigger value="concepts" className="text-xs">
-            Concepts ({suggestions.length})
+            Concepts ({selectedSituation ? filteredSuggestions.length : suggestions.length})
           </TabsTrigger>
           <TabsTrigger value="families" className="text-xs">
             Families ({familySuggestions.length})
@@ -228,7 +271,9 @@ export function SuggestionsPanel() {
         <div className="px-3 py-2 bg-muted/30 border-b mt-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">
-              {context.playType === "pass"
+              {selectedSituation
+                ? `Filtered: ${filteredSuggestions.length} concepts`
+                : context.playType === "pass"
                 ? `Showing ${suggestions.length} of 12 max`
                 : `Top ${suggestions.length}`}
             </span>
@@ -240,9 +285,19 @@ export function SuggestionsPanel() {
 
         {/* Concepts View */}
         <TabsContent value="concepts" className="flex-1 overflow-y-auto p-3 space-y-2 mt-0">
-          {suggestions.length === 0 ? (
+          {filteredSuggestions.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground text-sm">
-              {context.playType === "run" && !defensePresetId ? (
+              {selectedSituation ? (
+                <>
+                  <p>No matching concepts for this situation.</p>
+                  <button
+                    onClick={() => setSelectedSituation(null)}
+                    className="text-primary text-xs mt-2 hover:underline"
+                  >
+                    Clear filter
+                  </button>
+                </>
+              ) : context.playType === "run" && !defensePresetId ? (
                 <>
                   <div className="text-amber-600 font-medium mb-2">
                     Defense Required for Run Suggestions
@@ -265,7 +320,7 @@ export function SuggestionsPanel() {
               )}
             </div>
           ) : (
-            suggestions.map((result, index) => (
+            filteredSuggestions.map((result, index) => (
               <EnhancedConceptCard
                 key={result.conceptId}
                 result={result}

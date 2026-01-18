@@ -458,13 +458,18 @@ export function Canvas() {
           removeAction(selectedActionId);
         }
       } else if (e.key === "c" || e.key === "C") {
-        // Toggle curveMode on selected route
+        // Toggle curveMode on selected route or motion
         if (selectedActionId && play && !textInput) {
           const action = play.actions.find((a) => a.id === selectedActionId);
           if (action && action.actionType === "route") {
             const newCurveMode = !(action.route.curveMode ?? false);
             updateAction(action.id, {
               route: { ...action.route, curveMode: newCurveMode },
+            });
+          } else if (action && action.actionType === "motion") {
+            const newCurveMode = !(action.motion.curveMode ?? false);
+            updateAction(action.id, {
+              motion: { ...action.motion, curveMode: newCurveMode },
             });
           }
         }
@@ -583,23 +588,28 @@ export function Canvas() {
     if (!action) return null;
 
     let points: Point[] = [];
-    let isCurveRoute = false;
+    let isCurveAction = false;
+    const actionType = action.actionType;
 
-    if (action.actionType === "route") {
+    if (actionType === "route") {
       points = action.route.controlPoints;
-      isCurveRoute = action.route.curveMode ?? false;
-    } else if (action.actionType === "block" && action.block.pathPoints) {
+      isCurveAction = action.route.curveMode ?? false;
+    } else if (actionType === "block" && action.block.pathPoints) {
       points = action.block.pathPoints;
-    } else if (action.actionType === "motion") {
+    } else if (actionType === "motion") {
       points = action.motion.pathPoints;
+      isCurveAction = action.motion.curveMode ?? false;
     }
 
     if (points.length === 0) return null;
 
-    // For curve routes with only 2 points, show an auto-generated curve control handle
+    // Colors for different action types
+    const curveColor = actionType === "motion" ? "#7C3AED" : "#F59E0B"; // Purple for motion, amber for route
+
+    // For curve actions with only 2 points, show an auto-generated curve control handle
     // Position it at the midpoint, offset perpendicular to the line
     const renderCurveControlHandle = () => {
-      if (!isCurveRoute || points.length !== 2) return null;
+      if (!isCurveAction || points.length !== 2) return null;
 
       const start = points[0];
       const end = points[1];
@@ -628,14 +638,18 @@ export function Canvas() {
       const handleCurveControlDrag = (e: React.MouseEvent) => {
         e.stopPropagation();
 
-        // Type guard - this function only runs for route actions
-        if (action.actionType !== "route") return;
-
         // Insert the control point between start and end
         const newPoints = [start, controlPoint, end];
-        updateAction(action.id, {
-          route: { ...action.route, controlPoints: newPoints },
-        });
+
+        if (actionType === "route") {
+          updateAction(action.id, {
+            route: { ...action.route, controlPoints: newPoints },
+          });
+        } else if (actionType === "motion") {
+          updateAction(action.id, {
+            motion: { ...action.motion, pathPoints: newPoints },
+          });
+        }
 
         // Set up dragging for the newly inserted point
         dragActionId.current = action.id;
@@ -650,7 +664,7 @@ export function Canvas() {
             y1={normalizedToSvg(start).y}
             x2={svgPoint.x}
             y2={svgPoint.y}
-            stroke="#F59E0B"
+            stroke={curveColor}
             strokeWidth={1}
             strokeDasharray="4,3"
             opacity={0.6}
@@ -661,18 +675,18 @@ export function Canvas() {
             y1={svgPoint.y}
             x2={normalizedToSvg(end).x}
             y2={normalizedToSvg(end).y}
-            stroke="#F59E0B"
+            stroke={curveColor}
             strokeWidth={1}
             strokeDasharray="4,3"
             opacity={0.6}
             pointerEvents="none"
           />
-          {/* Curve control point (amber/orange color) */}
+          {/* Curve control point */}
           <circle
             cx={svgPoint.x}
             cy={svgPoint.y}
             r={10}
-            fill="#F59E0B"
+            fill={curveColor}
             stroke="#ffffff"
             strokeWidth={2}
             style={{ cursor: "move" }}
@@ -683,7 +697,7 @@ export function Canvas() {
             x={svgPoint.x}
             y={svgPoint.y - 16}
             textAnchor="middle"
-            fill="#F59E0B"
+            fill={curveColor}
             fontSize={10}
             fontWeight="bold"
             pointerEvents="none"
@@ -699,8 +713,8 @@ export function Canvas() {
         {points.map((point, i) => {
           const svgPoint = normalizedToSvg(point);
 
-          // For 3-point curve routes, middle point is the curve control (amber color)
-          const isCurveControl = isCurveRoute && points.length === 3 && i === 1;
+          // For 3-point curve actions, middle point is the curve control
+          const isCurveControl = isCurveAction && points.length === 3 && i === 1;
           const isEndpoint = i === 0 || i === points.length - 1;
 
           return (
@@ -713,7 +727,7 @@ export function Canvas() {
                     y1={normalizedToSvg(points[0]).y}
                     x2={svgPoint.x}
                     y2={svgPoint.y}
-                    stroke="#F59E0B"
+                    stroke={curveColor}
                     strokeWidth={1}
                     strokeDasharray="4,3"
                     opacity={0.6}
@@ -724,7 +738,7 @@ export function Canvas() {
                     y1={svgPoint.y}
                     x2={normalizedToSvg(points[2]).x}
                     y2={normalizedToSvg(points[2]).y}
-                    stroke="#F59E0B"
+                    stroke={curveColor}
                     strokeWidth={1}
                     strokeDasharray="4,3"
                     opacity={0.6}
@@ -736,7 +750,7 @@ export function Canvas() {
                 cx={svgPoint.x}
                 cy={svgPoint.y}
                 r={isCurveControl ? 10 : 8}
-                fill={isCurveControl ? "#F59E0B" : "#ffffff"}
+                fill={isCurveControl ? curveColor : "#ffffff"}
                 stroke={isCurveControl ? "#ffffff" : isEndpoint ? "#3b82f6" : "#9CA3AF"}
                 strokeWidth={2}
                 style={{ cursor: "move" }}
@@ -749,7 +763,7 @@ export function Canvas() {
             </g>
           );
         })}
-        {/* Auto-generated curve handle for 2-point routes */}
+        {/* Auto-generated curve handle for 2-point curve actions */}
         {renderCurveControlHandle()}
       </g>
     );

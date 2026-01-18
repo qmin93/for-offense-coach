@@ -344,12 +344,26 @@ function PlayerNode({ player, selected, onClick }: PlayerNodeProps) {
   // Determine stance visual (subtle indicator)
   const isLineman = ["LT", "LG", "C", "RG", "RT", "TE"].includes(player.role || "");
 
+  // Defense linemen get larger hitbox to include tech label area
+  const isDefenseLine = !isOffense && ["DE", "DT", "NT"].includes(player.role);
+  const hitboxExtension = isDefenseLine ? 24 : 0; // Extra height above for tech labels
+
   return (
     <g
       className={`player-node ${selected ? "selected" : ""}`}
       onClick={() => onClick?.(player)}
       style={{ cursor: "pointer" }}
     >
+      {/* Invisible extended hitbox for defense linemen (includes tech label area) */}
+      {isDefenseLine && (
+        <rect
+          x={pos.x - PLAYER_RADIUS - 4}
+          y={pos.y - PLAYER_RADIUS - hitboxExtension}
+          width={(PLAYER_RADIUS + 4) * 2}
+          height={(PLAYER_RADIUS * 2) + hitboxExtension + 4}
+          fill="transparent"
+        />
+      )}
       {/* Shadow for depth */}
       <circle
         cx={pos.x + 1}
@@ -694,7 +708,7 @@ function BlockPath({ action }: BlockPathProps) {
 }
 
 // ============================================
-// Motion Component
+// Motion Component - Supports Curved Motion (Bezier)
 // ============================================
 
 interface MotionPathProps {
@@ -705,17 +719,59 @@ function MotionPath({ action }: MotionPathProps) {
   const points = action.motion.pathPoints.map(toSvgPoint);
   if (points.length < 2) return null;
 
-  const pathD = points.reduce((acc, point, i) => {
-    if (i === 0) return `M ${point.x} ${point.y}`;
-    return `${acc} L ${point.x} ${point.y}`;
-  }, "");
+  const curveMode = action.motion.curveMode ?? false;
+
+  // Build path string
+  let pathD: string;
+  let arrowAngle: number;
+
+  if (curveMode && points.length >= 2) {
+    // Bezier curve mode for motion
+    if (points.length === 2) {
+      // Simple line (2 points, no control)
+      pathD = `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+      arrowAngle = Math.atan2(points[1].y - points[0].y, points[1].x - points[0].x);
+    } else if (points.length === 3) {
+      // Quadratic bezier: M start Q control end
+      pathD = `M ${points[0].x} ${points[0].y} Q ${points[1].x} ${points[1].y} ${points[2].x} ${points[2].y}`;
+      // Arrow angle: tangent at end of quadratic bezier
+      arrowAngle = Math.atan2(points[2].y - points[1].y, points[2].x - points[1].x);
+    } else {
+      // Cubic bezier or smooth curve through points (catmull-rom)
+      pathD = `M ${points[0].x} ${points[0].y}`;
+      const tension = 0.5;
+
+      for (let i = 0; i < points.length - 1; i++) {
+        const p0 = points[Math.max(0, i - 1)];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = points[Math.min(points.length - 1, i + 2)];
+
+        const cp1x = p1.x + (p2.x - p0.x) * tension / 3;
+        const cp1y = p1.y + (p2.y - p0.y) * tension / 3;
+        const cp2x = p2.x - (p3.x - p1.x) * tension / 3;
+        const cp2y = p2.y - (p3.y - p1.y) * tension / 3;
+
+        pathD += ` C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${p2.x} ${p2.y}`;
+      }
+
+      const lastPt = points[points.length - 1];
+      const prevPt = points[points.length - 2];
+      arrowAngle = Math.atan2(lastPt.y - prevPt.y, lastPt.x - prevPt.x);
+    }
+  } else {
+    // Polyline mode (straight segments)
+    pathD = points.reduce((acc, point, i) => {
+      if (i === 0) return `M ${point.x} ${point.y}`;
+      return `${acc} L ${point.x} ${point.y}`;
+    }, "");
+
+    const lastPt = points[points.length - 1];
+    const prevPt = points[points.length - 2];
+    arrowAngle = Math.atan2(lastPt.y - prevPt.y, lastPt.x - prevPt.x);
+  }
 
   const lastPoint = points[points.length - 1];
-  const prevPoint = points[points.length - 2];
-  const angle = Math.atan2(
-    lastPoint.y - prevPoint.y,
-    lastPoint.x - prevPoint.x
-  );
 
   return (
     <g className="motion-action">
@@ -726,6 +782,7 @@ function MotionPath({ action }: MotionPathProps) {
         stroke="rgba(0,0,0,0.15)"
         strokeWidth={5}
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
       {/* Main motion line */}
       <path
@@ -735,13 +792,14 @@ function MotionPath({ action }: MotionPathProps) {
         strokeWidth={3}
         strokeDasharray="8,5"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
       {/* Arrow head */}
       <polygon
         points={`
           ${lastPoint.x},${lastPoint.y}
-          ${lastPoint.x - 10 * Math.cos(angle - 0.4)},${lastPoint.y - 10 * Math.sin(angle - 0.4)}
-          ${lastPoint.x - 10 * Math.cos(angle + 0.4)},${lastPoint.y - 10 * Math.sin(angle + 0.4)}
+          ${lastPoint.x - 10 * Math.cos(arrowAngle - 0.4)},${lastPoint.y - 10 * Math.sin(arrowAngle - 0.4)}
+          ${lastPoint.x - 10 * Math.cos(arrowAngle + 0.4)},${lastPoint.y - 10 * Math.sin(arrowAngle + 0.4)}
         `}
         fill={MOTION_COLOR}
       />
@@ -1013,6 +1071,66 @@ function FieldLandmarkOverlay({
 }
 
 // ============================================
+// Tech Legend Component (for export)
+// ============================================
+
+const TECH_LEGEND_ITEMS = [
+  { label: "0", desc: "Nose" },
+  { label: "1", desc: "A-gap" },
+  { label: "3T", desc: "B-gap (inside)" },
+  { label: "4i", desc: "B-gap (inside)" },
+  { label: "5T", desc: "C-gap" },
+  { label: "7", desc: "D-gap (tight)" },
+  { label: "9T", desc: "D-gap (wide)" },
+];
+
+function TechLegend() {
+  const startX = FIELD_WIDTH - 90;
+  const startY = FIELD_HEIGHT - 85;
+  const lineHeight = 10;
+
+  return (
+    <g className="tech-legend" opacity={0.9}>
+      {/* Background box */}
+      <rect
+        x={startX - 6}
+        y={startY - 12}
+        width={88}
+        height={80}
+        rx={4}
+        fill="rgba(15,23,42,0.85)"
+        stroke="rgba(148,163,184,0.3)"
+        strokeWidth={0.5}
+      />
+      {/* Title */}
+      <text
+        x={startX}
+        y={startY}
+        fontSize={8}
+        fontWeight="bold"
+        fill="#94A3B8"
+      >
+        Tech Legend
+      </text>
+      {/* Items */}
+      {TECH_LEGEND_ITEMS.map((item, i) => (
+        <text
+          key={item.label}
+          x={startX}
+          y={startY + 12 + i * lineHeight}
+          fontSize={7}
+          fill="#CBD5E1"
+        >
+          <tspan fontWeight="bold" fill="#F8FAFC">{item.label}</tspan>
+          <tspan fill="#64748B"> = </tspan>
+          <tspan>{item.desc}</tspan>
+        </text>
+      ))}
+    </g>
+  );
+}
+
+// ============================================
 // Main SVG Renderer Component
 // ============================================
 
@@ -1033,6 +1151,8 @@ export interface PlayRendererProps {
   overlayDensity?: OverlayDensity;
   // Enable collision avoidance between overlays
   useCollisionAvoidance?: boolean;
+  // Show tech legend (for export)
+  showLegend?: boolean;
 }
 
 export function PlayRenderer({
@@ -1048,6 +1168,7 @@ export function PlayRenderer({
   showDefenseLabels = false,
   overlayDensity = "standard",
   useCollisionAvoidance = true,
+  showLegend = false,
 }: PlayRendererProps) {
   const fieldSettings = play.field || {};
 
@@ -1194,6 +1315,9 @@ export function PlayRenderer({
           labelVisibility={useCollisionAvoidance ? labelVisibility : undefined}
         />
       )}
+
+      {/* Tech Legend (for export) */}
+      {showLegend && showDefenseLabels && <TechLegend />}
     </svg>
   );
 }

@@ -165,6 +165,10 @@ export function createMotionAction(
   pathPoints: Point[],
   options?: Partial<MotionAction>
 ): MotionAction {
+  // Motion types that benefit from curved paths (more natural arcs)
+  const curvedMotionTypes: MotionType[] = ["jet", "orbit", "return"];
+  const defaultCurveMode = curvedMotionTypes.includes(motionType);
+
   return {
     id: `a_motion_${uuid().slice(0, 8)}`,
     actionType: "motion",
@@ -174,6 +178,7 @@ export function createMotionAction(
       motionType,
       pathPoints,
       endAlignment: pathPoints[pathPoints.length - 1],
+      curveMode: defaultCurveMode, // Enable curve for jet/orbit/return
     },
     timing: {
       phase: "pre_snap",

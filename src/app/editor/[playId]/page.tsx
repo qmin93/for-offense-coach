@@ -17,6 +17,7 @@ import {
   BlockHUD,
   RecoveryDialog,
   PreContextScreen,
+  EmptyStateOverlay,
   type PreContext,
 } from "@/features/editor/components";
 import { ValidationPanel, ValidationStatusBadge } from "@/features/editor/components/ValidationPanel";
@@ -383,6 +384,8 @@ export default function EditorPage() {
         {/* Canvas */}
         <div className="flex-1 relative">
           <Canvas />
+          {/* Empty state overlay for new plays */}
+          <EmptyStateOverlay />
           {/* Block editing HUD */}
           <BlockHUD
             visible={showBlockHUD}

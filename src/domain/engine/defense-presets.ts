@@ -304,6 +304,118 @@ export const DEFENSE_PRESETS: DefensePreset[] = [
       { role: "FS", label: "FS", x: 0.50, y: 0.42 },
     ],
   },
+
+  // ============================================
+  // Additional Presets (Nickel, Dime, etc.)
+  // ============================================
+
+  // 9. Nickel 4-2-5 (Spread offense counter)
+  {
+    id: "def_nickel",
+    name: "Nickel 4-2-5",
+    family: "shell",
+    front: "even",
+    boxCount: 6,
+    shell: "nickel",
+    tags: ["nickel", "spread", "pass"],
+    alignments: [
+      // D-Line (4)
+      { role: "DE", label: "DE", x: 0.28, y: 0.04, technique: "5" },
+      { role: "DT", label: "3T", x: 0.42, y: 0.04, technique: "3" },
+      { role: "DT", label: "1T", x: 0.58, y: 0.04, technique: "1" },
+      { role: "DE", label: "DE", x: 0.72, y: 0.04, technique: "5" },
+      // Linebackers (2)
+      { role: "ILB", label: "Mike", x: 0.44, y: 0.14 },
+      { role: "ILB", label: "Will", x: 0.56, y: 0.14 },
+      // Secondary (5) - Nickel back added
+      { role: "CB", label: "CB", x: 0.08, y: 0.06 },
+      { role: "CB", label: "CB", x: 0.92, y: 0.06 },
+      { role: "Nickel", label: "$", x: 0.78, y: 0.12 },
+      { role: "SS", label: "SS", x: 0.32, y: 0.26 },
+      { role: "FS", label: "FS", x: 0.55, y: 0.38 },
+    ],
+  },
+
+  // 10. Dime 4-1-6 (Prevent / 3rd & Long)
+  {
+    id: "def_dime",
+    name: "Dime 4-1-6",
+    family: "shell",
+    front: "even",
+    boxCount: 5,
+    shell: "dime",
+    tags: ["dime", "prevent", "3rd-long"],
+    alignments: [
+      // D-Line (4)
+      { role: "DE", label: "DE", x: 0.28, y: 0.04, technique: "5" },
+      { role: "DT", label: "3T", x: 0.42, y: 0.04, technique: "3" },
+      { role: "DT", label: "1T", x: 0.58, y: 0.04, technique: "1" },
+      { role: "DE", label: "DE", x: 0.72, y: 0.04, technique: "5" },
+      // Linebacker (1)
+      { role: "MLB", label: "Mike", x: 0.50, y: 0.14 },
+      // Secondary (6) - Dime back added
+      { role: "CB", label: "CB", x: 0.08, y: 0.08 },
+      { role: "CB", label: "CB", x: 0.92, y: 0.08 },
+      { role: "Nickel", label: "$", x: 0.22, y: 0.12 },
+      { role: "Dime", label: "D", x: 0.78, y: 0.12 },
+      { role: "SS", label: "SS", x: 0.35, y: 0.32 },
+      { role: "FS", label: "FS", x: 0.65, y: 0.32 },
+    ],
+  },
+
+  // 11. Cover 2 (Tampa 2 style)
+  {
+    id: "def_cover2",
+    name: "Cover 2",
+    family: "shell",
+    front: "even",
+    boxCount: 7,
+    shell: "cover2",
+    tags: ["cover2", "zone", "2-high"],
+    alignments: [
+      // D-Line (4)
+      { role: "DE", label: "DE", x: 0.28, y: 0.04, technique: "5" },
+      { role: "DT", label: "3T", x: 0.42, y: 0.04, technique: "3" },
+      { role: "DT", label: "1T", x: 0.58, y: 0.04, technique: "1" },
+      { role: "DE", label: "DE", x: 0.72, y: 0.04, technique: "5" },
+      // Linebackers (3) - Tampa 2 MLB drops deep
+      { role: "OLB", label: "Sam", x: 0.26, y: 0.12 },
+      { role: "MLB", label: "Mike", x: 0.50, y: 0.18 },
+      { role: "OLB", label: "Will", x: 0.74, y: 0.12 },
+      // Secondary (4) - Two high safeties
+      { role: "CB", label: "CB", x: 0.12, y: 0.12 },
+      { role: "CB", label: "CB", x: 0.88, y: 0.12 },
+      { role: "SS", label: "SS", x: 0.30, y: 0.38 },
+      { role: "FS", label: "FS", x: 0.70, y: 0.38 },
+    ],
+  },
+
+  // 12. Cover 4 (Quarters)
+  {
+    id: "def_cover4",
+    name: "Cover 4 (Quarters)",
+    family: "shell",
+    front: "even",
+    boxCount: 7,
+    shell: "cover4",
+    tags: ["cover4", "quarters", "2-high"],
+    alignments: [
+      // D-Line (4)
+      { role: "DE", label: "DE", x: 0.28, y: 0.04, technique: "5" },
+      { role: "DT", label: "3T", x: 0.42, y: 0.04, technique: "3" },
+      { role: "DT", label: "1T", x: 0.58, y: 0.04, technique: "1" },
+      { role: "DE", label: "DE", x: 0.72, y: 0.04, technique: "5" },
+      // Linebackers (3)
+      { role: "OLB", label: "Sam", x: 0.26, y: 0.12 },
+      { role: "MLB", label: "Mike", x: 0.50, y: 0.16 },
+      { role: "OLB", label: "Will", x: 0.74, y: 0.12 },
+      // Secondary (4) - Quarters coverage
+      { role: "CB", label: "CB", x: 0.18, y: 0.28 },
+      { role: "CB", label: "CB", x: 0.82, y: 0.28 },
+      { role: "SS", label: "SS", x: 0.35, y: 0.36 },
+      { role: "FS", label: "FS", x: 0.65, y: 0.36 },
+    ],
+  },
 ];
 
 // ============================================
@@ -420,4 +532,63 @@ export function techToNormalizedXFine(tech: DefenseTechValue, sideSign: 1 | -1):
   const baseX = techToNormalizedX(tech, sideSign);
   const fineTune = TECH_FINE_TUNE[tech] ?? 0;
   return baseX + sideSign * fineTune;
+}
+
+// ============================================
+// Quick Chips for UI Selection
+// ============================================
+
+/**
+ * Quick chips for front selection
+ */
+export const FRONT_CHIPS: Array<{ value: DefensePreset["front"]; label: string }> = [
+  { value: "even", label: "Even" },
+  { value: "odd", label: "Odd" },
+  { value: "over", label: "Over" },
+  { value: "under", label: "Under" },
+  { value: "bear", label: "Bear" },
+  { value: "tite", label: "Tite" },
+];
+
+/**
+ * Quick chips for shell selection
+ */
+export const SHELL_CHIPS: Array<{ value: DefensePreset["shell"]; label: string }> = [
+  { value: "cover1", label: "Cov 1" },
+  { value: "cover2", label: "Cov 2" },
+  { value: "cover3", label: "Cov 3" },
+  { value: "cover4", label: "Cov 4" },
+  { value: "nickel", label: "Nickel" },
+  { value: "dime", label: "Dime" },
+];
+
+/**
+ * Box count chips
+ */
+export const BOX_CHIPS: Array<{ value: 5 | 6 | 7 | 8; label: string }> = [
+  { value: 5, label: "5-Box" },
+  { value: 6, label: "6-Box" },
+  { value: 7, label: "7-Box" },
+  { value: 8, label: "8-Box" },
+];
+
+/**
+ * Convert preset alignments to Player array for rendering
+ */
+export function presetToDefensePlayers(preset: DefensePreset): Array<{
+  id: string;
+  role: string;
+  label: string;
+  x: number;
+  y: number;
+  technique?: string;
+}> {
+  return preset.alignments.map((align, idx) => ({
+    id: `def_${preset.id}_${idx}`,
+    role: align.role,
+    label: align.label,
+    x: align.x,
+    y: align.y,
+    technique: align.technique,
+  }));
 }

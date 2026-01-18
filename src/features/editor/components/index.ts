@@ -16,3 +16,4 @@ export * from "./StepNavigation";
 export * from "./ValidationPanel";
 export * from "./RecoveryDialog";
 export * from "./PreContextScreen";
+export * from "./EmptyStateOverlay";

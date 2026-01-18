@@ -19,6 +19,11 @@ export const FORMATIONS: Formation[] = [
       personnelHint: ["11", "10"],
       structure: "2x2",
       strength: "right",
+      requiredRoster: { minWR: 3, minTE: 0, minRB: 1, needsFB: false, olPullRequired: false },
+      styleTags: ["spread", "balanced", "quick_game"],
+      riskTags: [],
+      complexity: 1,
+      description: "Balanced spread formation. Good for any offense.",
     },
     defaults: {
       players: [
@@ -56,6 +61,11 @@ export const FORMATIONS: Formation[] = [
       personnelHint: ["11", "10"],
       structure: "3x1",
       strength: "right",
+      requiredRoster: { minWR: 3, minTE: 0, minRB: 1, needsFB: false, olPullRequired: false },
+      styleTags: ["spread", "pass_heavy", "quick_game"],
+      riskTags: [],
+      complexity: 2,
+      description: "3 receivers to one side. Creates coverage stress.",
     },
     defaults: {
       players: [
@@ -89,6 +99,11 @@ export const FORMATIONS: Formation[] = [
       personnelHint: ["11", "10"],
       structure: "3x1",
       strength: "left",
+      requiredRoster: { minWR: 3, minTE: 0, minRB: 1, needsFB: false, olPullRequired: false },
+      styleTags: ["spread", "pass_heavy", "quick_game"],
+      riskTags: [],
+      complexity: 2,
+      description: "3 receivers to one side. Creates coverage stress.",
     },
     defaults: {
       players: [
@@ -127,6 +142,11 @@ export const FORMATIONS: Formation[] = [
       personnelHint: ["11", "10"],
       structure: "bunch",
       strength: "right",
+      requiredRoster: { minWR: 3, minTE: 0, minRB: 1, needsFB: false, olPullRequired: false },
+      styleTags: ["spread", "pass_heavy", "quick_game"],
+      riskTags: ["complex_rules"],
+      complexity: 3,
+      description: "Tight receiver cluster. Great vs man coverage with picks.",
     },
     defaults: {
       players: [
@@ -165,6 +185,11 @@ export const FORMATIONS: Formation[] = [
       personnelHint: ["11", "12"],
       structure: "ace",
       strength: "right",
+      requiredRoster: { minWR: 2, minTE: 1, minRB: 1, needsFB: false, olPullRequired: false },
+      styleTags: ["balanced", "play_action", "run_heavy"],
+      riskTags: ["te_blocking"],
+      complexity: 2,
+      description: "Pro-style with attached TE. Balanced run/pass.",
     },
     defaults: {
       players: [
@@ -201,6 +226,11 @@ export const FORMATIONS: Formation[] = [
       personnelHint: ["21", "22"],
       structure: "I",
       strength: "right",
+      requiredRoster: { minWR: 2, minTE: 1, minRB: 1, needsFB: true, olPullRequired: true },
+      styleTags: ["power", "run_heavy", "play_action"],
+      riskTags: ["te_blocking", "ol_athletic"],
+      complexity: 3,
+      description: "Power run formation with FB lead. Great for short yardage.",
     },
     defaults: {
       players: [
@@ -238,6 +268,11 @@ export const FORMATIONS: Formation[] = [
       personnelHint: ["10", "11"],
       structure: "empty",
       strength: "right",
+      requiredRoster: { minWR: 4, minTE: 0, minRB: 0, needsFB: false, olPullRequired: false },
+      styleTags: ["spread", "pass_heavy", "quick_game"],
+      riskTags: ["qb_exposure"],
+      complexity: 2,
+      description: "5-wide spread. Maximum pass protection stress on defense.",
     },
     defaults: {
       players: [

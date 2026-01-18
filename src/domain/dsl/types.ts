@@ -524,10 +524,47 @@ export interface FormationDefaults {
   snapRules?: SnapRules;
 }
 
+// ============================================
+// Formation Roster Requirements (Team-Aware)
+// ============================================
+
+export interface FormationRosterRequirement {
+  minWR: number;        // Minimum WRs needed (e.g., 3 for trips)
+  minTE: number;        // Minimum TEs needed (0 for spread, 1-2 for 12/13 personnel)
+  minRB: number;        // Minimum RBs needed (0 for empty, 1-2 for I-form)
+  needsFB: boolean;     // Requires fullback (21/22 personnel)
+  olPullRequired: boolean; // Formation concepts often require OL pulling
+}
+
+// Formation risk/complexity tags
+export type FormationRiskTag =
+  | "qb_exposure"       // QB vulnerable to rush
+  | "unbalanced"        // Unbalanced formation
+  | "motion_heavy"      // Requires motion execution
+  | "complex_rules"     // Complex assignment rules
+  | "te_blocking"       // Relies on TE blocking
+  | "ol_athletic";      // Requires athletic OL (pulls, screens)
+
+export type FormationStyleTag =
+  | "spread"            // Spread out formation
+  | "power"             // Power/gap running friendly
+  | "balanced"          // Balanced run/pass
+  | "pass_heavy"        // Pass-first formation
+  | "run_heavy"         // Run-first formation
+  | "trick_play"        // Good for trick plays
+  | "quick_game"        // Quick passing game
+  | "play_action";      // Play action friendly
+
 export interface FormationMeta {
   personnelHint?: Personnel[];
   structure?: "2x2" | "3x1" | "bunch" | "I" | "ace" | "trips" | "empty";
   strength?: Strength;
+  // Team-aware metadata
+  requiredRoster?: FormationRosterRequirement;
+  styleTags?: FormationStyleTag[];
+  riskTags?: FormationRiskTag[];
+  complexity?: 1 | 2 | 3 | 4 | 5; // 1 = simple, 5 = complex
+  description?: string;
 }
 
 export interface Formation {
@@ -804,11 +841,100 @@ export interface LandmarkOverlaySettings {
 // Playbook Types
 // ============================================
 
+// Predefined section types for playbook organization
+export type PlaybookSectionType =
+  | "install"     // Install Day - new schemes being introduced
+  | "run"         // Run plays
+  | "pass"        // Pass plays
+  | "rpo"         // Run-Pass Options
+  | "screen"      // Screens & Quick Game
+  | "gadget"      // Trick plays, fakes, specials
+  | "redzone"     // Red Zone package
+  | "goalline"    // Goal Line package
+  | "2minute"     // 2-Minute Drill
+  | "custom";     // User-defined section
+
+// Section color presets for visual organization
+export const SECTION_COLORS: Record<PlaybookSectionType, string> = {
+  install: "#8B5CF6",   // Purple
+  run: "#10B981",       // Green
+  pass: "#3B82F6",      // Blue
+  rpo: "#F59E0B",       // Amber
+  screen: "#06B6D4",    // Cyan
+  gadget: "#EC4899",    // Pink
+  redzone: "#EF4444",   // Red
+  goalline: "#DC2626",  // Darker Red
+  "2minute": "#F97316", // Orange
+  custom: "#6B7280",    // Gray
+};
+
+// Section icons (Lucide icon names)
+export const SECTION_ICONS: Record<PlaybookSectionType, string> = {
+  install: "GraduationCap",
+  run: "MoveRight",
+  pass: "Target",
+  rpo: "Split",
+  screen: "Zap",
+  gadget: "Sparkles",
+  redzone: "Flag",
+  goalline: "Trophy",
+  "2minute": "Clock",
+  custom: "Folder",
+};
+
 export interface PlaybookSection {
   id: string;
   name: string;
+  sectionType: PlaybookSectionType;
   playIds: string[];
+  color?: string;        // Override default color
+  collapsed?: boolean;   // UI state: section collapsed
+  description?: string;  // Optional section description
 }
+
+// Situational tags for plays (for filtering/organization)
+export type PlaySituationTag =
+  | "short_yardage"     // 3rd & short, 4th & 1
+  | "long_yardage"      // 3rd & long
+  | "red_zone"          // Inside 20
+  | "goal_line"         // Inside 5
+  | "backed_up"         // Own 10 or less
+  | "2_minute"          // Hurry-up situations
+  | "opening_script"    // First 15 plays
+  | "vs_even"           // Works well vs even fronts
+  | "vs_odd"            // Works well vs odd fronts
+  | "vs_man"            // Works well vs man coverage
+  | "vs_zone"           // Works well vs zone coverage
+  | "vs_blitz"          // Hot routes / blitz beater
+  | "motion"            // Uses pre-snap motion
+  | "no_huddle"         // No-huddle compatible
+  | "check_with_me";    // At-the-line audible option
+
+// Tag display metadata
+export interface PlayTagInfo {
+  tag: PlaySituationTag;
+  label: string;
+  shortLabel: string;
+  color: string;
+}
+
+export const PLAY_TAG_INFO: PlayTagInfo[] = [
+  { tag: "short_yardage", label: "Short Yardage", shortLabel: "Short", color: "#22C55E" },
+  { tag: "long_yardage", label: "Long Yardage", shortLabel: "Long", color: "#EAB308" },
+  { tag: "red_zone", label: "Red Zone", shortLabel: "RZ", color: "#EF4444" },
+  { tag: "goal_line", label: "Goal Line", shortLabel: "GL", color: "#DC2626" },
+  { tag: "backed_up", label: "Backed Up", shortLabel: "Own10", color: "#F97316" },
+  { tag: "2_minute", label: "2-Minute", shortLabel: "2min", color: "#8B5CF6" },
+  { tag: "opening_script", label: "Opening Script", shortLabel: "Script", color: "#06B6D4" },
+  { tag: "vs_even", label: "vs Even Front", shortLabel: "vsEven", color: "#3B82F6" },
+  { tag: "vs_odd", label: "vs Odd Front", shortLabel: "vsOdd", color: "#6366F1" },
+  { tag: "vs_man", label: "vs Man Coverage", shortLabel: "vsMan", color: "#EC4899" },
+  { tag: "vs_zone", label: "vs Zone Coverage", shortLabel: "vsZone", color: "#14B8A6" },
+  { tag: "vs_blitz", label: "vs Blitz", shortLabel: "vsBlitz", color: "#F43F5E" },
+  { tag: "motion", label: "Motion", shortLabel: "Mot", color: "#A855F7" },
+  { tag: "no_huddle", label: "No Huddle", shortLabel: "NH", color: "#0EA5E9" },
+  { tag: "check_with_me", label: "Check With Me", shortLabel: "CWM", color: "#84CC16" },
+];
 
 // Export Overlay Mode - controls what labels appear on export
 export type ExportOverlayMode = "off" | "defense" | "landmarks" | "both";
@@ -836,14 +962,191 @@ export interface Playbook {
   type: "playbook";
   id: string;
   name: string;
+  description?: string;
   tags?: string[];
   sections: PlaybookSection[];
   exportSettings?: ExportSettings;
+  // View preferences
+  viewMode?: "grid" | "list" | "compact";
+  sortBy?: "name" | "created" | "updated" | "custom";
+  filterTags?: PlaySituationTag[];
   createdAt?: string;
   updatedAt?: string;
   createdBy?: string;
   updatedBy?: string;
 }
+
+// ============================================
+// Situation Preset Types (Context Presets)
+// ============================================
+
+export type FieldZone =
+  | "own_goal"       // Own 0-10
+  | "backed_up"      // Own 10-20
+  | "own_territory"  // Own 20-50
+  | "plus_territory" // Opp 50-20
+  | "red_zone"       // Opp 20-10
+  | "goal_line";     // Opp 10-0
+
+export interface SituationPreset {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;        // Emoji or icon name
+  color?: string;       // Hex color for UI
+  // Situation data
+  down: ScoutCardDown;
+  distance: ScoutCardDistance;
+  hash: HashPosition;
+  fieldZone?: FieldZone;
+  // Optional tags for filtering
+  tags?: string[];
+  // Metadata
+  isBuiltIn?: boolean;  // System presets vs user-created
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Built-in presets
+export const BUILT_IN_SITUATION_PRESETS: SituationPreset[] = [
+  // Standard downs
+  {
+    id: "1st_10",
+    name: "1st & 10",
+    description: "First down, standard",
+    icon: "1️⃣",
+    down: 1,
+    distance: 10,
+    hash: "M",
+    isBuiltIn: true,
+  },
+  {
+    id: "2nd_7",
+    name: "2nd & 7",
+    description: "Second down, medium",
+    icon: "2️⃣",
+    down: 2,
+    distance: 7,
+    hash: "M",
+    isBuiltIn: true,
+  },
+  {
+    id: "3rd_long",
+    name: "3rd & Long",
+    description: "Third down, 8+ yards",
+    icon: "🎯",
+    color: "#EF4444",
+    down: 3,
+    distance: "long",
+    hash: "M",
+    isBuiltIn: true,
+  },
+  {
+    id: "3rd_medium",
+    name: "3rd & Medium",
+    description: "Third down, 4-7 yards",
+    icon: "🎯",
+    color: "#F59E0B",
+    down: 3,
+    distance: "medium",
+    hash: "M",
+    isBuiltIn: true,
+  },
+  {
+    id: "3rd_short",
+    name: "3rd & Short",
+    description: "Third down, 1-3 yards",
+    icon: "💪",
+    color: "#22C55E",
+    down: 3,
+    distance: "short",
+    hash: "M",
+    isBuiltIn: true,
+  },
+  // Short yardage
+  {
+    id: "4th_1",
+    name: "4th & 1",
+    description: "Fourth down, goal to go",
+    icon: "⚡",
+    color: "#EF4444",
+    down: 4,
+    distance: 1,
+    hash: "M",
+    isBuiltIn: true,
+  },
+  // Red Zone
+  {
+    id: "rz_1st",
+    name: "Red Zone 1st",
+    description: "First down inside 20",
+    icon: "🔴",
+    color: "#EF4444",
+    down: 1,
+    distance: 10,
+    hash: "M",
+    fieldZone: "red_zone",
+    isBuiltIn: true,
+  },
+  {
+    id: "goal_line",
+    name: "Goal Line",
+    description: "Goal to go, inside 5",
+    icon: "🏈",
+    color: "#DC2626",
+    down: 1,
+    distance: "goal",
+    hash: "M",
+    fieldZone: "goal_line",
+    isBuiltIn: true,
+  },
+  // Hash specific
+  {
+    id: "left_hash",
+    name: "Left Hash",
+    description: "Ball on left hash",
+    icon: "⬅️",
+    down: 1,
+    distance: 10,
+    hash: "L",
+    isBuiltIn: true,
+  },
+  {
+    id: "right_hash",
+    name: "Right Hash",
+    description: "Ball on right hash",
+    icon: "➡️",
+    down: 1,
+    distance: 10,
+    hash: "R",
+    isBuiltIn: true,
+  },
+  // 2-Minute
+  {
+    id: "2min_1st",
+    name: "2-Min 1st & 10",
+    description: "2-minute drill start",
+    icon: "⏱️",
+    color: "#8B5CF6",
+    down: 1,
+    distance: 10,
+    hash: "M",
+    tags: ["2_minute"],
+    isBuiltIn: true,
+  },
+  {
+    id: "2min_spike",
+    name: "Spike Situation",
+    description: "Clock management",
+    icon: "🛑",
+    color: "#F97316",
+    down: 1,
+    distance: 10,
+    hash: "M",
+    tags: ["2_minute"],
+    isBuiltIn: true,
+  },
+];
 
 // ============================================
 // Team Profile Types (Formation Recommendation)

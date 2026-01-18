@@ -23,6 +23,11 @@ export type TelemetryEventName =
   | "suggestions_opened"
   | "concept_clicked"
   | "why_viewed"
+  // Formation Recommendations
+  | "formation_reco_shown"
+  | "formation_reco_selected"
+  | "formation_applied"
+  | "autobuild_after_reco"
   // Auto-build
   | "autobuild_success"
   | "autobuild_fail"
@@ -36,6 +41,7 @@ export type TelemetryEventName =
   | "export_overlay_mode_selected"
   // Share & Fork
   | "share_link_created"
+  | "share_view_opened"
   | "fork_created"
   // Install Focus
   | "install_focus_opened"
@@ -103,6 +109,37 @@ export interface WhyViewedPayload {
   conceptId: string;
   reasonCount: number;
   expandedTimeMs?: number;
+}
+
+// Formation Recommendations
+export interface FormationRecoShownPayload {
+  count: number;
+  hasTeamProfile: boolean;
+  topFormationId?: string;
+  topScore?: number;
+}
+
+export interface FormationRecoSelectedPayload {
+  formationId: string;
+  formationName: string;
+  score: number;
+  position: number; // Position in the recommendation list
+  hasTeamProfile: boolean;
+}
+
+export interface FormationAppliedPayload {
+  formationId: string;
+  formationName: string;
+  source: "recommendation" | "panel" | "onboarding" | "example";
+  score?: number;
+}
+
+export interface AutobuildAfterRecoPayload {
+  formationId: string;
+  conceptId?: string;
+  success: boolean;
+  failureCode?: string;
+  timeMs: number;
 }
 
 export interface AutobuildSuccessPayload {
@@ -175,6 +212,13 @@ export interface ShareLinkCreatedPayload {
   viewOnly: boolean;
 }
 
+export interface ShareViewOpenedPayload {
+  type: "play" | "playbook";
+  shareToken: string;
+  targetId: string;
+  targetName?: string;
+}
+
 export interface ForkCreatedPayload {
   type: "play" | "playbook";
   sourceId: string;
@@ -208,6 +252,12 @@ export interface TelemetryEventPayloads {
   suggestions_opened: SuggestionsOpenedPayload;
   concept_clicked: ConceptClickedPayload;
   why_viewed: WhyViewedPayload;
+  // Formation Recommendations
+  formation_reco_shown: FormationRecoShownPayload;
+  formation_reco_selected: FormationRecoSelectedPayload;
+  formation_applied: FormationAppliedPayload;
+  autobuild_after_reco: AutobuildAfterRecoPayload;
+  // Auto-build
   autobuild_success: AutobuildSuccessPayload;
   autobuild_fail: AutobuildFailPayload;
   undo_after_autobuild: UndoAfterAutobuildPayload;
@@ -217,6 +267,7 @@ export interface TelemetryEventPayloads {
   export_pdf: ExportPdfPayload;
   export_overlay_mode_selected: ExportOverlayModeSelectedPayload;
   share_link_created: ShareLinkCreatedPayload;
+  share_view_opened: ShareViewOpenedPayload;
   fork_created: ForkCreatedPayload;
   install_focus_opened: InstallFocusOpenedPayload;
   drill_video_clicked: DrillVideoClickedPayload;
@@ -388,6 +439,25 @@ export const telemetry = {
     });
   },
 
+  // Formation Recommendations
+  formationRecoShown: (payload: FormationRecoShownPayload) => {
+    track("formation_reco_shown", payload, {
+      dedupKey: `reco_shown_${payload.count}_${payload.hasTeamProfile}`,
+    });
+  },
+
+  formationRecoSelected: (payload: FormationRecoSelectedPayload) => {
+    track("formation_reco_selected", payload);
+  },
+
+  formationApplied: (payload: FormationAppliedPayload) => {
+    track("formation_applied", payload);
+  },
+
+  autobuildAfterReco: (payload: AutobuildAfterRecoPayload) => {
+    track("autobuild_after_reco", payload);
+  },
+
   // Auto-build
   autobuildSuccess: (payload: AutobuildSuccessPayload) => {
     track("autobuild_success", payload);
@@ -428,6 +498,10 @@ export const telemetry = {
   // Share & Fork
   shareLinkCreated: (payload: ShareLinkCreatedPayload) => {
     track("share_link_created", payload);
+  },
+
+  shareViewOpened: (payload: ShareViewOpenedPayload) => {
+    track("share_view_opened", payload);
   },
 
   forkCreated: (payload: ForkCreatedPayload) => {

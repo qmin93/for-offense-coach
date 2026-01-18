@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { useEditorStore } from "../store";
 import { BLOCK_PRESETS, getAngleDescription, snapAngle } from "@/domain/engine/block-presets";
-import type { BlockScheme, BlockStyle, BlockAction } from "@/domain/dsl/types";
+import type { BlockScheme, BlockStyle, BlockAction, BlockTarget, BlockLandmarkId } from "@/domain/dsl/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,6 +14,49 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+
+// Quick target chips for common block targets
+const QUICK_TARGETS: { id: BlockLandmarkId; label: string; side: "strong" | "weak" }[] = [
+  { id: "3T_STRONG", label: "3T", side: "strong" },
+  { id: "3T_WEAK", label: "3T", side: "weak" },
+  { id: "EMOL_STRONG", label: "EMOL", side: "strong" },
+  { id: "EMOL_WEAK", label: "EMOL", side: "weak" },
+  { id: "B_GAP_STRONG", label: "B", side: "strong" },
+  { id: "B_GAP_WEAK", label: "B", side: "weak" },
+  { id: "A_GAP_STRONG", label: "A", side: "strong" },
+  { id: "A_GAP_WEAK", label: "A", side: "weak" },
+  { id: "MIKE", label: "Mike", side: "strong" },
+];
+
+// Format target for display
+function formatTargetDisplay(target?: BlockTarget, defensePlayer?: { label: string; role: string }): string {
+  if (!target || target.type === "none") return "None";
+
+  if (target.type === "player" && defensePlayer) {
+    return `${defensePlayer.label || defensePlayer.role}`;
+  }
+
+  if (target.type === "landmark" && target.landmarkId) {
+    // Format landmark ID like "3T_STRONG" to "3T (Strong)"
+    const parts = target.landmarkId.split("_");
+    if (parts.length >= 2) {
+      const side = parts[parts.length - 1];
+      const name = parts.slice(0, -1).join("_");
+      return `${name} (${side.charAt(0)}${side.slice(1).toLowerCase()})`;
+    }
+    return target.landmarkId;
+  }
+
+  if (target.type === "gap" && target.gapName) {
+    const parts = target.gapName.split("_");
+    if (parts.length >= 2) {
+      return `${parts[0]}-gap (${parts[1].charAt(0)}${parts[1].slice(1).toLowerCase()})`;
+    }
+    return target.gapName;
+  }
+
+  return "Custom";
+}
 
 const BLOCK_STYLES: { value: BlockStyle; label: string }[] = [
   { value: "zone_step", label: "Zone" },
@@ -55,6 +98,19 @@ export function BlockHUD({ visible, playerId, onClose }: BlockHUDProps) {
   const blockAction = play?.actions.find(
     (a) => a.id === selectedActionId && a.actionType === "block"
   ) as BlockAction | undefined;
+
+  // Get target defense player if targeting a specific player
+  const targetDefensePlayer = useMemo(() => {
+    if (!blockAction?.block.target?.playerId || !play) return undefined;
+    return play.roster.players.find(
+      (p) => p.id === blockAction.block.target?.playerId && p.unit === "defense"
+    );
+  }, [blockAction, play]);
+
+  // Format current target for display
+  const currentTargetDisplay = useMemo(() => {
+    return formatTargetDisplay(blockAction?.block.target, targetDefensePlayer);
+  }, [blockAction, targetDefensePlayer]);
 
   // Load current values from selected action
   React.useEffect(() => {
@@ -117,6 +173,40 @@ export function BlockHUD({ visible, playerId, onClose }: BlockHUDProps) {
     [selectedActionId, blockAction, updateAction]
   );
 
+  // Set quick target (landmark-based)
+  const handleQuickTarget = useCallback(
+    (landmarkId: BlockLandmarkId) => {
+      if (!selectedActionId || !blockAction) return;
+
+      const newTarget: BlockTarget = {
+        type: "landmark",
+        landmarkId,
+      };
+
+      // When targeting landmark, force aim to center
+      updateAction(selectedActionId, {
+        block: {
+          ...blockAction.block,
+          target: newTarget,
+          aim: { type: "center" },
+        },
+      });
+    },
+    [selectedActionId, blockAction, updateAction]
+  );
+
+  // Clear target
+  const handleClearTarget = useCallback(() => {
+    if (!selectedActionId || !blockAction) return;
+
+    updateAction(selectedActionId, {
+      block: {
+        ...blockAction.block,
+        target: { type: "none" },
+      },
+    });
+  }, [selectedActionId, blockAction, updateAction]);
+
   // Apply preset to all OL
   const applyPreset = useCallback(
     (presetId: string) => {
@@ -155,7 +245,7 @@ export function BlockHUD({ visible, playerId, onClose }: BlockHUDProps) {
   if (!visible) return null;
 
   return (
-    <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-20 bg-background border rounded-lg shadow-xl p-4 min-w-80">
+    <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-20 bg-background border rounded-lg shadow-xl p-4 min-w-96">
       <div className="flex items-center justify-between mb-3">
         <h4 className="font-semibold text-sm">Block Settings</h4>
         <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={onClose}>
@@ -163,7 +253,65 @@ export function BlockHUD({ visible, playerId, onClose }: BlockHUDProps) {
         </Button>
       </div>
 
-      {/* Quick Presets */}
+      {/* Target Display */}
+      <div className="mb-4 p-2 bg-muted/50 rounded-lg">
+        <div className="flex items-center justify-between">
+          <div className="text-xs font-medium text-muted-foreground">Target</div>
+          {blockAction?.block.target?.type !== "none" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 px-2 text-xs text-muted-foreground hover:text-foreground"
+              onClick={handleClearTarget}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <Badge
+            variant={blockAction?.block.target?.type === "none" ? "outline" : "default"}
+            className={cn(
+              "text-sm font-medium",
+              blockAction?.block.target?.type === "landmark" && "bg-amber-500 hover:bg-amber-600",
+              blockAction?.block.target?.type === "player" && "bg-blue-500 hover:bg-blue-600"
+            )}
+          >
+            {currentTargetDisplay}
+          </Badge>
+          {blockAction?.block.aim?.type && blockAction.block.aim.type !== "center" && (
+            <Badge variant="outline" className="text-xs">
+              {blockAction.block.aim.type.replace("_", " ")}
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {/* Quick Target Chips */}
+      <div className="mb-4">
+        <div className="text-xs font-medium text-muted-foreground mb-2">Quick Targets</div>
+        <div className="flex flex-wrap gap-1">
+          {QUICK_TARGETS.slice(0, 6).map((target) => (
+            <Button
+              key={target.id}
+              variant={blockAction?.block.target?.landmarkId === target.id ? "secondary" : "outline"}
+              size="sm"
+              className={cn(
+                "text-xs h-6 px-2",
+                target.side === "strong" ? "border-green-500/50" : "border-orange-500/50"
+              )}
+              onClick={() => handleQuickTarget(target.id)}
+            >
+              {target.label}
+              <span className="ml-1 text-[10px] text-muted-foreground">
+                {target.side === "strong" ? "S" : "W"}
+              </span>
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* Auto OL Rules Presets */}
       <div className="mb-4">
         <div className="text-xs font-medium text-muted-foreground mb-2">Auto OL Rules</div>
         <div className="flex flex-wrap gap-1">
