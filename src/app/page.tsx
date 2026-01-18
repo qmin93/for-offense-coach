@@ -247,13 +247,13 @@ export default function Home() {
             <PlanBadge size="lg" />
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-3">
-            3분 안에 플레이 하나 완성.
+            Create a play in under 3 minutes.
           </h1>
           <p className="text-lg text-slate-500 mb-2">
-            컨셉 추천 → 자동 다이어그램 → PNG/PDF 공유까지
+            Concept recommendations → Auto diagrams → PNG/PDF sharing
           </p>
           <p className="text-sm text-slate-400">
-            No signup required • Team workspace 지원
+            No signup required • Team workspaces supported
           </p>
           {/* Usage indicators */}
           <div className="flex justify-center gap-8 mt-6">
@@ -267,31 +267,31 @@ export default function Home() {
         <div className="grid md:grid-cols-3 gap-4 mb-12">
           <StartFlowCard
             href="/editor/new"
-            title="추천 시작"
-            description="상황 선택 → 컨셉 추천 → 자동 생성"
+            title="Start with Recommendations"
+            description="Pick situation → Get concepts → Auto-build"
             icon={<Sparkles className="w-6 h-6" />}
-            timeEstimate="30초"
+            timeEstimate="30 sec"
             variant="primary"
-            badge="추천"
+            badge="Recommended"
             checkLimit={isLimitReached("maxPlays")}
             onLimitReached={() => showUpgradePrompt("maxPlays")}
           />
           <StartFlowCard
             href="/editor/new?mode=formation"
-            title="포메이션부터 시작"
-            description="포메이션 고르고 플레이 만들기"
+            title="Start from Formation"
+            description="Choose a formation and build your play"
             icon={<LayoutGrid className="w-6 h-6" />}
-            timeEstimate="2분"
+            timeEstimate="2 min"
             variant="secondary"
             checkLimit={isLimitReached("maxPlays")}
             onLimitReached={() => showUpgradePrompt("maxPlays")}
           />
           <StartFlowCard
             href="/playbooks"
-            title="플레이북 관리"
-            description="기존 플레이북 편집, 태그/섹션 정리"
+            title="Manage Playbooks"
+            description="Edit playbooks, organize tags & sections"
             icon={<BookOpen className="w-6 h-6" />}
-            timeEstimate="5분"
+            timeEstimate="5 min"
             variant="outline"
           />
         </div>
@@ -302,14 +302,14 @@ export default function Home() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
                 <Clock className="w-5 h-5 text-slate-400" />
-                이어서 작업하기
+                Continue Working
               </h2>
               {recentWorks.length > 0 && (
                 <Link
                   href="/plays"
                   className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
                 >
-                  전체 보기 <ChevronRight className="w-4 h-4" />
+                  View All <ChevronRight className="w-4 h-4" />
                 </Link>
               )}
             </div>
@@ -333,23 +333,23 @@ export default function Home() {
         {/* Feature Cards - Evidence Section */}
         <div className="mb-12">
           <h2 className="text-center text-sm font-medium text-slate-400 uppercase tracking-wider mb-6">
-            왜 ForOffenseCoach인가?
+            Why ForOffenseCoach?
           </h2>
           <div className="grid md:grid-cols-3 gap-4">
             <FeatureCard
               icon={<Target className="w-5 h-5" />}
-              title="30+ 컨셉 템플릿"
-              description="Pass/Run 자동 생성"
+              title="30+ Concept Templates"
+              description="Auto-generate Pass/Run plays"
             />
             <FeatureCard
               icon={<Zap className="w-5 h-5" />}
-              title="상황 기반 추천"
-              description="이유 3줄과 함께"
+              title="Context-based Recommendations"
+              description="With 3-line explanations"
             />
             <FeatureCard
               icon={<ClipboardList className="w-5 h-5" />}
-              title="실패 포인트 → 드릴"
-              description="Install Focus 연결"
+              title="Failure Points → Drills"
+              description="Connect to Install Focus"
             />
           </div>
         </div>
@@ -357,7 +357,7 @@ export default function Home() {
         {/* Quick Examples Preview */}
         <div className="text-center py-8 border-t border-slate-100">
           <p className="text-sm text-slate-400 mb-4">
-            Power, Flood, Stick 등 인기 컨셉 바로 시작
+            Jump straight into popular concepts: Power, Flood, Stick
           </p>
           <div className="flex justify-center gap-3">
             <Link
