@@ -4,6 +4,29 @@
 // ============================================
 
 import type { Play, Formation, ConceptType } from "@/domain/dsl/types";
+import { getPassConceptById } from "./concepts-pass";
+import { getRunConceptById } from "./concepts-run";
+
+// ============================================
+// Helper: Determine play type from concept
+// ============================================
+
+function getPlayType(play: Play): "run" | "pass" | "unknown" {
+  const conceptId = play.meta?.conceptId;
+  if (!conceptId) return "unknown";
+
+  // Check if it's a run concept
+  if (getRunConceptById(conceptId)) return "run";
+
+  // Check if it's a pass concept
+  if (getPassConceptById(conceptId)) return "pass";
+
+  // Fallback: check conceptId prefix
+  if (conceptId.startsWith("run_")) return "run";
+  if (conceptId.startsWith("pass_")) return "pass";
+
+  return "unknown";
+}
 
 // ============================================
 // Types
@@ -80,8 +103,8 @@ export function analyzeTendencies(plays: Play[]): SelfScoutResult {
   }
 
   // Basic counts
-  const runPlays = plays.filter((p) => p.meta?.playType === "run");
-  const passPlays = plays.filter((p) => p.meta?.playType === "pass");
+  const runPlays = plays.filter((p) => getPlayType(p) === "run");
+  const passPlays = plays.filter((p) => getPlayType(p) === "pass");
 
   const runPassRatio = {
     run: runPlays.length,
@@ -145,7 +168,7 @@ function analyzeFormationTendencies(plays: Play[]): FormationTendency[] {
   for (const play of plays) {
     const formationId = play.meta?.formationId || "unknown";
     const formationName = play.meta?.formationId?.replace("formation_", "") || "Unknown";
-    const playType = play.meta?.playType || "unknown";
+    const playType = getPlayType(play);
 
     if (!formationMap.has(formationId)) {
       formationMap.set(formationId, {
@@ -162,10 +185,12 @@ function analyzeFormationTendencies(plays: Play[]): FormationTendency[] {
     if (playType === "run") entry.run++;
     if (playType === "pass") entry.pass++;
 
-    // Track situations (if tagged)
-    if (play.meta?.situationTags) {
-      for (const tag of play.meta.situationTags) {
-        entry.situations.add(tag);
+    // Track situations from tags if available
+    if (play.tags) {
+      for (const tag of play.tags) {
+        if (tag.includes("down") || tag.includes("zone") || tag.includes("goal")) {
+          entry.situations.add(tag);
+        }
       }
     }
   }
@@ -265,16 +290,16 @@ function analyzeSituationTendencies(plays: Play[]): SituationTendency[] {
   const situations = ["1st_down", "2nd_short", "2nd_long", "3rd_short", "3rd_long", "redzone", "goal_line"];
 
   return situations.map((situation) => {
-    // Filter plays for this situation (using tags or deducting from context)
+    // Filter plays for this situation (using tags)
     const situationPlays = plays.filter((p) => {
-      const tags = p.meta?.situationTags || [];
-      return tags.includes(situation);
+      const tags = p.tags || [];
+      return tags.some((tag) => tag.toLowerCase().includes(situation.replace("_", "")));
     });
 
     // If no specific tags, use all plays for general analysis
     const targetPlays = situationPlays.length > 0 ? situationPlays : plays;
-    const runPlays = targetPlays.filter((p) => p.meta?.playType === "run");
-    const passPlays = targetPlays.filter((p) => p.meta?.playType === "pass");
+    const runPlays = targetPlays.filter((p) => getPlayType(p) === "run");
+    const passPlays = targetPlays.filter((p) => getPlayType(p) === "pass");
 
     // Formation counts
     const formationCounts = new Map<string, { id: string; name: string; count: number }>();
