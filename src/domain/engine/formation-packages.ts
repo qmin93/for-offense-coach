@@ -3,7 +3,7 @@
 // Grouped formations with shared philosophy
 // ============================================
 
-import type { FormationPackage, FormationPackagePhilosophy } from "@/domain/dsl/types";
+import type { FormationPackage, FormationPackagePhilosophy, Personnel } from "@/domain/dsl/types";
 
 // ============================================
 // Package Definitions
@@ -281,7 +281,7 @@ export function getPackagesByPhilosophy(philosophy: FormationPackagePhilosophy):
   return FORMATION_PACKAGES.filter((p) => p.philosophy === philosophy);
 }
 
-export function getPackagesForPersonnel(personnel: string): FormationPackage[] {
+export function getPackagesForPersonnel(personnel: Personnel): FormationPackage[] {
   return FORMATION_PACKAGES.filter((p) =>
     p.personnel?.includes(personnel)
   );
