@@ -22,6 +22,7 @@ import type {
   Formation,
 } from "../dsl/types";
 import { buildAllLandmarks } from "../engine/landmark-utils";
+import { techToLabel } from "../engine/defense-presets";
 
 // ============================================
 // Constants - Whiteboard Theme
@@ -805,6 +806,69 @@ function TextNode({ action }: TextNodeProps) {
 }
 
 // ============================================
+// Defense Tech Label Overlay Component (3T/5T/N/9 labels)
+// ============================================
+
+const TECH_LABEL_COLOR = "#DC2626"; // Red matching defense color
+
+interface DefenseTechLabelOverlayProps {
+  players: Player[];
+}
+
+function DefenseTechLabelOverlay({ players }: DefenseTechLabelOverlayProps) {
+  // Filter to only defense players with techniques (DL)
+  const dlPlayers = players.filter(
+    (p) =>
+      p.unit === "defense" &&
+      p.alignment &&
+      // Only show for DL roles
+      ["DE", "DT", "NT"].includes(p.role)
+  );
+
+  return (
+    <g className="defense-tech-label-overlay">
+      {dlPlayers.map((player) => {
+        const pos = toSvgPoint(player.alignment);
+        // Try to get technique from player extensions or infer from role
+        const technique = (player.extensions?.technique as string) || undefined;
+        const label = techToLabel(technique as import("../dsl/types").DefenseTechValue | undefined);
+
+        // If no technique, show role abbreviation for DL
+        const displayLabel = label || (player.role === "NT" ? "N" : player.label);
+
+        return (
+          <g key={`tech-${player.id}`} className="tech-label">
+            {/* Background pill for label */}
+            <rect
+              x={pos.x - 12}
+              y={pos.y - PLAYER_RADIUS - 18}
+              width={24}
+              height={14}
+              rx={7}
+              fill="white"
+              stroke={TECH_LABEL_COLOR}
+              strokeWidth={1.5}
+              opacity={0.95}
+            />
+            {/* Tech label text */}
+            <text
+              x={pos.x}
+              y={pos.y - PLAYER_RADIUS - 8}
+              textAnchor="middle"
+              fill={TECH_LABEL_COLOR}
+              fontSize={10}
+              fontWeight="bold"
+            >
+              {displayLabel}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+// ============================================
 // Field Landmark Overlay Component (EMOL/Gap markers)
 // ============================================
 
@@ -941,6 +1005,8 @@ export interface PlayRendererProps {
   formation?: Formation | null;
   onLandmarkClick?: (landmark: FieldLandmark) => void;
   highlightedLandmarkId?: string | null;
+  // Defense tech label overlay
+  showDefenseLabels?: boolean;
 }
 
 export function PlayRenderer({
@@ -953,6 +1019,7 @@ export function PlayRenderer({
   formation = null,
   onLandmarkClick,
   highlightedLandmarkId,
+  showDefenseLabels = false,
 }: PlayRendererProps) {
   const fieldSettings = play.field || {};
 
@@ -1039,6 +1106,11 @@ export function PlayRenderer({
           return null;
         })}
       </g>
+
+      {/* Defense Tech Label Overlay layer (3T/5T/N/9 labels) */}
+      {showDefenseLabels && showDefense && (
+        <DefenseTechLabelOverlay players={play.roster.players} />
+      )}
 
       {/* Field Landmark Overlay layer (EMOL/Gap markers) - on top */}
       {showLandmarks && fieldLandmarks.length > 0 && (

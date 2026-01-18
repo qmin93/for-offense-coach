@@ -52,6 +52,8 @@ export function Canvas() {
     createQuickBlock,
     showLandmarks,
     toggleLandmarkVisibility,
+    showDefenseLabels,
+    toggleDefenseLabels,
   } = useEditorStore();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -471,9 +473,14 @@ export function Canvas() {
         if (!textInput) {
           toggleLandmarkVisibility();
         }
+      } else if (e.key === "t" || e.key === "T") {
+        // Toggle defense tech labels
+        if (!textInput) {
+          toggleDefenseLabels();
+        }
       }
     },
-    [drawing.isDrawing, cancelDrawing, isBoxSelecting, textInput, addAction, selectedActionId, play, clearSelection, updateAction, toggleLandmarkVisibility]
+    [drawing.isDrawing, cancelDrawing, isBoxSelecting, textInput, addAction, selectedActionId, play, clearSelection, updateAction, toggleLandmarkVisibility, toggleDefenseLabels]
   );
 
   // Reset view
@@ -887,7 +894,7 @@ export function Canvas() {
 
       {/* Help text */}
       <div className="absolute bottom-4 left-4 z-10 px-2 py-1 bg-slate-800/70 rounded text-white/80 text-xs">
-        Scroll to zoom • Space+drag to pan • Shift+click multi-select • Drag box to select • Delete to remove • C curve • L landmarks
+        Scroll to zoom • Space+drag pan • Shift multi-select • Del remove • C curve • L landmarks • T tech labels
       </div>
 
       {/* Canvas */}
@@ -918,6 +925,7 @@ export function Canvas() {
             formation={null}
             onLandmarkClick={handleLandmarkClick}
             highlightedLandmarkId={highlightedLandmarkId}
+            showDefenseLabels={showDefenseLabels}
           />
           {renderDrawingPreview()}
           {renderBlockDragPreview()}

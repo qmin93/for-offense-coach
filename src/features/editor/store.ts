@@ -170,6 +170,9 @@ export interface EditorState {
   showLandmarks: boolean;
   autoShowLandmarksInBlockMode: boolean;
 
+  // Defense label overlay state
+  showDefenseLabels: boolean;
+
   // Export render override (for PDF/PNG export)
   exportOverride: {
     showDefenseLabels: boolean;
@@ -252,6 +255,9 @@ export interface EditorState {
   toggleLandmarkVisibility: () => void;
   setAutoShowLandmarksInBlockMode: (value: boolean) => void;
 
+  // Defense label actions
+  toggleDefenseLabels: () => void;
+
   // Export override actions
   applyExportOverride: (override: { showDefenseLabels: boolean; showLandmarks: boolean; showGrid: boolean }) => void;
   clearExportOverride: () => void;
@@ -328,6 +334,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // Landmark overlay state
   showLandmarks: false,
   autoShowLandmarksInBlockMode: true,
+
+  // Defense label overlay state
+  showDefenseLabels: false,
 
   // Export render override (for PDF/PNG export)
   exportOverride: null,
@@ -1187,6 +1196,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setAutoShowLandmarksInBlockMode: (value: boolean) => {
     set({ autoShowLandmarksInBlockMode: value });
+  },
+
+  // Defense label actions
+  toggleDefenseLabels: () => {
+    set((state) => ({ showDefenseLabels: !state.showDefenseLabels }));
   },
 
   // Export override actions
