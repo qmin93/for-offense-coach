@@ -1,5 +1,7 @@
 # ForOffensiveCoordinator MVP - Complete Feature Summary v2.0
 
+[한국어](MVP_SUMMARY.ko.md) | **English**
+
 > Last Updated: 2026-01-18
 
 ## Overview

@@ -1,5 +1,7 @@
 # ForOffensiveCoordinator
 
+[한국어](README.ko.md) | **English**
+
 > Football Play Diagramming Tool for Coaches
 
 Create professional play diagrams in under 3 minutes with context-aware concept recommendations and auto-build functionality.
