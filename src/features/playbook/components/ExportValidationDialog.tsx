@@ -8,7 +8,7 @@
 import React, { useMemo, useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import type { Play, Playbook, ExportOverlayMode } from "@/domain/dsl/types";
+import type { Play, Playbook, ExportOverlayMode, OverlayDensity } from "@/domain/dsl/types";
 import {
   validatePlaybookForExport,
   type PlaybookValidationResult,
@@ -29,10 +29,16 @@ import {
 // Props
 // ============================================
 
+interface ExportOverlaySettings {
+  overlayMode: ExportOverlayMode;
+  density: OverlayDensity;
+  includeLegend: boolean;
+}
+
 interface ExportValidationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onExport: (overlayMode: ExportOverlayMode) => void;
+  onExport: (settings: ExportOverlaySettings) => void;
   playbook: Playbook | null;
   plays: Map<string, Play>;
   isExporting?: boolean;
@@ -121,6 +127,8 @@ export function ExportValidationDialog({
 }: ExportValidationDialogProps) {
   const [expandedPlayId, setExpandedPlayId] = React.useState<string | null>(null);
   const [overlayMode, setOverlayMode] = React.useState<ExportOverlayMode>("both");
+  const [density, setDensity] = React.useState<OverlayDensity>("standard");
+  const [includeLegend, setIncludeLegend] = React.useState(false);
   const hasTrackedBlock = useRef(false);
 
   // Run validation
@@ -147,7 +155,7 @@ export function ExportValidationDialog({
     }
   }, [isOpen, validationResult.canExport, playbook, summary.errorCount, validationResult.issues]);
 
-  // Wrap onExport to track and pass overlay mode
+  // Wrap onExport to track and pass overlay settings
   const handleExport = useCallback(() => {
     // Track overlay mode selection
     if (playbook) {
@@ -156,8 +164,8 @@ export function ExportValidationDialog({
         playbookId: playbook.id,
       });
     }
-    onExport(overlayMode);
-  }, [onExport, overlayMode, playbook]);
+    onExport({ overlayMode, density, includeLegend });
+  }, [onExport, overlayMode, density, includeLegend, playbook]);
 
   if (!isOpen) return null;
 
@@ -271,7 +279,7 @@ export function ExportValidationDialog({
           )}
 
           {/* Overlay Labels section */}
-          <div className="space-y-2 p-3 bg-slate-800/50 rounded-lg">
+          <div className="space-y-3 p-3 bg-slate-800/50 rounded-lg">
             <p className="text-xs text-slate-300 font-medium">Overlay Labels</p>
             <div className="grid grid-cols-2 gap-2">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -319,6 +327,64 @@ export function ExportValidationDialog({
                 <span className="text-sm text-slate-300">Both</span>
               </label>
             </div>
+
+            {/* Density selector (only show when overlayMode is not off) */}
+            {overlayMode !== "off" && (
+              <div className="pt-2 border-t border-slate-700/50">
+                <p className="text-xs text-slate-400 mb-2">Label Density</p>
+                <div className="flex gap-2">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="density"
+                      value="clean"
+                      checked={density === "clean"}
+                      onChange={() => setDensity("clean")}
+                      className="text-blue-500 focus:ring-blue-500 w-3 h-3"
+                    />
+                    <span className="text-xs text-slate-300">Clean</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="density"
+                      value="standard"
+                      checked={density === "standard"}
+                      onChange={() => setDensity("standard")}
+                      className="text-blue-500 focus:ring-blue-500 w-3 h-3"
+                    />
+                    <span className="text-xs text-slate-300">Standard</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="density"
+                      value="full"
+                      checked={density === "full"}
+                      onChange={() => setDensity("full")}
+                      className="text-blue-500 focus:ring-blue-500 w-3 h-3"
+                    />
+                    <span className="text-xs text-slate-300">Full</span>
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Legend checkbox (only show when defense labels are on) */}
+            {(overlayMode === "defense" || overlayMode === "both") && (
+              <div className="pt-2 border-t border-slate-700/50">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeLegend}
+                    onChange={(e) => setIncludeLegend(e.target.checked)}
+                    className="text-blue-500 focus:ring-blue-500 w-3.5 h-3.5 rounded"
+                  />
+                  <span className="text-xs text-slate-300">Include tech legend</span>
+                </label>
+              </div>
+            )}
+
             <p className="text-xs text-slate-500 mt-1">
               {overlayMode === "off" && "Clean diagram without labels"}
               {overlayMode === "defense" && "Shows 3T/5T/N/9 tech labels on DL"}

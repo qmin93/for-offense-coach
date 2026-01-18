@@ -10,6 +10,7 @@ import type {
   Player,
   Strength,
   Point,
+  OverlayDensity,
 } from "../dsl/types";
 import { GAP_X } from "../dsl/types";
 import { computeOffensiveStrength } from "./defense-presets";
@@ -241,4 +242,46 @@ export function isValidLandmarkTarget(id: string): id is FieldLandmarkId {
     "D_GAP",
   ];
   return validIds.includes(id as FieldLandmarkId);
+}
+
+/**
+ * Filter landmarks based on density setting
+ * clean: EMOL only
+ * standard: EMOL + A/B gaps
+ * full: All landmarks
+ */
+export function filterLandmarksByDensity(
+  landmarks: FieldLandmark[],
+  density: OverlayDensity
+): FieldLandmark[] {
+  switch (density) {
+    case "clean":
+      // EMOL only
+      return landmarks.filter(l => l.type === "emol");
+
+    case "standard":
+      // EMOL + A/B gaps
+      return landmarks.filter(l =>
+        l.type === "emol" ||
+        l.label === "A" ||
+        l.label === "B"
+      );
+
+    case "full":
+    default:
+      // All landmarks
+      return landmarks;
+  }
+}
+
+/**
+ * Build landmarks filtered by density
+ */
+export function buildLandmarksForDensity(
+  formation: Formation | null,
+  density: OverlayDensity,
+  strengthOverride?: Strength
+): FieldLandmark[] {
+  const allLandmarks = buildAllLandmarks(formation, strengthOverride);
+  return filterLandmarksByDensity(allLandmarks, density);
 }

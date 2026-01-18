@@ -20,9 +20,16 @@ import type {
   BlockEndCap,
   FieldLandmark,
   Formation,
+  OverlayDensity,
 } from "../dsl/types";
-import { buildAllLandmarks } from "../engine/landmark-utils";
+import { buildAllLandmarks, filterLandmarksByDensity } from "../engine/landmark-utils";
 import { techToLabel } from "../engine/defense-presets";
+import {
+  resolveOverlayCollisions,
+  createDefenseTechLabels,
+  createLandmarkLabels,
+  type OverlayLabel,
+} from "../engine/overlay-collision";
 
 // ============================================
 // Constants - Whiteboard Theme
@@ -813,9 +820,10 @@ const TECH_LABEL_COLOR = "#DC2626"; // Red matching defense color
 
 interface DefenseTechLabelOverlayProps {
   players: Player[];
+  labelVisibility?: Map<string, boolean>;
 }
 
-function DefenseTechLabelOverlay({ players }: DefenseTechLabelOverlayProps) {
+function DefenseTechLabelOverlay({ players, labelVisibility }: DefenseTechLabelOverlayProps) {
   // Filter to only defense players with techniques (DL)
   const dlPlayers = players.filter(
     (p) =>
@@ -828,6 +836,12 @@ function DefenseTechLabelOverlay({ players }: DefenseTechLabelOverlayProps) {
   return (
     <g className="defense-tech-label-overlay">
       {dlPlayers.map((player) => {
+        // Check visibility from collision resolution
+        const labelId = `def-${player.id}`;
+        if (labelVisibility && labelVisibility.has(labelId) && !labelVisibility.get(labelId)) {
+          return null; // Hidden due to collision
+        }
+
         const pos = toSvgPoint(player.alignment);
         // Try to get technique from player extensions or infer from role
         const technique = (player.extensions?.technique as string) || undefined;
@@ -876,16 +890,24 @@ interface FieldLandmarkOverlayProps {
   landmarks: FieldLandmark[];
   onLandmarkClick?: (landmark: FieldLandmark) => void;
   highlightedId?: string | null;
+  labelVisibility?: Map<string, boolean>;
 }
 
 function FieldLandmarkOverlay({
   landmarks,
   onLandmarkClick,
   highlightedId,
+  labelVisibility,
 }: FieldLandmarkOverlayProps) {
   return (
     <g className="field-landmark-overlay">
       {landmarks.map((landmark) => {
+        // Check visibility from collision resolution
+        const labelId = `lm-${landmark.id}`;
+        if (labelVisibility && labelVisibility.has(labelId) && !labelVisibility.get(labelId)) {
+          return null; // Hidden due to collision
+        }
+
         const pos = toSvgPoint({ x: landmark.x, y: landmark.y });
         const isGap = landmark.type === "gap";
         const color = isGap ? LANDMARK_GAP_COLOR : LANDMARK_EMOL_COLOR;
@@ -1007,6 +1029,10 @@ export interface PlayRendererProps {
   highlightedLandmarkId?: string | null;
   // Defense tech label overlay
   showDefenseLabels?: boolean;
+  // Overlay density (clean/standard/full)
+  overlayDensity?: OverlayDensity;
+  // Enable collision avoidance between overlays
+  useCollisionAvoidance?: boolean;
 }
 
 export function PlayRenderer({
@@ -1020,6 +1046,8 @@ export function PlayRenderer({
   onLandmarkClick,
   highlightedLandmarkId,
   showDefenseLabels = false,
+  overlayDensity = "standard",
+  useCollisionAvoidance = true,
 }: PlayRendererProps) {
   const fieldSettings = play.field || {};
 
@@ -1028,11 +1056,53 @@ export function PlayRenderer({
     ? play.roster.players
     : play.roster.players.filter((p) => p.unit !== "defense");
 
-  // Generate field landmarks from formation
+  // Generate field landmarks from formation (with density filtering)
   const fieldLandmarks = React.useMemo(() => {
     if (!showLandmarks) return [];
-    return buildAllLandmarks(formation);
-  }, [showLandmarks, formation]);
+    const allLandmarks = buildAllLandmarks(formation);
+    return filterLandmarksByDensity(allLandmarks, overlayDensity);
+  }, [showLandmarks, formation, overlayDensity]);
+
+  // Compute collision-resolved labels when both overlays are visible
+  const resolvedLabels = React.useMemo<OverlayLabel[]>(() => {
+    // Only compute if collision avoidance is enabled and at least one overlay is shown
+    if (!useCollisionAvoidance || (!showDefenseLabels && !showLandmarks)) {
+      return [];
+    }
+
+    const labels: OverlayLabel[] = [];
+
+    // Add defense tech labels
+    if (showDefenseLabels && showDefense) {
+      const defenseLabels = createDefenseTechLabels(play.roster.players, toSvgPoint);
+      labels.push(...defenseLabels);
+    }
+
+    // Add landmark labels
+    if (showLandmarks && fieldLandmarks.length > 0) {
+      const landmarkLabels = createLandmarkLabels(fieldLandmarks, toSvgPoint);
+      labels.push(...landmarkLabels);
+    }
+
+    // Resolve collisions
+    return resolveOverlayCollisions(labels);
+  }, [
+    useCollisionAvoidance,
+    showDefenseLabels,
+    showDefense,
+    showLandmarks,
+    play.roster.players,
+    fieldLandmarks,
+  ]);
+
+  // Create lookup for label visibility
+  const labelVisibility = React.useMemo(() => {
+    const map = new Map<string, boolean>();
+    resolvedLabels.forEach((label) => {
+      map.set(label.id, label.visible);
+    });
+    return map;
+  }, [resolvedLabels]);
 
   return (
     <svg
@@ -1109,7 +1179,10 @@ export function PlayRenderer({
 
       {/* Defense Tech Label Overlay layer (3T/5T/N/9 labels) */}
       {showDefenseLabels && showDefense && (
-        <DefenseTechLabelOverlay players={play.roster.players} />
+        <DefenseTechLabelOverlay
+          players={play.roster.players}
+          labelVisibility={useCollisionAvoidance ? labelVisibility : undefined}
+        />
       )}
 
       {/* Field Landmark Overlay layer (EMOL/Gap markers) - on top */}
@@ -1118,6 +1191,7 @@ export function PlayRenderer({
           landmarks={fieldLandmarks}
           onLandmarkClick={onLandmarkClick}
           highlightedId={highlightedLandmarkId}
+          labelVisibility={useCollisionAvoidance ? labelVisibility : undefined}
         />
       )}
     </svg>

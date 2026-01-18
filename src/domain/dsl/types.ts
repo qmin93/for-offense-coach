@@ -813,13 +813,20 @@ export interface PlaybookSection {
 // Export Overlay Mode - controls what labels appear on export
 export type ExportOverlayMode = "off" | "defense" | "landmarks" | "both";
 
+// Overlay density - controls how many labels to show
+export type OverlayDensity = "clean" | "standard" | "full";
+// clean: Defense + EMOL only
+// standard: Defense + EMOL + A/B gaps
+// full: All labels (with collision hiding)
+
 export interface ExportSettings {
   pageStyle?: "classic" | "minimal";
   includeNotes?: boolean;
   includeGrid?: boolean;
   footer?: "playName+page" | "page" | "none";
   // Overlay options for PDF/PNG export
-  overlayMode?: ExportOverlayMode;    // What labels to include (default: based on pageStyle)
+  overlayMode?: ExportOverlayMode;     // What labels to include (default: based on pageStyle)
+  overlayDensity?: OverlayDensity;     // How many labels to show (default: "standard")
   overlayOpacity?: number;             // 0-1, opacity of overlay labels (default: 1.0)
   includeLegend?: boolean;             // Include tech/gap legend box (default: false)
 }

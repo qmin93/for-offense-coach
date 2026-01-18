@@ -8,9 +8,16 @@ import { Button } from "@/components/ui";
 import { PlayRenderer } from "@/domain/render/svg-renderer";
 import { exportPlaybookToPdf, capturePlaySvgAsImage } from "@/lib/pdf-export";
 import { toast } from "sonner";
-import type { Play } from "@/domain/dsl/types";
+import type { Play, ExportOverlayMode, OverlayDensity } from "@/domain/dsl/types";
 import { ExportValidationDialog } from "@/features/playbook/components/ExportValidationDialog";
 import { telemetry, startTimer, endTimer } from "@/lib/telemetry";
+
+// Types for export overlay settings
+interface ExportOverlaySettings {
+  overlayMode: ExportOverlayMode;
+  density: OverlayDensity;
+  includeLegend: boolean;
+}
 
 export default function PlaybookPage() {
   const params = useParams();
@@ -32,6 +39,13 @@ export default function PlaybookPage() {
   const [exportProgress, setExportProgress] = useState(0);
   const exportContainerRef = useRef<HTMLDivElement>(null);
 
+  // Export overlay settings from the dialog
+  const [exportOverlaySettings, setExportOverlaySettings] = useState<ExportOverlaySettings>({
+    overlayMode: "both",
+    density: "standard",
+    includeLegend: false,
+  });
+
   useEffect(() => {
     if (playbookId === "new") {
       initPlaybook("New Playbook");
@@ -52,7 +66,7 @@ export default function PlaybookPage() {
     return allPlays;
   }, [playbook, plays]);
 
-  const handleExportPdf = async () => {
+  const handleExportPdf = async (overlaySettings: ExportOverlaySettings) => {
     if (!playbook) return;
 
     const allPlays = getAllPlays();
@@ -61,13 +75,25 @@ export default function PlaybookPage() {
       return;
     }
 
+    // Store overlay settings for rendering
+    setExportOverlaySettings(overlaySettings);
+
     setExporting(true);
     setExportProgress(0);
     startTimer("pdf_export");
 
     try {
-      // Wait for export container to render
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Wait for export container to render with new overlay settings
+      // Using both setTimeout and requestAnimationFrame for reliability
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              resolve();
+            });
+          });
+        }, 300);
+      });
 
       // Capture each play's diagram
       const diagramImages: (string | null)[] = [];
@@ -274,15 +300,32 @@ export default function PlaybookPage() {
           className="fixed top-0 left-[-9999px] w-[800px]"
           aria-hidden="true"
         >
-          {getAllPlays().slice(0, 10).map((play, index) => (
-            <div
-              key={play.id}
-              data-play-export={index}
-              className="w-[800px] h-[600px]"
-            >
-              <PlayRenderer play={play} />
-            </div>
-          ))}
+          {getAllPlays().slice(0, 10).map((play, index) => {
+            // Compute overlay visibility from export settings
+            const showDefenseLabels =
+              exportOverlaySettings.overlayMode === "defense" ||
+              exportOverlaySettings.overlayMode === "both";
+            const showLandmarks =
+              exportOverlaySettings.overlayMode === "landmarks" ||
+              exportOverlaySettings.overlayMode === "both";
+
+            return (
+              <div
+                key={play.id}
+                data-play-export={index}
+                className="w-[800px] h-[600px]"
+              >
+                <PlayRenderer
+                  play={play}
+                  showDefense={true}
+                  showDefenseLabels={showDefenseLabels}
+                  showLandmarks={showLandmarks}
+                  overlayDensity={exportOverlaySettings.density}
+                  useCollisionAvoidance={showDefenseLabels && showLandmarks}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
