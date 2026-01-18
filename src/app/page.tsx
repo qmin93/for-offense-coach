@@ -15,6 +15,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePlan } from "@/contexts/plan-context";
+import { PlanBadge, UsageIndicator } from "@/components/ui/plan-ui";
 
 // ============================================
 // Types
@@ -39,6 +41,8 @@ interface StartFlowCardProps {
   timeEstimate: string;
   variant: "primary" | "secondary" | "outline";
   badge?: string;
+  onLimitReached?: () => void;
+  checkLimit?: boolean;
 }
 
 function StartFlowCard({
@@ -49,10 +53,20 @@ function StartFlowCard({
   timeEstimate,
   variant,
   badge,
+  onLimitReached,
+  checkLimit,
 }: StartFlowCardProps) {
+  const handleClick = (e: React.MouseEvent) => {
+    if (checkLimit && onLimitReached) {
+      e.preventDefault();
+      onLimitReached();
+    }
+  };
+
   return (
     <Link
       href={href}
+      onClick={handleClick}
       className={cn(
         "group relative flex flex-col p-6 rounded-2xl border-2 transition-all duration-200",
         "hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]",
@@ -186,6 +200,7 @@ function RecentWorkCard({ item }: RecentWorkCardProps) {
 export default function Home() {
   const [recentWorks, setRecentWorks] = useState<RecentWork[]>([]);
   const [isLoadingRecent, setIsLoadingRecent] = useState(true);
+  const { tier, usage, isLimitReached, showUpgradePrompt } = usePlan();
 
   // Load recent works from localStorage or API
   useEffect(() => {
@@ -227,6 +242,10 @@ export default function Home() {
       <div className="max-w-5xl mx-auto px-6 pt-16 pb-8">
         {/* Header */}
         <div className="text-center mb-12">
+          {/* Plan tier badge */}
+          <div className="flex justify-center mb-4">
+            <PlanBadge size="lg" />
+          </div>
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-3">
             3분 안에 플레이 하나 완성.
           </h1>
@@ -236,6 +255,12 @@ export default function Home() {
           <p className="text-sm text-slate-400">
             No signup required • Team workspace 지원
           </p>
+          {/* Usage indicators */}
+          <div className="flex justify-center gap-8 mt-6">
+            <UsageIndicator feature="maxPlays" label="Plays" className="w-32" />
+            <UsageIndicator feature="maxPlaybooks" label="Playbooks" className="w-32" />
+            <UsageIndicator feature="maxExports" label="Exports" className="w-32" />
+          </div>
         </div>
 
         {/* Start Flow Cards - 3 cards */}
@@ -248,6 +273,8 @@ export default function Home() {
             timeEstimate="30초"
             variant="primary"
             badge="추천"
+            checkLimit={isLimitReached("maxPlays")}
+            onLimitReached={() => showUpgradePrompt("maxPlays")}
           />
           <StartFlowCard
             href="/editor/new?mode=formation"
@@ -256,6 +283,8 @@ export default function Home() {
             icon={<LayoutGrid className="w-6 h-6" />}
             timeEstimate="2분"
             variant="secondary"
+            checkLimit={isLimitReached("maxPlays")}
+            onLimitReached={() => showUpgradePrompt("maxPlays")}
           />
           <StartFlowCard
             href="/playbooks"

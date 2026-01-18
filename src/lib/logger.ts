@@ -88,6 +88,7 @@ export type EditorEvent =
   | "ADD_ACTION"
   | "UPDATE_ACTION"
   | "DELETE_ACTION"
+  | "DELETE_ACTIONS_BULK"
   | "SAVE_START"
   | "SAVE_OK"
   | "SAVE_FAIL"

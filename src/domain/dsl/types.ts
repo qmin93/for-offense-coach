@@ -1188,6 +1188,126 @@ export const BUILT_IN_SITUATION_PRESETS: SituationPreset[] = [
 ];
 
 // ============================================
+// Concept Pack Types (Weekly Release System)
+// ============================================
+
+export interface ConceptPackMeta {
+  releaseWeek: number;          // Release week number (e.g., 1, 2, 3...)
+  releaseYear: number;          // Release year (e.g., 2025, 2026)
+  releaseDate: string;          // ISO date string (YYYY-MM-DD)
+  theme?: string;               // Optional theme (e.g., "Red Zone", "2-Minute Drill")
+  description?: string;         // Pack description
+}
+
+export interface ConceptPackContent {
+  runConceptIds: string[];      // Run concept IDs in this pack
+  passConceptIds: string[];     // Pass concept IDs in this pack
+  familyIds?: string[];         // Related family IDs
+}
+
+export interface ConceptPack {
+  schemaVersion: string;
+  type: "concept_pack";
+  id: string;                   // e.g., "pack_2025_w01"
+  name: string;                 // e.g., "Week 1 - Foundation"
+  version: string;              // Semantic version (e.g., "1.0.0")
+  meta: ConceptPackMeta;
+  content: ConceptPackContent;
+  isNew?: boolean;              // Computed: true if released within 7 days
+  tags?: string[];
+  changelog?: string[];         // List of changes in this version
+}
+
+// Helper to check if a pack is "new" (released within the last 7 days)
+export function isPackNew(pack: ConceptPack): boolean {
+  if (pack.isNew !== undefined) return pack.isNew;
+  const releaseDate = new Date(pack.meta.releaseDate);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - releaseDate.getTime()) / (1000 * 60 * 60 * 24));
+  return diffDays <= 7;
+}
+
+// Helper to get week label (e.g., "W1", "W12")
+export function getPackWeekLabel(pack: ConceptPack): string {
+  return `W${pack.meta.releaseWeek}`;
+}
+
+// ============================================
+// Plan Tier Types (Free/Team/Season)
+// ============================================
+
+export type PlanTier = "free" | "team" | "season";
+
+export interface PlanLimits {
+  maxPlays: number;             // Max plays per workspace
+  maxPlaybooks: number;         // Max playbooks per workspace
+  maxExports: number;           // Max exports per month (0 = unlimited)
+  conceptPackAccess: "base" | "all"; // Which concept packs are accessible
+  defensePresets: boolean;      // Can use defense presets
+  customFormations: boolean;    // Can create custom formations
+  shareLinks: boolean;          // Can create share links
+  teamFeatures: boolean;        // Access to team collaboration features
+  installPlan: boolean;         // Access to install plan feature
+  advancedExport: boolean;      // PDF multi-page, scout cards
+}
+
+export const PLAN_TIER_LIMITS: Record<PlanTier, PlanLimits> = {
+  free: {
+    maxPlays: 10,
+    maxPlaybooks: 1,
+    maxExports: 5,
+    conceptPackAccess: "base",
+    defensePresets: false,
+    customFormations: false,
+    shareLinks: false,
+    teamFeatures: false,
+    installPlan: false,
+    advancedExport: false,
+  },
+  team: {
+    maxPlays: 100,
+    maxPlaybooks: 5,
+    maxExports: 50,
+    conceptPackAccess: "all",
+    defensePresets: true,
+    customFormations: true,
+    shareLinks: true,
+    teamFeatures: true,
+    installPlan: true,
+    advancedExport: true,
+  },
+  season: {
+    maxPlays: -1, // Unlimited
+    maxPlaybooks: -1,
+    maxExports: 0, // Unlimited
+    conceptPackAccess: "all",
+    defensePresets: true,
+    customFormations: true,
+    shareLinks: true,
+    teamFeatures: true,
+    installPlan: true,
+    advancedExport: true,
+  },
+};
+
+// Check if a feature is available for a plan tier
+export function isPlanFeatureAvailable(tier: PlanTier, feature: keyof PlanLimits): boolean {
+  const limits = PLAN_TIER_LIMITS[tier];
+  const value = limits[feature];
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") return value === "all";
+  return true;
+}
+
+// Check if limit is reached
+export function isPlanLimitReached(tier: PlanTier, feature: "maxPlays" | "maxPlaybooks" | "maxExports", current: number): boolean {
+  const limit = PLAN_TIER_LIMITS[tier][feature];
+  if (limit === -1 || limit === 0) return false; // Unlimited
+  return current >= limit;
+}
+
+// ============================================
 // Team Profile Types (Formation Recommendation)
 // ============================================
 

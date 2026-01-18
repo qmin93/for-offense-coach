@@ -95,6 +95,13 @@ export function Canvas() {
   // Track modifier keys
   const [shiftPressed, setShiftPressed] = useState(false);
 
+  // Alignment guides state (for drag guides)
+  const [alignmentGuides, setAlignmentGuides] = useState<{
+    horizontal: number[]; // y values of horizontal alignment lines
+    vertical: number[];   // x values of vertical alignment lines
+  }>({ horizontal: [], vertical: [] });
+  const ALIGNMENT_THRESHOLD = 0.015; // Threshold for snapping to guide (in normalized coords)
+
   // Handle modifier keys for panning and multi-select
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -306,7 +313,7 @@ export function Canvas() {
       }
 
       // Handle player dragging
-      if (isDragging.current && dragPlayerId.current) {
+      if (isDragging.current && dragPlayerId.current && play) {
         const coords = getSvgCoordinates(e.clientX, e.clientY);
         if (coords) {
           let x = Math.max(0, Math.min(1, coords.x));
@@ -317,7 +324,39 @@ export function Canvas() {
           x = snapResult.point.x;
           y = snapResult.point.y;
 
+          // Calculate alignment guides with other players
+          const otherPlayers = play.roster.players.filter(p => p.id !== dragPlayerId.current);
+          const horizontalGuides: number[] = [];
+          const verticalGuides: number[] = [];
+
+          for (const other of otherPlayers) {
+            const ox = other.alignment.x;
+            const oy = other.alignment.y;
+
+            // Check horizontal alignment (same y)
+            if (Math.abs(y - oy) < ALIGNMENT_THRESHOLD) {
+              horizontalGuides.push(oy);
+              y = oy; // Snap to guide
+            }
+
+            // Check vertical alignment (same x)
+            if (Math.abs(x - ox) < ALIGNMENT_THRESHOLD) {
+              verticalGuides.push(ox);
+              x = ox; // Snap to guide
+            }
+          }
+
+          setAlignmentGuides({
+            horizontal: [...new Set(horizontalGuides)],
+            vertical: [...new Set(verticalGuides)],
+          });
+
           movePlayer(dragPlayerId.current, { x, y });
+        }
+      } else if (!isDragging.current) {
+        // Clear alignment guides when not dragging
+        if (alignmentGuides.horizontal.length > 0 || alignmentGuides.vertical.length > 0) {
+          setAlignmentGuides({ horizontal: [], vertical: [] });
         }
       }
 
@@ -352,7 +391,7 @@ export function Canvas() {
         }
       }
     },
-    [isPanning, isBoxSelecting, selectionBox, getSvgCoordinates, movePlayer, play, updateAction, snapConfig]
+    [isPanning, isBoxSelecting, selectionBox, getSvgCoordinates, movePlayer, play, updateAction, snapConfig, alignmentGuides]
   );
 
   // Handle mouse up
@@ -399,6 +438,8 @@ export function Canvas() {
     dragPlayerId.current = null;
     dragActionId.current = null;
     dragPointIndex.current = null;
+    // Clear alignment guides
+    setAlignmentGuides({ horizontal: [], vertical: [] });
   }, [isBoxSelecting, selectionBox, play, selectMultiplePlayers, clearSelection, blockDrag, createQuickBlock]);
 
   // Handle canvas click (for drawing)
@@ -452,10 +493,14 @@ export function Canvas() {
         }
         setTextInput(null);
       } else if (e.key === "Delete" || e.key === "Backspace") {
-        // Delete selected action
-        if (selectedActionId && play) {
-          const { removeAction } = useEditorStore.getState();
-          removeAction(selectedActionId);
+        // Delete selected action(s)
+        const state = useEditorStore.getState();
+        if (state.selectedActionIds.length > 0 && play) {
+          // Bulk delete multiple selected actions
+          state.removeSelectedActions();
+        } else if (selectedActionId && play) {
+          // Single action delete (backwards compatibility)
+          state.removeAction(selectedActionId);
         }
       } else if (e.key === "c" || e.key === "C") {
         // Toggle curveMode on selected route or motion
@@ -576,6 +621,52 @@ export function Canvas() {
           stroke="#ffffff"
           strokeWidth={2}
         />
+      </g>
+    );
+  };
+
+  // Render alignment guides (horizontal and vertical lines for drag alignment)
+  const renderAlignmentGuides = () => {
+    if (alignmentGuides.horizontal.length === 0 && alignmentGuides.vertical.length === 0) {
+      return null;
+    }
+
+    return (
+      <g className="alignment-guides" pointerEvents="none">
+        {/* Horizontal guides */}
+        {alignmentGuides.horizontal.map((y, i) => {
+          const svgY = normalizedToSvg({ x: 0, y }).y;
+          return (
+            <line
+              key={`h-${i}`}
+              x1={0}
+              y1={svgY}
+              x2={FIELD_WIDTH}
+              y2={svgY}
+              stroke="#3B82F6"
+              strokeWidth={1}
+              strokeDasharray="4,4"
+              opacity={0.7}
+            />
+          );
+        })}
+        {/* Vertical guides */}
+        {alignmentGuides.vertical.map((x, i) => {
+          const svgX = normalizedToSvg({ x, y: 0 }).x;
+          return (
+            <line
+              key={`v-${i}`}
+              x1={svgX}
+              y1={0}
+              x2={svgX}
+              y2={FIELD_HEIGHT}
+              stroke="#3B82F6"
+              strokeWidth={1}
+              strokeDasharray="4,4"
+              opacity={0.7}
+            />
+          );
+        })}
       </g>
     );
   };
@@ -943,6 +1034,7 @@ export function Canvas() {
           />
           {renderDrawingPreview()}
           {renderBlockDragPreview()}
+          {renderAlignmentGuides()}
           {renderEditHandles()}
           {renderMultiSelectHighlights()}
           {renderSelectionBox()}

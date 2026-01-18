@@ -15,6 +15,7 @@ import type {
   DefensePreset,
   AutoBuildFailure,
 } from "@/domain/dsl/types";
+import { saveDraft } from "@/lib/local-draft";
 import type { PreContext } from "./components/PreContextScreen";
 import { DEFAULT_PRE_CONTEXT } from "./components/PreContextScreen";
 
@@ -233,6 +234,7 @@ export interface EditorState {
   addAction: (action: Action) => void;
   updateAction: (actionId: string, updates: Partial<Action>) => void;
   removeAction: (actionId: string) => void;
+  removeSelectedActions: () => void;
 
   // Drawing operations
   startDrawing: (playerId: string, startPoint: Point) => void;
@@ -503,10 +505,17 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         isSaving: false,
         saveError: errorMsg,
       });
-      // Backup to localStorage on failure
+      // Backup to localStorage on failure using the local-draft system
       if (state.play) {
         try {
-          localStorage.setItem(`play_draft_${state.playDbId || "new"}`, JSON.stringify(state.play));
+          saveDraft(
+            state.play.id,
+            state.playDbId,
+            state.play,
+            state.localRevision,
+            state.serverRevision,
+            true // isOffline - mark as needing sync
+          );
         } catch {
           // Ignore localStorage errors
         }
@@ -817,6 +826,33 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ selectedActionId: null });
   },
 
+  // Remove multiple selected actions (bulk delete)
+  removeSelectedActions: () => {
+    const state = get();
+    if (!state.play) return;
+
+    const idsToRemove = state.selectedActionIds;
+    if (idsToRemove.length === 0) return;
+
+    const newPlay: Play = {
+      ...state.play,
+      actions: state.play.actions.filter((a) => !idsToRemove.includes(a.id)),
+      updatedAt: new Date().toISOString(),
+    };
+
+    editorLog.event("DELETE_ACTIONS_BULK", {
+      playId: state.play.id,
+      deletedCount: idsToRemove.length,
+      remainingCount: newPlay.actions.length,
+    });
+
+    get().setPlay(newPlay);
+    set({
+      selectedActionId: null,
+      selectedActionIds: [],
+    });
+  },
+
   // Drawing operations
   startDrawing: (playerId: string, startPoint: Point) => {
     const state = get();
@@ -1043,9 +1079,53 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
 
     // Success path
-    const newPlay = applyAutoBuildToPlay(state.play, result, {
+    let newPlay = applyAutoBuildToPlay(state.play, result, {
       conflictPolicy: "add_layer",
     });
+
+    // Auto-add receiver for run concepts if no split receiver exists
+    if (concept.conceptType === "run") {
+      const wideReceiverRoles = ["X", "Z"];
+      const hasSplitReceiver = newPlay.roster.players.some(
+        p => wideReceiverRoles.includes(p.role) &&
+             Math.abs((p.alignment?.x || 0.5) - 0.5) > 0.2
+      );
+
+      if (!hasSplitReceiver) {
+        // Auto-add an X receiver split wide right
+        const newReceiver: Player = {
+          id: `p_auto_x_${uuid().slice(0, 8)}`,
+          role: "X",
+          label: "X",
+          unit: "offense",
+          alignment: {
+            x: 0.85,
+            y: 0,
+            facing: "up",
+            stance: "two_point",
+          },
+          appearance: {
+            icon: "circle",
+            colorToken: "offense",
+            showLabel: true,
+          },
+        };
+
+        newPlay = {
+          ...newPlay,
+          roster: {
+            ...newPlay.roster,
+            players: [...newPlay.roster.players, newReceiver],
+          },
+        };
+
+        // Add warning to result
+        if (!result.warnings) {
+          result.warnings = [];
+        }
+        result.warnings.push("Auto-added X receiver for formation legality");
+      }
+    }
 
     // Update concept reference
     newPlay.meta = {

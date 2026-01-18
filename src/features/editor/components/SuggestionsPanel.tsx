@@ -24,6 +24,8 @@ import { getRunConceptById } from "@/domain/engine/concepts-run";
 import { getPassConceptById } from "@/domain/engine/concepts-pass";
 import { getDefensePresetById } from "@/domain/engine/defense-presets";
 import { telemetry, setLastAutobuildContext } from "@/lib/telemetry";
+import { NewPackBanner, ConceptPackIndicator } from "@/components/ui/concept-pack-badge";
+import { getNewConceptPacks, getLatestPack } from "@/domain/engine/concept-packs";
 
 export function SuggestionsPanel() {
   const {
@@ -49,6 +51,11 @@ export function SuggestionsPanel() {
 
   // Quick situation filter
   const [selectedSituation, setSelectedSituation] = useState<string | null>(null);
+
+  // New pack banner state
+  const [showNewPackBanner, setShowNewPackBanner] = useState(true);
+  const newPacks = getNewConceptPacks();
+  const latestPack = newPacks.length > 0 ? newPacks[0] : null;
 
   // Sync context with activeContext from store
   React.useEffect(() => {
@@ -230,6 +237,16 @@ export function SuggestionsPanel() {
         </Button>
       </div>
 
+      {/* New Pack Banner */}
+      {latestPack && showNewPackBanner && (
+        <div className="px-3 pt-3">
+          <NewPackBanner
+            pack={latestPack}
+            onClose={() => setShowNewPackBanner(false)}
+          />
+        </div>
+      )}
+
       {/* Quick Situation Cards */}
       <div className="px-3 pt-3 pb-2 border-b">
         <div className="text-xs font-medium text-muted-foreground mb-2">Quick Situations</div>
@@ -382,7 +399,7 @@ function EnhancedConceptCard({
   rank,
   onBuild,
 }: EnhancedConceptCardProps) {
-  const { name, conceptType, score, fit, why, alerts, autoBuildProfile } =
+  const { name, conceptId, conceptType, score, fit, why, alerts, autoBuildProfile } =
     result;
 
   // Score color based on value
@@ -408,7 +425,10 @@ function EnhancedConceptCard({
               </Badge>
             )}
             <div>
-              <div className="font-medium text-sm">{name}</div>
+              <div className="font-medium text-sm flex items-center gap-1.5">
+                {name}
+                <ConceptPackIndicator conceptId={conceptId} showLockIcon={false} />
+              </div>
               <div className="text-xs text-muted-foreground">
                 {conceptType === "run" ? "Run" : "Pass"} Concept
               </div>

@@ -105,6 +105,20 @@ export function autoBuildFromConcept(
     }
   }
 
+  // Pre-check: Run concepts should have at least one eligible receiver split wide
+  // (NCAA/NFL rules require 7 on LOS including at least 1 on each end)
+  if (concept.conceptType === "run") {
+    const wideReceiverRoles = ["X", "Z"]; // Split receivers
+    const splitReceivers = players.filter(
+      p => wideReceiverRoles.includes(p.role) &&
+           Math.abs((p.alignment?.x || 0.5) - 0.5) > 0.2 // Actually split out
+    );
+
+    if (splitReceivers.length === 0) {
+      warnings.push("Consider adding a split receiver for formation legality (7 on LOS rule)");
+    }
+  }
+
   // Pre-check: Puller requirements for run concepts
   if (concept.conceptType === "run" && concept.requirements?.needsPuller) {
     const olRoles = ["LT", "LG", "C", "RG", "RT"];

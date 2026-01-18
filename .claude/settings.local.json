@@ -31,7 +31,8 @@
       "Bash(npm run typecheck:*)",
       "Bash(vercel --version:*)",
       "Bash(vercel --yes:*)",
-      "Bash(vercel --prod --yes:*)"
+      "Bash(vercel --prod --yes:*)",
+      "Bash(npx playwright test:*)"
     ]
   }
 }

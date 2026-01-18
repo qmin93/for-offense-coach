@@ -6,13 +6,21 @@ import { Button } from "@/components/ui";
 import { FIELD_WIDTH, FIELD_HEIGHT } from "@/domain/render/svg-renderer";
 import { toast } from "sonner";
 import { telemetry, startTimer, endTimer } from "@/lib/telemetry";
+import { usePlan } from "@/contexts/plan-context";
 
 export function ExportButton() {
   const { play, playDbId } = useEditorStore();
   const [isSharing, setIsSharing] = useState(false);
+  const { isLimitReached, showUpgradePrompt, incrementUsage } = usePlan();
 
   const handleExportPng = useCallback(async () => {
     if (!play) return;
+
+    // Check export limit
+    if (isLimitReached("maxExports")) {
+      showUpgradePrompt("maxExports");
+      return;
+    }
 
     // Find the SVG element
     const svgElement = document.querySelector("svg");
@@ -73,6 +81,9 @@ export function ExportButton() {
             success: true,
           });
 
+          // Increment export usage count
+          incrementUsage("exportsThisMonth");
+
           toast.success("PNG exported successfully");
         }, "image/png");
       };
@@ -95,7 +106,7 @@ export function ExportButton() {
 
       toast.error("Export failed");
     }
-  }, [play]);
+  }, [play, isLimitReached, showUpgradePrompt, incrementUsage]);
 
   const handleShare = useCallback(async () => {
     if (!playDbId) {

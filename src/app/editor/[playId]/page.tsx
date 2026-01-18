@@ -18,6 +18,7 @@ import {
   RecoveryDialog,
   PreContextScreen,
   EmptyStateOverlay,
+  SaveStatusBadge,
   type PreContext,
 } from "@/features/editor/components";
 import { ValidationPanel, ValidationStatusBadge } from "@/features/editor/components/ValidationPanel";
@@ -44,6 +45,7 @@ import { toast } from "sonner";
 import { getFormationById } from "@/domain/engine/formations";
 import { getPassConceptById } from "@/domain/engine/concepts-pass";
 import { getRunConceptById } from "@/domain/engine/concepts-run";
+import { useClipboard } from "@/hooks";
 
 // Debounce hook for autosave
 function useDebounce<T>(value: T, delay: number): T {
@@ -85,7 +87,19 @@ export default function EditorPage() {
     buildFromConcept,
     hasCompletedPreContext,
     initializeContext,
+    // Multi-selection for copy/paste
+    selectedPlayerIds,
+    selectedActionIds,
+    // Actions for paste
+    addAction,
   } = useEditorStore();
+
+  // Clipboard for copy/paste
+  const { copy, paste, hasContent: hasClipboardContent } = useClipboard({
+    onPaste: () => {
+      toast.success("Pasted!", { duration: 1500 });
+    },
+  });
 
   // Check if selected action is a block
   const selectedBlockAction = play?.actions.find(
@@ -210,11 +224,13 @@ export default function EditorPage() {
     [applyFormation, buildFromConcept]
   );
 
-  // Keyboard shortcuts for Undo/Redo
+  // Keyboard shortcuts for Undo/Redo and Copy/Paste
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const { undo, redo, canUndo, canRedo } = useEditorStore.getState();
+      const state = useEditorStore.getState();
+      const { undo, redo, canUndo, canRedo, play: currentPlay, selectedPlayerIds: selectedPlayers, selectedActionIds: selectedActions, addAction: addActionToPlay, markDirty } = state;
 
+      // Undo/Redo
       if ((e.ctrlKey || e.metaKey) && e.key === "z") {
         if (e.shiftKey) {
           // Ctrl+Shift+Z = Redo
@@ -229,6 +245,7 @@ export default function EditorPage() {
             undo();
           }
         }
+        return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key === "y") {
         // Ctrl+Y = Redo
@@ -236,12 +253,57 @@ export default function EditorPage() {
           e.preventDefault();
           redo();
         }
+        return;
+      }
+
+      // Copy (Ctrl+C)
+      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+        if (!currentPlay) return;
+
+        // Get all players from roster
+        const allPlayers = currentPlay.roster?.players || [];
+
+        // Get selected players
+        const playersToCopy = allPlayers.filter((p) => selectedPlayers.includes(p.id));
+
+        // Get selected actions (or actions belonging to selected players)
+        let actionsToCopy = currentPlay.actions.filter((a) => selectedActions.includes(a.id));
+        if (actionsToCopy.length === 0 && playersToCopy.length > 0) {
+          // Copy all actions belonging to selected players
+          actionsToCopy = currentPlay.actions.filter((a) =>
+            playersToCopy.some((p) => p.id === a.fromPlayerId)
+          );
+        }
+
+        if (playersToCopy.length > 0 || actionsToCopy.length > 0) {
+          e.preventDefault();
+          copy(playersToCopy, actionsToCopy);
+          toast.success(
+            `Copied ${playersToCopy.length} player(s), ${actionsToCopy.length} action(s)`,
+            { duration: 1500 }
+          );
+        }
+        return;
+      }
+
+      // Paste (Ctrl+V)
+      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        const result = paste();
+        if (result && result.actions.length > 0) {
+          e.preventDefault();
+          // Add pasted actions to the play
+          result.actions.forEach((action) => {
+            addActionToPlay(action);
+          });
+          markDirty();
+        }
+        return;
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [copy, paste]);
 
   // Format last saved time
   const formatLastSaved = useCallback(() => {
@@ -301,29 +363,13 @@ export default function EditorPage() {
             onChange={(e) => setPlayName(e.target.value)}
             className="text-lg font-medium text-foreground bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-primary rounded px-2"
           />
-          {/* Save status indicator */}
-          <div className="flex items-center gap-2">
-            {isSaving && (
-              <Badge variant="secondary" className="text-xs">
-                Saving...
-              </Badge>
-            )}
-            {!isSaving && isDirty && (
-              <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                Unsaved
-              </Badge>
-            )}
-            {!isSaving && !isDirty && formatLastSaved() && (
-              <Badge variant="secondary" className="text-xs">
-                {formatLastSaved()}
-              </Badge>
-            )}
-            {saveError && (
-              <Badge variant="destructive" className="text-xs">
-                Save failed
-              </Badge>
-            )}
-          </div>
+          {/* Save status indicator with offline support */}
+          <SaveStatusBadge
+            isSaving={isSaving}
+            isDirty={isDirty}
+            lastSaved={lastSaved}
+            saveError={saveError}
+          />
           {/* Validation status badge */}
           <ValidationStatusBadge />
         </div>

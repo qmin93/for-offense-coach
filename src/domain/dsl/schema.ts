@@ -312,6 +312,62 @@ export const PlaySchema = z.object({
 });
 
 // ============================================
+// Concept Pack Schemas
+// ============================================
+
+export const ConceptPackMetaSchema = z.object({
+  releaseWeek: z.number().int().positive(),
+  releaseYear: z.number().int().min(2024).max(2100),
+  releaseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  theme: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export const ConceptPackContentSchema = z.object({
+  runConceptIds: z.array(z.string()),
+  passConceptIds: z.array(z.string()),
+  familyIds: z.array(z.string()).optional(),
+});
+
+export const ConceptPackSchema = z.object({
+  schemaVersion: z.string(),
+  type: z.literal("concept_pack"),
+  id: z.string().min(1),
+  name: z.string(),
+  version: z.string().regex(/^\d+\.\d+\.\d+$/), // Semantic versioning
+  meta: ConceptPackMetaSchema,
+  content: ConceptPackContentSchema,
+  isNew: z.boolean().optional(),
+  tags: z.array(z.string()).optional(),
+  changelog: z.array(z.string()).optional(),
+});
+
+export type ValidatedConceptPack = z.infer<typeof ConceptPackSchema>;
+
+export function validateConceptPack(data: unknown) {
+  return ConceptPackSchema.safeParse(data);
+}
+
+// ============================================
+// Plan Tier Schemas
+// ============================================
+
+export const PlanTierSchema = z.enum(["free", "team", "season"]);
+
+export const PlanLimitsSchema = z.object({
+  maxPlays: z.number().int(),
+  maxPlaybooks: z.number().int(),
+  maxExports: z.number().int(),
+  conceptPackAccess: z.enum(["base", "all"]),
+  defensePresets: z.boolean(),
+  customFormations: z.boolean(),
+  shareLinks: z.boolean(),
+  teamFeatures: z.boolean(),
+  installPlan: z.boolean(),
+  advancedExport: z.boolean(),
+});
+
+// ============================================
 // Validation Helpers
 // ============================================
 
