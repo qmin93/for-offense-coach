@@ -3,11 +3,30 @@
 // ============================================
 
 import { prisma } from "./prisma";
-import type { ActivityType } from "@prisma/client";
 
 // ============================================
 // Types
 // ============================================
+
+// Define locally to avoid Prisma client export issues
+export type ActivityType =
+  | "PLAY_CREATED"
+  | "PLAY_UPDATED"
+  | "PLAY_DELETED"
+  | "PLAY_DUPLICATED"
+  | "PLAYBOOK_CREATED"
+  | "PLAYBOOK_UPDATED"
+  | "PLAYBOOK_DELETED"
+  | "PLAY_ADDED_TO_PLAYBOOK"
+  | "PLAY_REMOVED_FROM_PLAYBOOK"
+  | "MEMBER_JOINED"
+  | "MEMBER_LEFT"
+  | "MEMBER_ROLE_CHANGED"
+  | "MEMBER_INVITED"
+  | "SHARE_LINK_CREATED"
+  | "PLAY_FORKED"
+  | "COMMENT_ADDED"
+  | "COMMENT_RESOLVED";
 
 export interface ActivityInput {
   workspaceId: string;

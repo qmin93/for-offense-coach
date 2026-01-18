@@ -3,9 +3,8 @@
 // ============================================
 
 import { NextRequest, NextResponse } from "next/server";
-import { getWorkspaceActivities, getActivitySummary } from "@/lib/activity";
+import { getWorkspaceActivities, getActivitySummary, type ActivityType } from "@/lib/activity";
 import { getUserRole } from "@/lib/permissions";
-import type { ActivityType } from "@prisma/client";
 
 // GET /api/workspaces/[workspaceId]/activities
 export async function GET(

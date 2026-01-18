@@ -11,6 +11,7 @@ import {
   getActivityIcon,
   formatActivityTime,
   type ActivityWithActor,
+  type ActivityType,
 } from "@/lib/activity";
 import {
   Activity,
@@ -33,7 +34,6 @@ import {
   Filter,
   RefreshCw,
 } from "lucide-react";
-import type { ActivityType } from "@prisma/client";
 
 // ============================================
 // Props
