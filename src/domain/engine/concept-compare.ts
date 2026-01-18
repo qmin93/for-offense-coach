@@ -181,8 +181,11 @@ function buildComparedConcept(concept: Concept): ComparedConcept {
     }
   }
 
-  // Add general pros/cons based on complexity
-  const complexity = concept.installDifficulty || 2;
+  // Estimate complexity based on template roles and install focus
+  const roleCount = concept.template?.roles?.length || 0;
+  const hasInstallFocus = concept.installFocus?.failurePoints?.length;
+  const complexity = hasInstallFocus && hasInstallFocus > 2 ? 4 : roleCount > 4 ? 3 : 2;
+
   if (complexity <= 2) {
     pros.push("Easy to install and teach");
   } else if (complexity >= 4) {
