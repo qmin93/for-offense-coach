@@ -7,9 +7,9 @@ import {
   createComment,
   getPlayComments,
   getCommentCount,
+  type CommentStatus,
 } from "@/lib/comments";
 import { canEditPlay } from "@/lib/permissions";
-import type { CommentStatus } from "@prisma/client";
 
 // GET /api/plays/[id]/comments - Get comments for a play
 export async function GET(

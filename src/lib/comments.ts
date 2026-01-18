@@ -4,11 +4,13 @@
 
 import { prisma } from "./prisma";
 import { logActivity } from "./activity";
-import type { CommentStatus } from "@prisma/client";
 
 // ============================================
 // Types
 // ============================================
+
+// Define locally to avoid Prisma client export issues
+export type CommentStatus = "OPEN" | "RESOLVED";
 
 export interface CommentInput {
   playId: string;
