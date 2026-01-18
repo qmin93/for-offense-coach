@@ -98,10 +98,10 @@ export function EmptyStateOverlay() {
             <MousePointerClick className="w-6 h-6 text-blue-600" />
           </div>
           <h3 className="text-lg font-bold text-slate-800 mb-1">
-            플레이를 만들어 보세요
+            Let's create a play
           </h3>
           <p className="text-sm text-slate-500">
-            아래 3단계로 빠르게 완성할 수 있어요
+            Complete in 3 quick steps below
           </p>
         </div>
 
@@ -109,24 +109,24 @@ export function EmptyStateOverlay() {
         <div className="space-y-3 mb-6">
           <Step
             number={1}
-            title="Formation 선택"
-            description="좌측 패널에서 오펜스 포메이션을 선택하세요"
+            title="Select Formation"
+            description="Choose an offense formation from the left panel"
             icon={<LayoutGrid className="w-4 h-4" />}
             direction="left"
             isActive={activeStep === 1}
           />
           <Step
             number={2}
-            title="Concept 추천/선택"
-            description="상황에 맞는 컨셉을 추천받거나 직접 선택하세요"
+            title="Pick a Concept"
+            description="Get recommendations or select a concept directly"
             icon={<Sparkles className="w-4 h-4" />}
             direction="right"
             isActive={activeStep === 2}
           />
           <Step
             number={3}
-            title="조정 & 내보내기"
-            description="루트/블로킹 수정 후 PNG/PDF로 내보내세요"
+            title="Adjust & Export"
+            description="Modify routes/blocks, then export to PNG/PDF"
             icon={<Download className="w-4 h-4" />}
             direction="none"
             isActive={activeStep === 3}
@@ -136,8 +136,8 @@ export function EmptyStateOverlay() {
         {/* CTA hint */}
         <div className="text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm">
-            <span>추천:</span>
-            <span className="font-medium">우측 Suggestions 패널에서 시작</span>
+            <span>Tip:</span>
+            <span className="font-medium">Start from the Suggestions panel on the right</span>
             <ArrowRight className="w-4 h-4" />
           </div>
         </div>
