@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Oswald:wght@500;600;700&display=swap');
 
 @import "tailwindcss";
 @import "../styles/theme.css";
@@ -17,13 +17,23 @@ html {
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Oswald', system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
 .font-mono {
   font-family: 'JetBrains Mono', monospace;
+}
+
+.font-display {
+  font-family: 'Oswald', system-ui, sans-serif;
 }
 
 /* Component styles */
@@ -34,12 +44,39 @@ body {
   border-radius: var(--radius);
 }
 
+/* Panel System */
+.panel {
+  background: var(--gradient-panel);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+.panel-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid hsl(var(--border));
+  font-family: 'Oswald', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Glow Effects */
 .glow-primary {
   box-shadow: 0 0 40px -10px hsl(var(--primary) / 0.4);
 }
 
 .glow-secondary {
   box-shadow: 0 0 40px -10px hsl(var(--accent) / 0.4);
+}
+
+.glow-accent {
+  box-shadow: 0 0 20px hsl(var(--accent) / 0.3), 0 0 40px hsl(var(--accent) / 0.1);
+}
+
+.glow-text {
+  text-shadow: 0 0 10px hsl(var(--accent) / 0.5);
 }
 
 .gradient-border {
@@ -69,14 +106,61 @@ body {
   background-clip: text;
 }
 
+/* Field Canvas */
+.field-canvas {
+  background: linear-gradient(180deg, hsl(var(--field)) 0%, hsl(var(--field-dark)) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.field-line {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.field-line-bold {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.5);
+}
+
 /* Field gradient for SVG background */
 .field-gradient {
   background: linear-gradient(
     180deg,
-    hsl(142 50% 28%) 0%,
-    hsl(142 50% 25%) 50%,
-    hsl(142 50% 22%) 100%
+    hsl(140 45% 22%) 0%,
+    hsl(140 50% 16%) 100%
   );
+}
+
+/* Player Node Styles */
+.player-offense {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border-width: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-color: hsl(var(--offense));
+  background: hsl(var(--offense) / 0.2);
+  color: hsl(var(--offense));
+}
+
+.player-defense {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border-width: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 0.2);
+  color: hsl(var(--destructive));
 }
 
 /* Floating animation */
@@ -115,8 +199,12 @@ body {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%, 100% {
+    box-shadow: 0 0 20px hsl(var(--accent) / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px hsl(var(--accent) / 0.5);
+  }
 }
 
 /* Draw route animation for SVG paths */
@@ -133,6 +221,36 @@ body {
   }
 }
 
+/* Draw line animation */
+.animate-draw-line {
+  animation: draw-line 0.8s ease-out forwards;
+}
+
+@keyframes draw-line {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Fade in animation */
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Fade in up animation */
 .animate-fade-in-up {
   animation: fade-in-up 0.6s ease-out forwards;
@@ -146,6 +264,37 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Slide in animations */
+.animate-slide-in-left {
+  animation: slide-in-left 0.5s ease-out forwards;
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s ease-out forwards;
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -199,4 +348,9 @@ body {
 
 .player-node.selected {
   filter: drop-shadow(0 0 4px hsl(var(--primary)));
+}
+
+/* Utility classes */
+.text-balance {
+  text-wrap: balance;
 }
