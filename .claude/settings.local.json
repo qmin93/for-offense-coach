@@ -32,7 +32,12 @@
       "Bash(vercel --version:*)",
       "Bash(vercel --yes:*)",
       "Bash(vercel --prod --yes:*)",
-      "Bash(npx playwright test:*)"
+      "Bash(npx playwright test:*)",
+      "Bash(ls:*)",
+      "Bash(npx tsx:*)",
+      "Bash(git clone:*)",
+      "Bash(find:*)",
+      "Bash(npm ls:*)"
     ]
   }
 }

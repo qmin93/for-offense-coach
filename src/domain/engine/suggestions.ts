@@ -1019,6 +1019,9 @@ function scoreReason(reason: RecommendationReason): number {
     angle: 30,
     surface: 25,
     structure: 20,
+    formation_fit: 18,
+    defense_fit: 16,
+    team_fit: 14,
     situational: 10,
   };
   score += typePriority[reason.type] || 0;

@@ -245,16 +245,28 @@ export default function EditorPage() {
     (context: PreContext) => {
       initializeContext(context);
       initPlay(); // Initialize empty play after context is set
-
-      // After play is created, sync context to play.meta and apply defense
-      // Use setTimeout to ensure play state is updated
-      setTimeout(() => {
-        syncContextToPlay();
-        applyContextDefense();
-      }, 0);
+      // Defense application is now handled by useEffect below
     },
-    [initializeContext, initPlay, syncContextToPlay, applyContextDefense]
+    [initializeContext, initPlay]
   );
+
+  // Apply defense preset after new play is initialized with context
+  // This ensures play exists before applying defense
+  const hasAppliedDefenseForNewPlay = useRef(false);
+  useEffect(() => {
+    if (
+      playId === "new" &&
+      hasCompletedPreContext &&
+      play &&
+      !hasAppliedDefenseForNewPlay.current
+    ) {
+      hasAppliedDefenseForNewPlay.current = true;
+      // Sync context to play.meta first
+      syncContextToPlay();
+      // Then apply defense preset based on context
+      applyContextDefense();
+    }
+  }, [playId, hasCompletedPreContext, play, syncContextToPlay, applyContextDefense]);
 
   // Hard Onboarding concept selection handler
   const handleOnboardingConceptSelect = useCallback(

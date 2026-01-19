@@ -159,11 +159,15 @@ export const DEFAULT_SUGGESTION_CONTEXT: SuggestionContext = {
 // Enhanced Suggestion Result (for UI)
 // ============================================
 
+import type { ScoreBreakdown, ContextSnapshot } from "../dsl/types";
+
 export interface EnhancedSuggestionResult {
   conceptId: string;
   name: string;
   conceptType: "pass" | "run";
   score: number;
+  breakdown?: ScoreBreakdown; // Detailed score breakdown by category
+  contextUsed?: ContextSnapshot; // Context that was used for scoring
   fit: {
     numbers?: string;
     front?: string;

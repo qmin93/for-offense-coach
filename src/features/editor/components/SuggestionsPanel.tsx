@@ -14,6 +14,7 @@ import {
   DEFAULT_SUGGESTION_CONTEXT,
 } from "@/domain/engine/suggestion-context";
 import { ContextSummaryPanel } from "./ContextSummaryPanel";
+import { ContextImpactStrip } from "./ContextImpactStrip";
 import { QuickSituationCards, type QuickSituation } from "./QuickSituationCards";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +27,7 @@ import { getDefensePresetById } from "@/domain/engine/defense-presets";
 import { telemetry, setLastAutobuildContext } from "@/lib/telemetry";
 import { NewPackBanner, ConceptPackIndicator } from "@/components/ui/concept-pack-badge";
 import { getNewConceptPacks, getLatestPack } from "@/domain/engine/concept-packs";
+import { ExplainDrawer } from "./ExplainDrawer";
 
 export function SuggestionsPanel() {
   const {
@@ -246,6 +248,9 @@ export function SuggestionsPanel() {
           />
         </div>
       )}
+
+      {/* Context Impact Strip (shows current context as chips) */}
+      <ContextImpactStrip />
 
       {/* Quick Situation Cards */}
       <div className="px-3 pt-3 pb-2 border-b">
@@ -486,7 +491,7 @@ function EnhancedConceptCard({
           )}
         </div>
 
-        {/* Typed Reasons with Details (추천 신뢰 강화) */}
+        {/* Typed Reasons with Details + Points (추천 신뢰 강화) */}
         {result.typedReasons && result.typedReasons.length > 0 && (
           <div className="space-y-1.5 mb-2 border rounded-lg p-2 bg-slate-50 dark:bg-slate-900/50">
             <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
@@ -499,9 +504,24 @@ function EnhancedConceptCard({
                     {reason.favorable ? "✓" : "○"}
                   </span>
                   <div className="flex-1">
-                    <span className={`font-medium ${reason.favorable ? "text-green-700 dark:text-green-400" : "text-amber-700 dark:text-amber-400"}`}>
-                      {reason.text}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`font-medium ${reason.favorable ? "text-green-700 dark:text-green-400" : "text-amber-700 dark:text-amber-400"}`}>
+                        {reason.text}
+                      </span>
+                      {/* Points badge */}
+                      {reason.points !== undefined && reason.points !== 0 && (
+                        <Badge
+                          variant="outline"
+                          className={`text-[9px] px-1 py-0 h-4 font-semibold ${
+                            reason.points > 0
+                              ? "bg-green-100 text-green-700 border-green-300"
+                              : "bg-red-100 text-red-700 border-red-300"
+                          }`}
+                        >
+                          {reason.points > 0 ? "+" : ""}{reason.points}
+                        </Badge>
+                      )}
+                    </div>
                     {reason.details && (
                       <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
                         {reason.details}
@@ -514,6 +534,19 @@ function EnhancedConceptCard({
                 </div>
               </div>
             ))}
+            {/* Explain Drawer (collapsible detail view) */}
+            {(result.breakdown || result.typedReasons.length > 3) && (
+              <div className="pt-1 border-t border-slate-200 dark:border-slate-700 mt-1">
+                <ExplainDrawer
+                  conceptId={conceptId}
+                  conceptName={name}
+                  score={score}
+                  breakdown={result.breakdown}
+                  reasons={result.typedReasons}
+                  contextUsed={result.contextUsed}
+                />
+              </div>
+            )}
           </div>
         )}
 

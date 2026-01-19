@@ -829,18 +829,68 @@ export interface ConceptFamily {
 // Recommendation Reason Types (추천 신뢰 강화)
 // ============================================
 
-export type ReasonType = "numbers" | "angle" | "surface" | "structure" | "coverage" | "situational";
+export type ReasonType =
+  | "numbers"
+  | "angle"
+  | "surface"
+  | "structure"
+  | "coverage"
+  | "situational"
+  | "formation_fit"
+  | "defense_fit"
+  | "team_fit";
+
+export type ReasonSource = "context" | "teamProfile" | "formation" | "concept";
 
 export interface RecommendationReason {
   type: ReasonType;
   text: string;
   favorable: boolean; // true = 이 이유로 추천됨, false = 주의 사항
   details?: string;
+  points?: number; // 점수 기여 (양수 = 가점, 음수 = 감점)
+  source?: ReasonSource; // 이 이유의 출처
+  key?: string; // dedup key for merging similar reasons
+}
+
+// ============================================
+// Score Breakdown Types (점수 카테고리별 분해)
+// ============================================
+
+export interface ScoreBreakdown {
+  base: number; // 컨셉 기본 점수
+  context: number; // 프리컨텍스트 영향
+  defense: number; // box/front/shell 영향
+  situation: number; // down/distance/hash/zone 영향
+  formation: number; // 현재 포메이션 fit
+  team: number; // 팀프로필 fit
+  penalties: number; // 제약 위반/리스크
+}
+
+export interface RecommendationResult {
+  conceptId: string;
+  score: number; // total score
+  breakdown?: ScoreBreakdown; // detailed score breakdown
+  reasons: RecommendationReason[]; // positive + negative 모두
+  warnings?: string[];
+  contextUsed?: ContextSnapshot; // 디버깅/텔레메트리용
+}
+
+// Context snapshot for telemetry/debugging
+export interface ContextSnapshot {
+  playType?: string;
+  boxCount?: number | string;
+  front?: string;
+  shell?: string;
+  down?: number | string;
+  distance?: string;
+  hash?: string;
+  formationId?: string;
 }
 
 export interface SuggestionWithReasons {
   conceptId: string;
   score: number;
+  breakdown?: ScoreBreakdown; // detailed score breakdown
   reasons: RecommendationReason[]; // 최소 3개 보장
   warnings?: RecommendationReason[]; // 주의 사항
   category: string;

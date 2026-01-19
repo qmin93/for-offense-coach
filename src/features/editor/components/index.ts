@@ -19,3 +19,5 @@ export * from "./PreContextScreen";
 export * from "./EmptyStateOverlay";
 export * from "./ConceptComparePanel";
 export * from "./SaveStatusBadge";
+export * from "./ContextImpactStrip";
+export * from "./ExplainDrawer";

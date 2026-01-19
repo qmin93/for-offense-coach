@@ -23,6 +23,10 @@ export type TelemetryEventName =
   | "suggestions_opened"
   | "concept_clicked"
   | "why_viewed"
+  // Recommendation Explainability (Context Impact)
+  | "reco_context_strip_shown"
+  | "reco_explain_opened"
+  | "reco_reason_clicked"
   // Formation Recommendations
   | "formation_reco_shown"
   | "formation_reco_selected"
@@ -111,6 +115,43 @@ export interface WhyViewedPayload {
   conceptId: string;
   reasonCount: number;
   expandedTimeMs?: number;
+}
+
+// Recommendation Explainability (Context Impact)
+export interface RecoContextStripShownPayload {
+  playType: string;
+  boxCount: number | string;
+  front: string;
+  down: string | number;
+  distance: string;
+  hash: string;
+  chipCount: number;
+}
+
+export interface RecoExplainOpenedPayload {
+  conceptId: string;
+  score: number;
+  topReasons: Array<{
+    type: string;
+    text: string;
+    points?: number;
+  }>;
+  contextSnapshot?: {
+    playType?: string;
+    boxCount?: number | string;
+    front?: string;
+    shell?: string;
+    down?: number | string;
+    distance?: string;
+    hash?: string;
+  };
+}
+
+export interface RecoReasonClickedPayload {
+  conceptId: string;
+  reasonType: string;
+  points?: number;
+  source?: string;
 }
 
 // Formation Recommendations
@@ -272,6 +313,10 @@ export interface TelemetryEventPayloads {
   suggestions_opened: SuggestionsOpenedPayload;
   concept_clicked: ConceptClickedPayload;
   why_viewed: WhyViewedPayload;
+  // Recommendation Explainability
+  reco_context_strip_shown: RecoContextStripShownPayload;
+  reco_explain_opened: RecoExplainOpenedPayload;
+  reco_reason_clicked: RecoReasonClickedPayload;
   // Formation Recommendations
   formation_reco_shown: FormationRecoShownPayload;
   formation_reco_selected: FormationRecoSelectedPayload;
