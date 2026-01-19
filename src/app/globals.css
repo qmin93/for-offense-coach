@@ -5,6 +5,18 @@
 
 @plugin "tailwindcss-animate";
 
+/* ============================================
+ * Tailwind v4 Theme - Brand Blue Colors
+ * Single source of truth for app-wide button colors
+ * Change these values to rebrand all buttons
+ * ============================================ */
+@theme {
+  --color-brand-blue: hsl(217 91% 56%);
+  --color-brand-blue-hover: hsl(217 91% 50%);
+  --color-brand-blue-soft: hsl(217 91% 96%);
+  --color-brand-blue-muted: hsl(217 60% 25%);
+}
+
 /* Base styles */
 * {
   border-color: hsl(var(--border));
