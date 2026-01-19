@@ -53,7 +53,7 @@ export function ContextImpactStrip({ onAdjust }: ContextImpactStripProps) {
   const chips = useMemo<ContextChip[]>(() => {
     const result: ContextChip[] = [];
 
-    // Play Type chip (always shown)
+    // Play Type chip (always shown) - primary accent blue
     const playTypeLabel = activeContext.playType.toUpperCase();
     result.push({
       id: "playType",
@@ -66,15 +66,10 @@ export function ContextImpactStrip({ onAdjust }: ContextImpactStripProps) {
           : activeContext.playType === "pass"
           ? "Filters to pass concepts. Coverage shell strongly affects recommendations."
           : "Shows RPO concepts. Both run fit and pass coverage are considered.",
-      color:
-        activeContext.playType === "run"
-          ? "bg-green-100 text-green-700 border-green-300"
-          : activeContext.playType === "pass"
-          ? "bg-blue-100 text-blue-700 border-blue-300"
-          : "bg-purple-100 text-purple-700 border-purple-300",
+      color: "bg-blue-50 text-blue-700 border-blue-200",
     });
 
-    // Box Count chip (if not unknown)
+    // Box Count chip (if not unknown) - muted slate
     if (activeContext.boxCount !== "unknown") {
       result.push({
         id: "boxCount",
@@ -88,11 +83,11 @@ export function ContextImpactStrip({ onAdjust }: ContextImpactStripProps) {
             ? "Light box favors inside runs."
             : "Balanced box - all concepts viable."
         }`,
-        color: "bg-red-100 text-red-700 border-red-300",
+        color: "bg-slate-100 text-slate-600 border-slate-200",
       });
     }
 
-    // Front chip (if not unknown)
+    // Front chip (if not unknown) - muted slate
     if (activeContext.front !== "unknown") {
       const frontLabel = activeContext.front.charAt(0).toUpperCase() + activeContext.front.slice(1);
       result.push({
@@ -101,11 +96,11 @@ export function ContextImpactStrip({ onAdjust }: ContextImpactStripProps) {
         value: frontLabel,
         type: "defense",
         impact: getFrontImpact(activeContext.front),
-        color: "bg-red-100 text-red-700 border-red-300",
+        color: "bg-slate-100 text-slate-600 border-slate-200",
       });
     }
 
-    // Shell chip (if not unknown)
+    // Shell chip (if not unknown) - muted slate
     if (activeContext.shell !== "unknown") {
       const shellLabel = activeContext.shell === "1high" ? "1-High" : "2-High";
       result.push({
@@ -117,11 +112,11 @@ export function ContextImpactStrip({ onAdjust }: ContextImpactStripProps) {
           activeContext.shell === "1high"
             ? "Single-high safety. Seam routes and corners are more effective."
             : "Two-high safety. Middle of field routes and quick game are better.",
-        color: "bg-red-100 text-red-700 border-red-300",
+        color: "bg-slate-100 text-slate-600 border-slate-200",
       });
     }
 
-    // Down chip (if set)
+    // Down chip (if set) - muted slate
     if (activeContext.situation.down !== "-") {
       result.push({
         id: "down",
@@ -129,11 +124,11 @@ export function ContextImpactStrip({ onAdjust }: ContextImpactStripProps) {
         value: `${activeContext.situation.down}`,
         type: "situation",
         impact: getDownImpact(activeContext.situation.down),
-        color: "bg-amber-100 text-amber-700 border-amber-300",
+        color: "bg-slate-100 text-slate-600 border-slate-200",
       });
     }
 
-    // Distance chip (if set)
+    // Distance chip (if set) - muted slate
     if (activeContext.situation.distance !== "-") {
       result.push({
         id: "distance",
@@ -141,11 +136,11 @@ export function ContextImpactStrip({ onAdjust }: ContextImpactStripProps) {
         value: `${activeContext.situation.distance}`,
         type: "situation",
         impact: getDistanceImpact(activeContext.situation.distance),
-        color: "bg-amber-100 text-amber-700 border-amber-300",
+        color: "bg-slate-100 text-slate-600 border-slate-200",
       });
     }
 
-    // Hash chip (if set)
+    // Hash chip (if set) - muted slate
     if (activeContext.situation.hash !== "-") {
       const hashLabel =
         activeContext.situation.hash === "L"
@@ -159,7 +154,7 @@ export function ContextImpactStrip({ onAdjust }: ContextImpactStripProps) {
         value: hashLabel,
         type: "hash",
         impact: getHashImpact(activeContext.situation.hash),
-        color: "bg-slate-100 text-slate-700 border-slate-300",
+        color: "bg-slate-100 text-slate-600 border-slate-200",
       });
     }
 
@@ -194,10 +189,10 @@ export function ContextImpactStrip({ onAdjust }: ContextImpactStripProps) {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border-b">
+      <div className="px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
         {/* Header row */}
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">
             Context Impact
           </span>
           <div className="flex items-center gap-1">
@@ -205,7 +200,7 @@ export function ContextImpactStrip({ onAdjust }: ContextImpactStripProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-5 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
+                className="h-5 px-1.5 text-[10px] text-slate-500 hover:text-slate-700"
                 onClick={onAdjust}
               >
                 <Settings2 className="w-3 h-3 mr-0.5" />
@@ -215,7 +210,7 @@ export function ContextImpactStrip({ onAdjust }: ContextImpactStripProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="h-5 w-5 p-0"
+              className="h-5 w-5 p-0 text-slate-500 hover:text-slate-700"
               onClick={() => setIsExpanded(!isExpanded)}
             >
               {isExpanded ? (
@@ -247,7 +242,7 @@ export function ContextImpactStrip({ onAdjust }: ContextImpactStripProps) {
             </Tooltip>
           ))}
           {chips.length <= 1 && (
-            <span className="text-[10px] text-muted-foreground italic">
+            <span className="text-[10px] text-slate-400 italic">
               Add context for better recommendations
             </span>
           )}
@@ -258,11 +253,11 @@ export function ContextImpactStrip({ onAdjust }: ContextImpactStripProps) {
           <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 space-y-1.5">
             {chips.slice(1).map((chip) => (
               <div key={chip.id} className="text-[10px]">
-                <div className="flex items-center gap-1 text-foreground font-medium">
+                <div className="flex items-center gap-1 text-slate-700 dark:text-slate-300 font-medium">
                   {getIcon(chip.type)}
                   <span>{chip.label}: {chip.value}</span>
                 </div>
-                <p className="text-muted-foreground pl-4 leading-snug">
+                <p className="text-slate-500 pl-4 leading-snug">
                   {chip.impact}
                 </p>
               </div>

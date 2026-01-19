@@ -81,31 +81,30 @@ export function ExplainDrawer({
       </CollapsibleTrigger>
 
       <CollapsibleContent className="mt-2">
-        <div className="border rounded-lg p-3 bg-slate-50 dark:bg-slate-900/50 space-y-3">
+        <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-3 bg-slate-50 dark:bg-slate-900/50 space-y-3">
           {/* Score Summary */}
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground">
+            <span className="text-xs font-semibold text-slate-500">
               Score Breakdown
             </span>
-            <Badge variant="outline" className="text-xs font-bold">
+            <Badge variant="outline" className="text-xs font-bold bg-slate-50 text-slate-700 border-slate-200">
               Total: {score}
             </Badge>
           </div>
 
-          {/* Score Breakdown Table */}
+          {/* Score Breakdown Table - unified slate color */}
           {breakdown && (
             <div className="space-y-1.5">
-              <ScoreRow label="Base (Concept)" value={breakdown.base} color="slate" />
-              <ScoreRow label="Context (Pre-Context)" value={breakdown.context} color="blue" />
-              <ScoreRow label="Defense (Box/Front/Shell)" value={breakdown.defense} color="red" />
-              <ScoreRow label="Situation (Down/Distance)" value={breakdown.situation} color="amber" />
-              <ScoreRow label="Formation Fit" value={breakdown.formation} color="green" />
-              <ScoreRow label="Team Profile" value={breakdown.team} color="purple" />
+              <ScoreRow label="Base (Concept)" value={breakdown.base} />
+              <ScoreRow label="Context (Pre-Context)" value={breakdown.context} />
+              <ScoreRow label="Defense (Box/Front/Shell)" value={breakdown.defense} />
+              <ScoreRow label="Situation (Down/Distance)" value={breakdown.situation} />
+              <ScoreRow label="Formation Fit" value={breakdown.formation} />
+              <ScoreRow label="Team Profile" value={breakdown.team} />
               {breakdown.penalties !== 0 && (
                 <ScoreRow
                   label="Penalties/Risk"
                   value={breakdown.penalties}
-                  color="red"
                   isNegative
                 />
               )}
@@ -114,8 +113,8 @@ export function ExplainDrawer({
 
           {/* Context Factors */}
           {contextUsed && Object.keys(contextUsed).length > 0 && (
-            <div className="border-t pt-2">
-              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+            <div className="border-t border-slate-200 dark:border-slate-700 pt-2">
+              <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
                 Context Factors Used
               </div>
               <div className="flex flex-wrap gap-1">
@@ -146,8 +145,8 @@ export function ExplainDrawer({
 
           {/* All Reasons (expanded view) */}
           {reasons.length > 3 && (
-            <div className="border-t pt-2">
-              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+            <div className="border-t border-slate-200 dark:border-slate-700 pt-2">
+              <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
                 All Factors ({reasons.length})
               </div>
               <div className="space-y-1">
@@ -181,28 +180,18 @@ export function ExplainDrawer({
 interface ScoreRowProps {
   label: string;
   value: number;
-  color: "slate" | "blue" | "red" | "amber" | "green" | "purple";
   isNegative?: boolean;
 }
 
-function ScoreRow({ label, value, color, isNegative }: ScoreRowProps) {
+function ScoreRow({ label, value, isNegative }: ScoreRowProps) {
   if (value === 0) return null;
-
-  const colorClasses = {
-    slate: "bg-slate-200 dark:bg-slate-700",
-    blue: "bg-blue-200 dark:bg-blue-800",
-    red: "bg-red-200 dark:bg-red-800",
-    amber: "bg-amber-200 dark:bg-amber-800",
-    green: "bg-green-200 dark:bg-green-800",
-    purple: "bg-purple-200 dark:bg-purple-800",
-  };
 
   return (
     <div className="flex items-center gap-2 text-[10px]">
       <span className="text-muted-foreground w-28 truncate">{label}</span>
-      <div className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
         <div
-          className={`h-full ${colorClasses[color]} rounded-full`}
+          className="h-full bg-slate-400 dark:bg-slate-500 rounded-full"
           style={{ width: `${Math.min(Math.abs(value) * 2, 100)}%` }}
         />
       </div>
@@ -210,8 +199,8 @@ function ScoreRow({ label, value, color, isNegative }: ScoreRowProps) {
         variant="outline"
         className={`text-[9px] px-1 py-0 h-4 font-semibold min-w-[28px] justify-center ${
           value > 0
-            ? "bg-green-100 text-green-700 border-green-300"
-            : "bg-red-100 text-red-700 border-red-300"
+            ? "bg-slate-50 text-slate-700 border-slate-200"
+            : "bg-red-50 text-red-600 border-red-200"
         }`}
       >
         {value > 0 ? "+" : ""}{value}
@@ -227,9 +216,9 @@ interface ContextFactorProps {
 
 function ContextFactor({ label, value }: ContextFactorProps) {
   return (
-    <Badge variant="outline" className="text-[9px] px-1.5 py-0.5 bg-white dark:bg-slate-800">
-      <span className="text-muted-foreground">{label}:</span>{" "}
-      <span className="font-medium">{value}</span>
+    <Badge variant="outline" className="text-[9px] px-1.5 py-0.5 bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+      <span className="text-slate-500">{label}:</span>{" "}
+      <span className="font-medium text-slate-700 dark:text-slate-300">{value}</span>
     </Badge>
   );
 }
@@ -245,23 +234,23 @@ function ReasonRow({ reason, onClick }: ReasonRowProps) {
       onClick={onClick}
       className="w-full flex items-start gap-1.5 text-[10px] text-left hover:bg-slate-100 dark:hover:bg-slate-800 rounded p-1 -m-1 transition-colors"
     >
-      <span className={reason.favorable ? "text-green-500" : "text-red-500"}>
+      <span className={reason.favorable ? "text-slate-500" : "text-red-400"}>
         {reason.favorable ? "+" : "-"}
       </span>
-      <span className="flex-1 text-foreground">{reason.text}</span>
+      <span className="flex-1 text-slate-700 dark:text-slate-300">{reason.text}</span>
       {reason.points !== undefined && reason.points !== 0 && (
         <Badge
           variant="outline"
           className={`text-[8px] px-1 py-0 h-3.5 ${
             reason.points > 0
-              ? "bg-green-100 text-green-700"
-              : "bg-red-100 text-red-700"
+              ? "bg-slate-50 text-slate-600 border-slate-200"
+              : "bg-red-50 text-red-600 border-red-200"
           }`}
         >
           {reason.points > 0 ? "+" : ""}{reason.points}
         </Badge>
       )}
-      <span className="text-[8px] text-muted-foreground uppercase">
+      <span className="text-[8px] text-slate-400 uppercase">
         {reason.source || reason.type}
       </span>
     </button>
