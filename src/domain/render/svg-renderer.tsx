@@ -849,8 +849,8 @@ function LandmarkNode({ action }: LandmarkNodeProps) {
         cx={pos.x}
         cy={pos.y}
         r={6}
-        fill={#EF4444}
-        stroke={#ffffff}
+        fill="#EF4444"
+        stroke="#ffffff"
         strokeWidth={2}
       />
       {action.landmark.label && (
@@ -858,7 +858,7 @@ function LandmarkNode({ action }: LandmarkNodeProps) {
           x={pos.x}
           y={pos.y - 12}
           textAnchor="middle"
-          fill={#374151}
+          fill="#374151"
           fontSize={10}
           fontWeight="bold"
         >
@@ -885,7 +885,7 @@ function TextNode({ action }: TextNodeProps) {
       <text
         x={pos.x}
         y={pos.y}
-        fill={#374151}
+        fill="#374151"
         fontSize={12}
         fontWeight="500"
       >
@@ -940,7 +940,7 @@ function DefenseTechLabelOverlay({ players, labelVisibility }: DefenseTechLabelO
               width={24}
               height={14}
               rx={7}
-              fill={#ffffff}
+              fill="#ffffff"
               stroke={DEFENSE_COLOR}
               strokeWidth={1.5}
               opacity={0.95}
@@ -1011,7 +1011,7 @@ function FieldLandmarkOverlay({
                 width={28}
                 height={20}
                 rx={10}
-                fill={isHighlighted ? color : #ffffff}
+                fill={isHighlighted ? color : "#ffffff"}
                 stroke={color}
                 strokeWidth={isHighlighted ? 3 : 2}
                 opacity={0.95}
@@ -1021,7 +1021,7 @@ function FieldLandmarkOverlay({
                 x={pos.x}
                 y={pos.y + 4}
                 textAnchor="middle"
-                fill={isHighlighted ? white : color}
+                fill={isHighlighted ? "#ffffff" : color}
                 fontSize={12}
                 fontWeight="bold"
               >
@@ -1033,7 +1033,7 @@ function FieldLandmarkOverlay({
                   x={pos.x}
                   y={pos.y + 22}
                   textAnchor="middle"
-                  fill={#6B7280}
+                  fill="#6B7280"
                   fontSize={8}
                 >
                   {landmark.side === "strong" ? "S" : "W"}
@@ -1059,7 +1059,7 @@ function FieldLandmarkOverlay({
                 ${pos.x},${pos.y + 12}
                 ${pos.x - 10},${pos.y}
               `}
-              fill={isHighlighted ? color : #ffffff}
+              fill={isHighlighted ? color : "#ffffff"}
               stroke={color}
               strokeWidth={isHighlighted ? 3 : 2}
               opacity={0.95}
@@ -1080,7 +1080,7 @@ function FieldLandmarkOverlay({
               x={pos.x}
               y={pos.y + 4}
               textAnchor="middle"
-              fill={isHighlighted ? white : color}
+              fill={isHighlighted ? "#ffffff" : color}
               fontSize={8}
               fontWeight="bold"
             >
@@ -1121,8 +1121,8 @@ function TechLegend() {
         width={88}
         height={80}
         rx={4}
-        fill={rgba(15,23,42,0.85)}
-        stroke={rgba(148,163,184,0.3)}
+        fill="rgba(15,23,42,0.85)"
+        stroke="rgba(148,163,184,0.3)"
         strokeWidth={0.5}
       />
       {/* Title */}
@@ -1131,7 +1131,7 @@ function TechLegend() {
         y={startY}
         fontSize={8}
         fontWeight="bold"
-        fill={#94A3B8}
+        fill="#94A3B8"
       >
         Tech Legend
       </text>
@@ -1142,10 +1142,10 @@ function TechLegend() {
           x={startX}
           y={startY + 12 + i * lineHeight}
           fontSize={7}
-          fill={#94A3B8}
+          fill="#94A3B8"
         >
-          <tspan fontWeight="bold" fill={#374151}>{item.label}</tspan>
-          <tspan fill={#6B7280}> = </tspan>
+          <tspan fontWeight="bold" fill="#374151">{item.label}</tspan>
+          <tspan fill="#6B7280"> = </tspan>
           <tspan>{item.desc}</tspan>
         </text>
       ))}
