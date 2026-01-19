@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import {
   MousePointer2,
@@ -13,7 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { HeroField, FeatureCard, UseCaseCard, InteractiveDemo } from "@/components/landing";
+import { HeroField, FeatureCard, UseCaseCard, InteractiveDemo, DemoModal } from "@/components/landing";
 
 // ============================================
 // Feature data
@@ -75,8 +76,14 @@ const useCases = [
 // ============================================
 
 export default function Home() {
+  const [demoOpen, setDemoOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-background">
+      {/* Demo Modal - wrapped in Suspense for useSearchParams */}
+      <Suspense fallback={null}>
+        <DemoModal open={demoOpen} onOpenChange={setDemoOpen} />
+      </Suspense>
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 glass-panel border-0 border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -127,7 +134,12 @@ export default function Home() {
                     <ArrowRight className="w-5 h-5" />
                   </Button>
                 </Link>
-                <Button variant="secondary" size="xl" className="group">
+                <Button
+                  variant="secondary"
+                  size="xl"
+                  className="group"
+                  onClick={() => setDemoOpen(true)}
+                >
                   <Play className="w-5 h-5" />
                   Watch Demo
                 </Button>
