@@ -43,9 +43,17 @@ function FormationCard({
 }: FormationCardProps) {
   const [showDetails, setShowDetails] = useState(false);
 
-  // Extract personnel info
-  const personnelCode = formation.meta?.personnelHint?.join("") || "11";
+  // Extract personnel info - format as coach-friendly "11P", "12P", "21P"
+  const primaryPersonnel = formation.meta?.personnelHint?.[0] || "11";
+  const personnelBadge = `${primaryPersonnel}P`;
   const structure = formation.meta?.structure || "pro";
+
+  // Get structure badge (2x2, 3x1, etc.)
+  const structureBadge = formation.meta?.structure === "3x1" ? "3x1" :
+    formation.meta?.structure === "bunch" ? "3x1" :
+    formation.meta?.structure === "2x2" ? "2x2" :
+    formation.meta?.structure === "empty" ? "5x0" :
+    formation.meta?.structure === "I" ? "2x1" : "2x2";
 
   // Structure color mapping
   const structureColors: Record<string, string> = {
@@ -78,13 +86,14 @@ function FormationCard({
           <div className="flex items-center gap-3">
             <div
               className={cn(
-                "w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold",
+                "w-10 h-10 rounded-lg flex flex-col items-center justify-center",
                 isSelected
                   ? "bg-primary/20 text-primary"
                   : "bg-slate-100 text-slate-600"
               )}
             >
-              {personnelCode}
+              <span className="text-sm font-bold">{personnelBadge}</span>
+              <span className="text-[9px] text-slate-400">{structureBadge}</span>
             </div>
 
             {/* Formation info */}

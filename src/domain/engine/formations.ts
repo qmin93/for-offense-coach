@@ -37,9 +37,9 @@ export const FORMATIONS: Formation[] = [
         // X/Z: ON LOS (wide receivers)
         { id: "p_x", role: "X", label: "X", alignment: { x: 0.1, y: 0, splitPreset: "wide", onLOS: true, depthYards: 0 } },
         { id: "p_z", role: "Z", label: "Z", alignment: { x: 0.9, y: 0, splitPreset: "wide", onLOS: true, depthYards: 0 } },
-        // H/Y: OFF LOS (0.5 yards back - slot receivers)
-        { id: "p_h", role: "H", label: "H", alignment: { x: 0.25, y: -0.01, splitPreset: "slot", onLOS: false, depthYards: 0.5 } },
-        { id: "p_y", role: "Y", label: "Y", alignment: { x: 0.75, y: -0.01, splitPreset: "slot", onLOS: false, depthYards: 0.5 } },
+        // H/Y: OFF LOS (1 yard back - slot receivers, ensures valid LOS spacing)
+        { id: "p_h", role: "H", label: "H", alignment: { x: 0.22, y: -0.02, splitPreset: "slot", onLOS: false, depthYards: 1.0 } },
+        { id: "p_y", role: "Y", label: "Y", alignment: { x: 0.78, y: -0.02, splitPreset: "slot", onLOS: false, depthYards: 1.0 } },
       ],
       snapRules: {
         olSpacingPreset: "standard",
@@ -80,9 +80,9 @@ export const FORMATIONS: Formation[] = [
         { id: "p_x", role: "X", label: "X", alignment: { x: 0.1, y: 0, splitPreset: "wide", onLOS: true, depthYards: 0 } },
         // Z: ON LOS (trips side outside)
         { id: "p_z", role: "Z", label: "Z", alignment: { x: 0.9, y: 0, splitPreset: "wide", onLOS: true, depthYards: 0 } },
-        // Y/H: OFF LOS (trips side inside slots)
-        { id: "p_y", role: "Y", label: "Y", alignment: { x: 0.75, y: -0.01, splitPreset: "slot", onLOS: false, depthYards: 0.5 } },
-        { id: "p_h", role: "H", label: "H", alignment: { x: 0.82, y: -0.01, splitPreset: "slot", onLOS: false, depthYards: 0.5 } },
+        // Y/H: OFF LOS (trips side inside slots, 1 yard depth for valid LOS)
+        { id: "p_y", role: "Y", label: "Y", alignment: { x: 0.75, y: -0.02, splitPreset: "slot", onLOS: false, depthYards: 1.0 } },
+        { id: "p_h", role: "H", label: "H", alignment: { x: 0.82, y: -0.02, splitPreset: "slot", onLOS: false, depthYards: 1.0 } },
       ],
       snapRules: {
         olSpacingPreset: "standard",
@@ -116,9 +116,9 @@ export const FORMATIONS: Formation[] = [
         { id: "p_rt", role: "RT", label: "RT", alignment: { x: 0.62, y: 0, onLOS: true } },
         // X: ON LOS (trips side outside)
         { id: "p_x", role: "X", label: "X", alignment: { x: 0.1, y: 0, splitPreset: "wide", onLOS: true, depthYards: 0 } },
-        // H/Y: OFF LOS (trips side inside slots)
-        { id: "p_h", role: "H", label: "H", alignment: { x: 0.18, y: -0.01, splitPreset: "slot", onLOS: false, depthYards: 0.5 } },
-        { id: "p_y", role: "Y", label: "Y", alignment: { x: 0.25, y: -0.01, splitPreset: "slot", onLOS: false, depthYards: 0.5 } },
+        // H/Y: OFF LOS (trips side inside slots, 1 yard depth for valid LOS)
+        { id: "p_h", role: "H", label: "H", alignment: { x: 0.18, y: -0.02, splitPreset: "slot", onLOS: false, depthYards: 1.0 } },
+        { id: "p_y", role: "Y", label: "Y", alignment: { x: 0.25, y: -0.02, splitPreset: "slot", onLOS: false, depthYards: 1.0 } },
         // Z: ON LOS (backside wide)
         { id: "p_z", role: "Z", label: "Z", alignment: { x: 0.9, y: 0, splitPreset: "wide", onLOS: true, depthYards: 0 } },
       ],

@@ -160,30 +160,36 @@ export function autoBuildFromConcept(
       continue; // Skip if no matching player
     }
 
-    // Get the first matching player (or based on side preference)
-    const targetPlayer = selectPlayerForRole(matchingPlayers, side, role.roleName);
+    // Check if this is a "full unit" role (applies to all 5 OL or similar)
+    const isFullUnitRole = role.appliesTo.length >= 3 && isOLRole(role.appliesTo);
 
-    if (!targetPlayer) continue;
+    // For full unit roles (like OL blocking), apply to ALL matching players
+    // Otherwise, select the best player for the role
+    const targetPlayers = isFullUnitRole
+      ? matchingPlayers
+      : [selectPlayerForRole(matchingPlayers, side, role.roleName)].filter(Boolean) as Player[];
 
-    // Generate action based on concept type
-    if (concept.conceptType === "pass" && "defaultRoute" in role) {
-      const routeAction = buildRouteAction(
-        targetPlayer,
-        role.defaultRoute as Partial<RouteAction["route"]>,
-        role.roleName
-      );
-      if (routeAction) {
-        actions.push(routeAction);
-      }
-    } else if (concept.conceptType === "run" && "defaultBlock" in role) {
-      const blockAction = buildBlockAction(
-        targetPlayer,
-        role.defaultBlock as Partial<BlockAction["block"]>,
-        role.roleName,
-        play
-      );
-      if (blockAction) {
-        actions.push(blockAction);
+    for (const targetPlayer of targetPlayers) {
+      // Generate action based on concept type
+      if (concept.conceptType === "pass" && "defaultRoute" in role) {
+        const routeAction = buildRouteAction(
+          targetPlayer,
+          role.defaultRoute as Partial<RouteAction["route"]>,
+          role.roleName
+        );
+        if (routeAction) {
+          actions.push(routeAction);
+        }
+      } else if (concept.conceptType === "run" && "defaultBlock" in role) {
+        const blockAction = buildBlockAction(
+          targetPlayer,
+          role.defaultBlock as Partial<BlockAction["block"]>,
+          role.roleName,
+          play
+        );
+        if (blockAction) {
+          actions.push(blockAction);
+        }
       }
     }
   }
@@ -248,6 +254,14 @@ function detectFormationStructure(players: Player[]): string {
 // ============================================
 // Helper Functions
 // ============================================
+
+// Helper to check if a role applies primarily to OL positions
+function isOLRole(appliesTo: string[]): boolean {
+  const olPositions = ["LT", "LG", "C", "RG", "RT"];
+  const olCount = appliesTo.filter(role => olPositions.includes(role)).length;
+  // Consider it an OL role if majority of positions are OL
+  return olCount >= Math.ceil(appliesTo.length / 2) && olCount >= 3;
+}
 
 function selectPlayerForRole(
   players: Player[],

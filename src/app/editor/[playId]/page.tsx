@@ -46,6 +46,29 @@ import { getFormationById } from "@/domain/engine/formations";
 import { getPassConceptById } from "@/domain/engine/concepts-pass";
 import { getRunConceptById } from "@/domain/engine/concepts-run";
 import { useClipboard } from "@/hooks";
+import { Sparkles } from "lucide-react";
+
+// Suggestions Panel Tab (always visible on right edge when panel is closed)
+function SuggestionsPanelTab() {
+  const suggestionsOpen = useEditorStore((s) => s.suggestionsOpen);
+  const toggleSuggestions = useEditorStore((s) => s.toggleSuggestions);
+
+  // Don't show if panel is already open
+  if (suggestionsOpen) return null;
+
+  return (
+    <button
+      onClick={() => toggleSuggestions("run")}
+      className="absolute right-0 top-1/2 -translate-y-1/2 bg-blue-500 hover:bg-blue-600 text-white px-2 py-4 rounded-l-lg shadow-lg transition-colors z-30 flex flex-col items-center gap-1"
+      aria-label="Open Suggestions Panel"
+    >
+      <Sparkles className="w-4 h-4" />
+      <span className="text-[10px] font-medium [writing-mode:vertical-rl] [text-orientation:mixed]">
+        Suggestions
+      </span>
+    </button>
+  );
+}
 
 // Debounce hook for autosave
 function useDebounce<T>(value: T, delay: number): T {
@@ -447,6 +470,8 @@ export default function EditorPage() {
 
         {/* Right sidebar - Suggestions */}
         <SuggestionsPanel />
+        {/* Persistent tab when suggestions panel is closed */}
+        <SuggestionsPanelTab />
       </div>
 
       {/* Playback Controls */}

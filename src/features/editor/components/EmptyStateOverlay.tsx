@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useEditorStore } from "@/features/editor/store";
 import {
   LayoutGrid,
@@ -71,19 +72,38 @@ function Step({ number, title, description, icon, direction = "none", isActive }
 
 export function EmptyStateOverlay() {
   const play = useEditorStore((state) => state.play);
+  const suggestionsOpen = useEditorStore((state) => state.suggestionsOpen);
+  const toggleSuggestions = useEditorStore((state) => state.toggleSuggestions);
+  const hasAutoOpenedRef = useRef(false);
 
   // Determine what's missing
   const hasFormation = !!play?.meta?.formationId;
   const hasConcept = !!play?.meta?.conceptId;
   const hasActions = (play?.actions?.length || 0) > 0;
 
+  // Determine which step is active
+  const activeStep = !hasFormation ? 1 : !hasConcept ? 2 : 3;
+
+  // Auto-open suggestions panel when user reaches Step 2
+  useEffect(() => {
+    if (activeStep === 2 && !suggestionsOpen && !hasAutoOpenedRef.current) {
+      hasAutoOpenedRef.current = true;
+      // Small delay to ensure UI is ready
+      const timer = setTimeout(() => {
+        toggleSuggestions("run");
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+    // Reset auto-open flag when user goes back to step 1
+    if (activeStep === 1) {
+      hasAutoOpenedRef.current = false;
+    }
+  }, [activeStep, suggestionsOpen, toggleSuggestions]);
+
   // Don't show if play has actions or both formation and concept
   if (hasActions || (hasFormation && hasConcept)) {
     return null;
   }
-
-  // Determine which step is active
-  const activeStep = !hasFormation ? 1 : !hasConcept ? 2 : 3;
 
   return (
     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
