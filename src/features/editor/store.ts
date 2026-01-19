@@ -1575,10 +1575,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // Suggestions
   toggleSuggestions: (type?: "pass" | "run") => {
     const state = get();
-    if (type) {
+    // If type is explicitly provided, use it
+    // If not, derive from context playType (PASS/RUN/RPO → pass/run)
+    const resolvedType = type
+      ?? (state.context.active.playType === "pass" ? "pass" : "run");
+
+    if (type || !state.suggestionsOpen) {
       set({
         suggestionsOpen: true,
-        suggestionsType: type,
+        suggestionsType: resolvedType,
       });
     } else {
       set({ suggestionsOpen: !state.suggestionsOpen });
@@ -1662,6 +1667,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       changedKeys,
     });
 
+    // Update store state
     set({
       context: {
         ...state.context,
@@ -1671,6 +1677,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       // Update suggestions type if play type changed
       suggestionsType: newActive.playType === "pass" ? "pass" : "run",
     });
+
+    // Auto-sync context to play.meta.context for persistence
+    // This ensures context survives save/reload
+    get().syncContextToPlay();
   },
 
   resetContextToInitial: () => {
@@ -1691,6 +1701,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       },
       suggestionsType: state.context.initial.playType === "pass" ? "pass" : "run",
     });
+
+    // Auto-sync context to play.meta.context for persistence
+    get().syncContextToPlay();
   },
 
   clearContext: () => {

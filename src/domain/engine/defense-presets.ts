@@ -49,18 +49,49 @@ const DL_Y = yAboveLOS(1);
 //
 // Standard OL splits:
 // - C (Center): 0 yards from center
-// - G (Guards): ~1-1.5 yards from center
-// - OT (Tackles): ~4 yards from center (LT at -4, RT at +4)
+// - G (Guards): ~1-1.5 yards from center (inside shoulder at ~1)
+// - OT (Tackles): ~3.5-4 yards from center (LT at -4, RT at +4)
 //
-// DE Technique reference:
-// - 4i = inside shoulder of OT (~3.5 yards)
-// - 4 = head-up on OT (~4 yards)
-// - 5 = outside shoulder of OT (~5 yards) ← DEFAULT
-// - 6/7/9 = wider edge alignments
+// ============================================
+// TECHNIQUE-TO-COORDINATE MAPPING (STANDARD)
+// ============================================
+// 0-tech:  Head-up on center     = 0 yards
+// 1-tech:  Shade of center       = 0.5 yards from center
+// 2i-tech: Inside shoulder of G  = 1 yard from center
+// 2-tech:  Head-up on guard      = 1.25 yards from center
+// 3-tech:  Outside shoulder of G = 2 yards from center
+// 4i-tech: Inside shoulder of OT = 3 yards from center
+// 4-tech:  Head-up on tackle     = 3.5 yards from center
+// 5-tech:  Outside shoulder of OT = 4.5 yards from center
+// 6-tech:  Inside shade of TE    = 5.5 yards from center
+// 7-tech:  Head-up on TE         = 6 yards from center
+// 9-tech:  Wide outside          = 8 yards from center
 // ============================================
 
+// Technique coordinate mapping (yards from center)
+// Exported for use in other modules (e.g., auto-build, rendering)
+export const TECH_X: Record<string, number> = {
+  "0": 0,
+  "1": 0.5,
+  "2i": 1,
+  "2": 1.25,
+  "3": 2,
+  "4i": 3,
+  "4": 3.5,
+  "5": 4.5,
+  "6": 5.5,
+  "7": 6,
+  "9": 8,
+};
+
+// Helper to get x position for technique
+function techX(tech: string, side: "left" | "right" = "right"): number {
+  const base = TECH_X[tech] ?? 4.5;
+  return side === "left" ? xFromCenter(-base) : xFromCenter(base);
+}
+
 const OT_WIDTH = 4; // OT is at ~4 yards from center
-const DE_WIDTH = 5; // 5-tech = OT outside shoulder (~5 yards from center)
+const DE_WIDTH = 4.5; // 5-tech = OT outside shoulder (~4.5 yards from center)
 
 // ============================================
 // Defense Preset Definitions
@@ -79,11 +110,11 @@ export const DEFENSE_PRESETS: DefensePreset[] = [
     shell: "unknown",
     tags: ["base", "balanced"],
     alignments: [
-      // DL (4-man front) - DEs at 7 yards (outside OT shade)
-      { role: "DE", label: "DE", x: xFromCenter(-DE_WIDTH), y: DL_Y, technique: "5" },
-      { role: "DT", label: "3T", x: xFromCenter(-1.5), y: DL_Y, technique: "3" },
-      { role: "DT", label: "1T", x: xFromCenter(1), y: DL_Y, technique: "1" },
-      { role: "DE", label: "DE", x: xFromCenter(DE_WIDTH), y: DL_Y, technique: "5" },
+      // DL (4-man front) - 5-tech DEs, 3T/1T interior
+      { role: "DE", label: "DE", x: techX("5", "left"), y: DL_Y, technique: "5" },
+      { role: "DT", label: "3T", x: techX("3", "left"), y: DL_Y, technique: "3" },
+      { role: "DT", label: "1T", x: techX("1", "right"), y: DL_Y, technique: "1" },
+      { role: "DE", label: "DE", x: techX("5", "right"), y: DL_Y, technique: "5" },
       // LBs (2)
       { role: "ILB", label: "Mike", x: xFromCenter(-2), y: yBehindLOS(4) },
       { role: "ILB", label: "Will", x: xFromCenter(2), y: yBehindLOS(4) },
@@ -104,11 +135,11 @@ export const DEFENSE_PRESETS: DefensePreset[] = [
     shell: "unknown",
     tags: ["base", "balanced", "run_stop"],
     alignments: [
-      // DL (4-man front) - DEs outside tackles
-      { role: "DE", label: "DE", x: xFromCenter(-DE_WIDTH), y: DL_Y, technique: "5" },
-      { role: "DT", label: "3T", x: xFromCenter(-1.5), y: DL_Y, technique: "3" },
-      { role: "DT", label: "1T", x: xFromCenter(1), y: DL_Y, technique: "1" },
-      { role: "DE", label: "DE", x: xFromCenter(DE_WIDTH), y: DL_Y, technique: "5" },
+      // DL (4-man front) - 5-tech DEs, 3T/1T interior
+      { role: "DE", label: "DE", x: techX("5", "left"), y: DL_Y, technique: "5" },
+      { role: "DT", label: "3T", x: techX("3", "left"), y: DL_Y, technique: "3" },
+      { role: "DT", label: "1T", x: techX("1", "right"), y: DL_Y, technique: "1" },
+      { role: "DE", label: "DE", x: techX("5", "right"), y: DL_Y, technique: "5" },
       // LBs (3)
       { role: "OLB", label: "Sam", x: xFromCenter(-5), y: yBehindLOS(3.5) },
       { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
@@ -130,11 +161,11 @@ export const DEFENSE_PRESETS: DefensePreset[] = [
     threeTechSide: "strong",
     tags: ["even", "strong_side_heavy"],
     alignments: [
-      // DL - 3T to strong side, DEs outside tackles
-      { role: "DE", label: "DE", x: xFromCenter(-DE_WIDTH), y: DL_Y, technique: "5" },
-      { role: "DT", label: "1T", x: xFromCenter(-0.75), y: DL_Y, technique: "1" },
-      { role: "DT", label: "3T", x: xFromCenter(1.5), y: DL_Y, technique: "3" },
-      { role: "DE", label: "DE", x: xFromCenter(DE_WIDTH), y: DL_Y, technique: "5" },
+      // DL - Over = 3T to strong side (right), 1T shade weak
+      { role: "DE", label: "DE", x: techX("5", "left"), y: DL_Y, technique: "5" },
+      { role: "DT", label: "1T", x: techX("1", "left"), y: DL_Y, technique: "1" },
+      { role: "DT", label: "3T", x: techX("3", "right"), y: DL_Y, technique: "3" },
+      { role: "DE", label: "DE", x: techX("5", "right"), y: DL_Y, technique: "5" },
       // LBs (3)
       { role: "OLB", label: "Sam", x: xFromCenter(-5), y: yBehindLOS(3.5) },
       { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
@@ -156,11 +187,11 @@ export const DEFENSE_PRESETS: DefensePreset[] = [
     threeTechSide: "weak",
     tags: ["even", "weak_side_heavy"],
     alignments: [
-      // DL - 3T to weak side, DEs outside tackles
-      { role: "DE", label: "DE", x: xFromCenter(-DE_WIDTH), y: DL_Y, technique: "5" },
-      { role: "DT", label: "3T", x: xFromCenter(-1.5), y: DL_Y, technique: "3" },
-      { role: "DT", label: "1T", x: xFromCenter(0.75), y: DL_Y, technique: "1" },
-      { role: "DE", label: "DE", x: xFromCenter(DE_WIDTH), y: DL_Y, technique: "5" },
+      // DL - Under = 3T to weak side (left), 1T shade strong
+      { role: "DE", label: "DE", x: techX("5", "left"), y: DL_Y, technique: "5" },
+      { role: "DT", label: "3T", x: techX("3", "left"), y: DL_Y, technique: "3" },
+      { role: "DT", label: "1T", x: techX("1", "right"), y: DL_Y, technique: "1" },
+      { role: "DE", label: "DE", x: techX("5", "right"), y: DL_Y, technique: "5" },
       // LBs (3)
       { role: "OLB", label: "Sam", x: xFromCenter(-5), y: yBehindLOS(3.5) },
       { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
@@ -185,15 +216,15 @@ export const DEFENSE_PRESETS: DefensePreset[] = [
     shell: "unknown",
     tags: ["odd", "spread_defense", "athletic"],
     alignments: [
-      // DL (3-man front) - DEs outside tackles
-      { role: "DE", label: "DE", x: xFromCenter(-DE_WIDTH), y: DL_Y, technique: "5" },
-      { role: "NT", label: "NT", x: xFromCenter(0), y: DL_Y, technique: "0" },
-      { role: "DE", label: "DE", x: xFromCenter(DE_WIDTH), y: DL_Y, technique: "5" },
-      // LBs (3) - stacked
+      // DL (3-man front) - 5-tech DEs, 0-tech NT
+      { role: "DE", label: "DE", x: techX("5", "left"), y: DL_Y, technique: "5" },
+      { role: "NT", label: "NT", x: techX("0", "right"), y: DL_Y, technique: "0" },
+      { role: "DE", label: "DE", x: techX("5", "right"), y: DL_Y, technique: "5" },
+      // LBs (3) - stacked behind DL
       { role: "OLB", label: "Sam", x: xFromCenter(-4), y: yBehindLOS(3) },
       { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
       { role: "OLB", label: "Will", x: xFromCenter(4), y: yBehindLOS(3) },
-      // Secondary
+      // Secondary (5)
       { role: "CB", label: "CB", x: xFromCenter(-15), y: yBehindLOS(7) },
       { role: "CB", label: "CB", x: xFromCenter(15), y: yBehindLOS(7) },
       { role: "SS", label: "SS", x: xFromCenter(-6), y: yBehindLOS(10) },
@@ -210,11 +241,11 @@ export const DEFENSE_PRESETS: DefensePreset[] = [
     shell: "unknown",
     tags: ["odd", "run_stop", "versatile"],
     alignments: [
-      // DL (3-man front) - DEs outside tackles
-      { role: "DE", label: "DE", x: xFromCenter(-DE_WIDTH), y: DL_Y, technique: "5" },
-      { role: "NT", label: "NT", x: xFromCenter(0), y: DL_Y, technique: "0" },
-      { role: "DE", label: "DE", x: xFromCenter(DE_WIDTH), y: DL_Y, technique: "5" },
-      // LBs (4)
+      // DL (3-man front) - 5-tech DEs, 0-tech NT
+      { role: "DE", label: "DE", x: techX("5", "left"), y: DL_Y, technique: "5" },
+      { role: "NT", label: "NT", x: techX("0", "right"), y: DL_Y, technique: "0" },
+      { role: "DE", label: "DE", x: techX("5", "right"), y: DL_Y, technique: "5" },
+      // LBs (4) - OLBs on edges, ILBs inside
       { role: "OLB", label: "Sam", x: xFromCenter(-6), y: yBehindLOS(2.5) },
       { role: "ILB", label: "Mike", x: xFromCenter(-1.5), y: yBehindLOS(4) },
       { role: "ILB", label: "Will", x: xFromCenter(1.5), y: yBehindLOS(4) },
@@ -239,16 +270,16 @@ export const DEFENSE_PRESETS: DefensePreset[] = [
     shell: "unknown",
     tags: ["goal_line", "short_yardage", "heavy"],
     alignments: [
-      // DL (5-man front) - DEs outside tackles
-      { role: "DE", label: "DE", x: xFromCenter(-DE_WIDTH), y: DL_Y, technique: "5" },
-      { role: "DT", label: "3T", x: xFromCenter(-2), y: DL_Y, technique: "3" },
-      { role: "NT", label: "NT", x: xFromCenter(0), y: DL_Y, technique: "0" },
-      { role: "DT", label: "3T", x: xFromCenter(2), y: DL_Y, technique: "3" },
-      { role: "DE", label: "DE", x: xFromCenter(DE_WIDTH), y: DL_Y, technique: "5" },
-      // LBs (2)
+      // DL (5-man front) - 5-tech DEs, double 3T, 0-tech NT
+      { role: "DE", label: "DE", x: techX("5", "left"), y: DL_Y, technique: "5" },
+      { role: "DT", label: "3T", x: techX("3", "left"), y: DL_Y, technique: "3" },
+      { role: "NT", label: "NT", x: techX("0", "right"), y: DL_Y, technique: "0" },
+      { role: "DT", label: "3T", x: techX("3", "right"), y: DL_Y, technique: "3" },
+      { role: "DE", label: "DE", x: techX("5", "right"), y: DL_Y, technique: "5" },
+      // LBs (2) - in B gaps
       { role: "MLB", label: "Mike", x: xFromCenter(-3), y: yBehindLOS(3.5) },
       { role: "MLB", label: "Will", x: xFromCenter(3), y: yBehindLOS(3.5) },
-      // Secondary (4)
+      // Secondary (4) - tighter coverage for short yardage
       { role: "CB", label: "CB", x: xFromCenter(-12), y: yBehindLOS(5) },
       { role: "CB", label: "CB", x: xFromCenter(12), y: yBehindLOS(5) },
       { role: "SS", label: "SS", x: xFromCenter(-6), y: yBehindLOS(8) },
@@ -264,11 +295,11 @@ export const DEFENSE_PRESETS: DefensePreset[] = [
     shell: "unknown",
     tags: ["spread_defense", "athletic", "run_fit"],
     alignments: [
-      // DL (3-man front - tight techniques) - inside tackles for 4i
-      { role: "DE", label: "DE", x: xFromCenter(-3), y: DL_Y, technique: "4i" },
-      { role: "NT", label: "NT", x: xFromCenter(0), y: DL_Y, technique: "0" },
-      { role: "DE", label: "DE", x: xFromCenter(3), y: DL_Y, technique: "4i" },
-      // LBs (3) - Apex players outside
+      // DL (3-man front - tight techniques) - 4i-tech DEs, 0-tech NT
+      { role: "DE", label: "DE", x: techX("4i", "left"), y: DL_Y, technique: "4i" },
+      { role: "NT", label: "NT", x: techX("0", "right"), y: DL_Y, technique: "0" },
+      { role: "DE", label: "DE", x: techX("4i", "right"), y: DL_Y, technique: "4i" },
+      // LBs (3) - Apex players on edge for run/pass
       { role: "OLB", label: "Apex", x: xFromCenter(-6), y: yBehindLOS(3) },
       { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
       { role: "OLB", label: "Apex", x: xFromCenter(6), y: yBehindLOS(3) },
@@ -293,15 +324,15 @@ export const DEFENSE_PRESETS: DefensePreset[] = [
     shell: "nickel",
     tags: ["pass_defense", "spread", "sub_package"],
     alignments: [
-      // DL (4-man front with edge rushers) - DEs outside tackles
-      { role: "DE", label: "DE", x: xFromCenter(-DE_WIDTH), y: DL_Y, technique: "5" },
-      { role: "DT", label: "3T", x: xFromCenter(-1.5), y: DL_Y, technique: "3" },
-      { role: "DT", label: "1T", x: xFromCenter(1.5), y: DL_Y, technique: "1" },
-      { role: "DE", label: "DE", x: xFromCenter(DE_WIDTH), y: DL_Y, technique: "5" },
-      // LBs (2)
+      // DL (4-man front) - 5-tech DEs, 3T/1T interior
+      { role: "DE", label: "DE", x: techX("5", "left"), y: DL_Y, technique: "5" },
+      { role: "DT", label: "3T", x: techX("3", "left"), y: DL_Y, technique: "3" },
+      { role: "DT", label: "1T", x: techX("1", "right"), y: DL_Y, technique: "1" },
+      { role: "DE", label: "DE", x: techX("5", "right"), y: DL_Y, technique: "5" },
+      // LBs (2) - ILBs in box
       { role: "ILB", label: "Mike", x: xFromCenter(-2), y: yBehindLOS(4) },
       { role: "ILB", label: "Will", x: xFromCenter(2), y: yBehindLOS(4) },
-      // Secondary (5)
+      // Secondary (5) - Nickel DB in slot
       { role: "CB", label: "CB", x: xFromCenter(-15), y: yBehindLOS(7) },
       { role: "CB", label: "CB", x: xFromCenter(15), y: yBehindLOS(7) },
       { role: "Nickel", label: "$", x: xFromCenter(-8), y: yBehindLOS(5) },
@@ -318,14 +349,14 @@ export const DEFENSE_PRESETS: DefensePreset[] = [
     shell: "dime",
     tags: ["pass_defense", "prevent", "sub_package"],
     alignments: [
-      // DL (4-man front) - DEs outside tackles
-      { role: "DE", label: "DE", x: xFromCenter(-DE_WIDTH), y: DL_Y, technique: "5" },
-      { role: "DT", label: "3T", x: xFromCenter(-1.5), y: DL_Y, technique: "3" },
-      { role: "DT", label: "1T", x: xFromCenter(1.5), y: DL_Y, technique: "1" },
-      { role: "DE", label: "DE", x: xFromCenter(DE_WIDTH), y: DL_Y, technique: "5" },
-      // LB (1)
+      // DL (4-man front) - 5-tech DEs, 3T/1T interior
+      { role: "DE", label: "DE", x: techX("5", "left"), y: DL_Y, technique: "5" },
+      { role: "DT", label: "3T", x: techX("3", "left"), y: DL_Y, technique: "3" },
+      { role: "DT", label: "1T", x: techX("1", "right"), y: DL_Y, technique: "1" },
+      { role: "DE", label: "DE", x: techX("5", "right"), y: DL_Y, technique: "5" },
+      // LB (1) - single MLB in center
       { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
-      // Secondary (6)
+      // Secondary (6) - Nickel + Dime DBs
       { role: "CB", label: "CB", x: xFromCenter(-15), y: yBehindLOS(7) },
       { role: "CB", label: "CB", x: xFromCenter(15), y: yBehindLOS(7) },
       { role: "Nickel", label: "$", x: xFromCenter(-8), y: yBehindLOS(5) },
@@ -347,20 +378,20 @@ export const DEFENSE_PRESETS: DefensePreset[] = [
     shell: "cover1",
     tags: ["man_coverage", "single_high"],
     alignments: [
-      // DL - DEs outside tackles
-      { role: "DE", label: "DE", x: xFromCenter(-DE_WIDTH), y: DL_Y, technique: "5" },
-      { role: "DT", label: "3T", x: xFromCenter(-1.5), y: DL_Y, technique: "3" },
-      { role: "DT", label: "1T", x: xFromCenter(1.5), y: DL_Y, technique: "1" },
-      { role: "DE", label: "DE", x: xFromCenter(DE_WIDTH), y: DL_Y, technique: "5" },
-      // LBs (3) - press man with robber/rat
+      // DL - 5-tech DEs, 3T/1T interior
+      { role: "DE", label: "DE", x: techX("5", "left"), y: DL_Y, technique: "5" },
+      { role: "DT", label: "3T", x: techX("3", "left"), y: DL_Y, technique: "3" },
+      { role: "DT", label: "1T", x: techX("1", "right"), y: DL_Y, technique: "1" },
+      { role: "DE", label: "DE", x: techX("5", "right"), y: DL_Y, technique: "5" },
+      // LBs (3) - in box for man/blitz
       { role: "OLB", label: "Sam", x: xFromCenter(-5), y: yBehindLOS(3.5) },
       { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
       { role: "OLB", label: "Will", x: xFromCenter(5), y: yBehindLOS(3.5) },
-      // Secondary (4) - man coverage shell
-      { role: "CB", label: "CB", x: xFromCenter(-14), y: yBehindLOS(2) },
-      { role: "CB", label: "CB", x: xFromCenter(14), y: yBehindLOS(2) },
-      { role: "SS", label: "SS", x: xFromCenter(-6), y: yBehindLOS(8) },
-      { role: "FS", label: "FS", x: xFromCenter(0), y: yBehindLOS(14) }, // Deep middle
+      // Secondary (4) - press man with single high safety
+      { role: "CB", label: "CB", x: xFromCenter(-14), y: yBehindLOS(2) },  // Press
+      { role: "CB", label: "CB", x: xFromCenter(14), y: yBehindLOS(2) },   // Press
+      { role: "SS", label: "SS", x: xFromCenter(-6), y: yBehindLOS(8) },   // Robber/Rat
+      { role: "FS", label: "FS", x: xFromCenter(0), y: yBehindLOS(14) },   // Deep middle
     ],
   },
   {
@@ -372,20 +403,20 @@ export const DEFENSE_PRESETS: DefensePreset[] = [
     shell: "cover3",
     tags: ["zone_coverage", "single_high", "run_support"],
     alignments: [
-      // DL - DEs outside tackles
-      { role: "DE", label: "DE", x: xFromCenter(-DE_WIDTH), y: DL_Y, technique: "5" },
-      { role: "DT", label: "3T", x: xFromCenter(-1.5), y: DL_Y, technique: "3" },
-      { role: "DT", label: "1T", x: xFromCenter(1.5), y: DL_Y, technique: "1" },
-      { role: "DE", label: "DE", x: xFromCenter(DE_WIDTH), y: DL_Y, technique: "5" },
-      // LBs (3)
+      // DL - 5-tech DEs, 3T/1T interior
+      { role: "DE", label: "DE", x: techX("5", "left"), y: DL_Y, technique: "5" },
+      { role: "DT", label: "3T", x: techX("3", "left"), y: DL_Y, technique: "3" },
+      { role: "DT", label: "1T", x: techX("1", "right"), y: DL_Y, technique: "1" },
+      { role: "DE", label: "DE", x: techX("5", "right"), y: DL_Y, technique: "5" },
+      // LBs (3) - curl/flat droppers
       { role: "OLB", label: "Sam", x: xFromCenter(-5), y: yBehindLOS(3.5) },
       { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
       { role: "OLB", label: "Will", x: xFromCenter(5), y: yBehindLOS(3.5) },
-      // Secondary (4) - Cover 3 zones
-      { role: "CB", label: "CB", x: xFromCenter(-14), y: yBehindLOS(10) }, // Deep 1/3
-      { role: "CB", label: "CB", x: xFromCenter(14), y: yBehindLOS(10) }, // Deep 1/3
-      { role: "SS", label: "SS", x: xFromCenter(-8), y: yBehindLOS(5) },  // Flat/curl
-      { role: "FS", label: "FS", x: xFromCenter(0), y: yBehindLOS(14) },  // Deep middle 1/3
+      // Secondary (4) - Cover 3 deep thirds + flat
+      { role: "CB", label: "CB", x: xFromCenter(-14), y: yBehindLOS(10) }, // Deep 1/3 left
+      { role: "CB", label: "CB", x: xFromCenter(14), y: yBehindLOS(10) },  // Deep 1/3 right
+      { role: "SS", label: "SS", x: xFromCenter(-8), y: yBehindLOS(5) },   // Flat/curl dropper
+      { role: "FS", label: "FS", x: xFromCenter(0), y: yBehindLOS(14) },   // Deep middle 1/3
     ],
   },
 ];

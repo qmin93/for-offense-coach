@@ -90,7 +90,8 @@ export function EmptyStateOverlay() {
       hasAutoOpenedRef.current = true;
       // Small delay to ensure UI is ready
       const timer = setTimeout(() => {
-        toggleSuggestions("run");
+        // Uses context playType (PASS/RUN) automatically
+        toggleSuggestions();
       }, 300);
       return () => clearTimeout(timer);
     }

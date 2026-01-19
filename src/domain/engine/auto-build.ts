@@ -254,6 +254,101 @@ export function autoBuildFromConcept(
     }
   }
 
+  // AUTO-ADD: RB check/release route for pass concepts
+  if (concept.conceptType === "pass") {
+    const rbPlayers = players.filter(p => p.role === "RB");
+
+    for (const rbPlayer of rbPlayers) {
+      if (!playerHasAction(rbPlayer.id)) {
+        const checkReleaseAction = buildRBCheckReleaseAction(rbPlayer, side);
+        if (checkReleaseAction) {
+          actions.push(checkReleaseAction);
+          playersWithActionsSet.add(rbPlayer.id);
+        }
+      }
+    }
+  }
+
+  // AUTO-ADD: H-back outlet route for pass concepts
+  if (concept.conceptType === "pass") {
+    const hPlayers = players.filter(p => p.role === "H");
+
+    for (const hPlayer of hPlayers) {
+      if (!playerHasAction(hPlayer.id)) {
+        const outletAction = buildHBackOutletRouteAction(hPlayer, side);
+        if (outletAction) {
+          actions.push(outletAction);
+          playersWithActionsSet.add(hPlayer.id);
+        }
+      }
+    }
+  }
+
+  // AUTO-ADD: TE route for pass concepts (if not assigned)
+  if (concept.conceptType === "pass") {
+    const tePlayers = players.filter(p => p.role === "Y");
+
+    for (const tePlayer of tePlayers) {
+      if (!playerHasAction(tePlayer.id)) {
+        const teRouteAction = buildTEOutletRouteAction(tePlayer, side);
+        if (teRouteAction) {
+          actions.push(teRouteAction);
+          playersWithActionsSet.add(tePlayer.id);
+        }
+      }
+    }
+  }
+
+  // AUTO-ADD: FB check/release for pass concepts
+  if (concept.conceptType === "pass") {
+    const fbPlayers = players.filter(p => p.role === "FB");
+
+    for (const fbPlayer of fbPlayers) {
+      if (!playerHasAction(fbPlayer.id)) {
+        const fbCheckAction = buildFBCheckReleaseAction(fbPlayer, side);
+        if (fbCheckAction) {
+          actions.push(fbCheckAction);
+          playersWithActionsSet.add(fbPlayer.id);
+        }
+      }
+    }
+  }
+
+  // AUTO-ADD: WR routes for pass concepts (if not assigned from template)
+  if (concept.conceptType === "pass") {
+    const wrRoles = ["X", "Z"];
+    const wrPlayers = players.filter(p => wrRoles.includes(p.role));
+
+    for (const wrPlayer of wrPlayers) {
+      if (!playerHasAction(wrPlayer.id)) {
+        const wrRouteAction = buildWRDefaultRouteAction(wrPlayer, side);
+        if (wrRouteAction) {
+          actions.push(wrRouteAction);
+          playersWithActionsSet.add(wrPlayer.id);
+        }
+      }
+    }
+  }
+
+  // AUTO-ADD: RB run path for run concepts (if not assigned)
+  if (concept.conceptType === "run") {
+    const rbPlayers = players.filter(p => p.role === "RB");
+
+    for (const rbPlayer of rbPlayers) {
+      if (!playerHasAction(rbPlayer.id)) {
+        const runPathAction = buildRunPathAction(
+          rbPlayer,
+          concept.runHints?.aim || "b_gap",
+          side
+        );
+        if (runPathAction) {
+          actions.push(runPathAction);
+          playersWithActionsSet.add(rbPlayer.id);
+        }
+      }
+    }
+  }
+
   // AUTO-ADD: FB blocking for run concepts (if not assigned)
   if (concept.conceptType === "run") {
     const fbPlayers = players.filter(p => p.role === "FB");
@@ -1245,6 +1340,241 @@ function buildPassProtectionAction(
     },
     meta: {
       passProRole: "PASS_PRO",
+    },
+  };
+}
+
+// ============================================
+// WR Default Route Action (for pass concepts)
+// ============================================
+
+function buildWRDefaultRouteAction(
+  player: Player,
+  side: "left" | "right"
+): RouteAction | null {
+  const startX = player.alignment?.x || 0.5;
+  const startY = player.alignment?.y || 0;
+
+  // Determine route based on alignment (outside WR gets go/hitch, inside gets slant/out)
+  const isOutsideWR = Math.abs(startX - 0.5) > 0.35;
+  const isLeftSide = startX < 0.5;
+
+  let pattern: RoutePattern;
+  let depth: number;
+  const controlPoints: Point[] = [{ x: startX, y: startY }];
+
+  if (isOutsideWR) {
+    // Outside WR: Go route or hitch
+    pattern = "go" as RoutePattern;
+    depth = 15;
+    controlPoints.push({ x: startX, y: startY + 0.2 });
+  } else {
+    // Slot WR: Slant
+    pattern = "slant" as RoutePattern;
+    depth = 8;
+    const slantDir = isLeftSide ? 0.12 : -0.12;
+    controlPoints.push({ x: startX, y: startY + 0.04 });
+    controlPoints.push({ x: startX + slantDir, y: startY + 0.12 });
+  }
+
+  return {
+    id: `a_route_${uuid().slice(0, 8)}`,
+    actionType: "route",
+    fromPlayerId: player.id,
+    layer: "primary",
+    route: {
+      pattern,
+      depth,
+      controlPoints,
+      endMarker: "arrow",
+    },
+    timing: {
+      phase: "post_snap",
+    },
+    style: {
+      line: "solid",
+      thickness: "normal",
+    },
+    meta: {
+      conceptRole: "CLEAROUT",
+    },
+  };
+}
+
+// ============================================
+// RB Check/Release Action (for pass concepts)
+// ============================================
+
+function buildRBCheckReleaseAction(
+  player: Player,
+  side: "left" | "right"
+): RouteAction | null {
+  const startX = player.alignment?.x || 0.5;
+  const startY = player.alignment?.y || -0.35;
+
+  // RB checks backside blitzer, then releases to flat
+  const releaseDir = side === "right" ? 0.15 : -0.15;
+
+  const controlPoints: Point[] = [
+    { x: startX, y: startY },
+    { x: startX, y: startY + 0.02 }, // Check step
+    { x: startX + releaseDir, y: startY + 0.06 }, // Release to flat
+  ];
+
+  return {
+    id: `a_route_${uuid().slice(0, 8)}`,
+    actionType: "route",
+    fromPlayerId: player.id,
+    layer: "primary",
+    route: {
+      pattern: "flat" as RoutePattern,
+      depth: 3,
+      controlPoints,
+      endMarker: "arrow",
+    },
+    timing: {
+      phase: "post_snap",
+    },
+    style: {
+      line: "dashed", // Dashed to indicate check-release
+      thickness: "normal",
+    },
+    meta: {
+      conceptRole: "CHECK_RELEASE",
+    },
+  };
+}
+
+// ============================================
+// H-Back Outlet Route Action (for pass concepts)
+// ============================================
+
+function buildHBackOutletRouteAction(
+  player: Player,
+  side: "left" | "right"
+): RouteAction | null {
+  const startX = player.alignment?.x || 0.5;
+  const startY = player.alignment?.y || -0.02;
+
+  // H-back runs a short outlet/flat route
+  const isLeftSide = startX < 0.5;
+  const outletDir = isLeftSide ? -0.12 : 0.12;
+
+  const controlPoints: Point[] = [
+    { x: startX, y: startY },
+    { x: startX + outletDir * 0.5, y: startY + 0.02 },
+    { x: startX + outletDir, y: startY + 0.04 },
+  ];
+
+  return {
+    id: `a_route_${uuid().slice(0, 8)}`,
+    actionType: "route",
+    fromPlayerId: player.id,
+    layer: "primary",
+    route: {
+      pattern: "arrow" as RoutePattern,
+      depth: 2,
+      controlPoints,
+      endMarker: "arrow",
+    },
+    timing: {
+      phase: "post_snap",
+    },
+    style: {
+      line: "solid",
+      thickness: "normal",
+    },
+    meta: {
+      conceptRole: "OUTLET",
+    },
+  };
+}
+
+// ============================================
+// TE Outlet Route Action (for pass concepts)
+// ============================================
+
+function buildTEOutletRouteAction(
+  player: Player,
+  side: "left" | "right"
+): RouteAction | null {
+  const startX = player.alignment?.x || 0.5;
+  const startY = player.alignment?.y || 0;
+
+  // TE runs a hook/curl as safety valve
+  const isLeftSide = startX < 0.5;
+  const seam = isLeftSide ? 0.05 : -0.05;
+
+  const controlPoints: Point[] = [
+    { x: startX, y: startY },
+    { x: startX + seam, y: startY + 0.08 }, // Stem
+    { x: startX + seam, y: startY + 0.1 }, // Settle in hole
+  ];
+
+  return {
+    id: `a_route_${uuid().slice(0, 8)}`,
+    actionType: "route",
+    fromPlayerId: player.id,
+    layer: "primary",
+    route: {
+      pattern: "curl" as RoutePattern,
+      depth: 5,
+      controlPoints,
+      endMarker: "arrow",
+    },
+    timing: {
+      phase: "post_snap",
+    },
+    style: {
+      line: "solid",
+      thickness: "normal",
+    },
+    meta: {
+      conceptRole: "OUTLET",
+    },
+  };
+}
+
+// ============================================
+// FB Check/Release Action (for pass concepts)
+// ============================================
+
+function buildFBCheckReleaseAction(
+  player: Player,
+  side: "left" | "right"
+): RouteAction | null {
+  const startX = player.alignment?.x || 0.5;
+  const startY = player.alignment?.y || -0.28;
+
+  // FB checks blitzer, then releases to flat opposite play side
+  const releaseDir = side === "right" ? -0.12 : 0.12; // Release away from play
+
+  const controlPoints: Point[] = [
+    { x: startX, y: startY },
+    { x: startX, y: startY + 0.02 }, // Check step
+    { x: startX + releaseDir, y: startY + 0.05 }, // Release to flat
+  ];
+
+  return {
+    id: `a_route_${uuid().slice(0, 8)}`,
+    actionType: "route",
+    fromPlayerId: player.id,
+    layer: "primary",
+    route: {
+      pattern: "flat" as RoutePattern,
+      depth: 2,
+      controlPoints,
+      endMarker: "arrow",
+    },
+    timing: {
+      phase: "post_snap",
+    },
+    style: {
+      line: "dashed", // Dashed to indicate check-release
+      thickness: "normal",
+    },
+    meta: {
+      conceptRole: "CHECK_RELEASE",
     },
   };
 }

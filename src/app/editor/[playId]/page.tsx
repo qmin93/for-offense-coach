@@ -63,7 +63,7 @@ function SuggestionsPanelTab() {
 
   return (
     <button
-      onClick={() => toggleSuggestions("run")}
+      onClick={() => toggleSuggestions()}
       className="absolute right-0 top-1/2 -translate-y-1/2 bg-blue-500 hover:bg-blue-600 text-white px-2 py-4 rounded-l-lg shadow-lg transition-colors z-30 flex flex-col items-center gap-1"
       aria-label="Open Suggestions Panel"
     >

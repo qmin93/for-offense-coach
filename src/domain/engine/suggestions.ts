@@ -33,6 +33,7 @@ import {
   getCompatibleFamilies,
 } from "./concept-families";
 import { getDefensePresetById } from "./defense-presets";
+import type { TeamCapabilities } from "@/lib/team-profile";
 
 // ============================================
 // Types
@@ -527,7 +528,8 @@ export function getSuggestionsFromPlay(
 
 export function getEnhancedSuggestions(
   play: Play,
-  context: SuggestionContext = DEFAULT_SUGGESTION_CONTEXT
+  context: SuggestionContext = DEFAULT_SUGGESTION_CONTEXT,
+  teamCapabilities?: TeamCapabilities | null
 ): EnhancedSuggestionResult[] {
   const { playType, offense, defense, situation, constraints } = context;
 
@@ -574,12 +576,33 @@ export function getEnhancedSuggestions(
     return true;
   });
 
+  // Filter by team capabilities (personnel availability)
+  const teamFiltered = teamCapabilities
+    ? constraintFiltered.filter((c) => {
+        // Check if concept requires TE but team can't run 11 personnel
+        if (c.requirements?.needsTE && !teamCapabilities.canRun11Personnel) {
+          return false;
+        }
+        // Check if concept requires pulling but team can't pull
+        if (c.requirements?.needsPuller && !teamCapabilities.canPull) {
+          return false;
+        }
+        return true;
+      })
+    : constraintFiltered;
+
   // Score and enhance results
-  const results: EnhancedSuggestionResult[] = constraintFiltered.map((concept) => {
-    const score = scoreConceptWithContext(concept, context);
+  const results: EnhancedSuggestionResult[] = teamFiltered.map((concept) => {
+    let score = scoreConceptWithContext(concept, context);
+
+    // Apply team-based score adjustments
+    if (teamCapabilities) {
+      score = applyTeamCapabilitiesScoring(score, concept, teamCapabilities);
+    }
+
     const fit = generateFitAnalysis(concept, context);
     const why = generateWhyReasons(concept, context);
-    const typedReasons = generateTypedReasons(concept, context);
+    const typedReasons = generateTypedReasons(concept, context, teamCapabilities);
     const alerts = generateAlerts(concept, context);
 
     return {
@@ -602,8 +625,9 @@ export function getEnhancedSuggestions(
   // Sort by score and apply risk filter
   let sorted = results.sort((a, b) => b.score - a.score);
 
-  // Apply risk tolerance filter
-  if (constraints.riskTolerance === "conservative") {
+  // Apply risk tolerance filter (from team capabilities or constraints)
+  const riskTolerance = teamCapabilities?.riskTolerance || constraints.riskTolerance;
+  if (riskTolerance === "conservative") {
     sorted = sorted.filter((r) => !r.alerts?.some((a) => a.includes("risky")));
   }
 
@@ -612,6 +636,85 @@ export function getEnhancedSuggestions(
   const TOP_5_LIMIT = 5;
   const topResults = sorted.slice(0, TOP_5_LIMIT);
   return normalizeScores(topResults);
+}
+
+// ============================================
+// Team Capabilities Scoring Adjustments
+// ============================================
+
+function applyTeamCapabilitiesScoring(
+  baseScore: number,
+  concept: Concept,
+  capabilities: TeamCapabilities
+): number {
+  let score = baseScore;
+
+  if (concept.conceptType === "run") {
+    // Run blocking strength boost
+    if (capabilities.runBlockingStrength >= 4) {
+      score += 8; // Strong OL run blocking
+    } else if (capabilities.runBlockingStrength <= 2) {
+      score -= 5; // Weak OL run blocking
+    }
+
+    // Run game overall strength
+    if (capabilities.runGameStrength >= 4) {
+      score += 5;
+    }
+
+    // Prefer run if team prefers run
+    if (capabilities.preferRun) {
+      score += 5;
+    }
+
+    // Pulling concepts need OL ability
+    if (concept.requirements?.needsPuller) {
+      if (capabilities.canPull) {
+        score += 5;
+      } else {
+        score -= 15; // Significant penalty if can't pull
+      }
+    }
+  }
+
+  if (concept.conceptType === "pass") {
+    // WR separation boost
+    if (capabilities.receivingStrength >= 4) {
+      score += 8; // Strong receiving corps
+    } else if (capabilities.receivingStrength <= 2) {
+      score -= 5;
+    }
+
+    // Pass protection strength
+    if (capabilities.passProtectionStrength >= 4) {
+      score += 5;
+    } else if (capabilities.passProtectionStrength <= 2) {
+      // Penalize deep developing routes if protection is weak
+      if (concept.passHints?.category === "deep" || concept.passHints?.category === "intermediate") {
+        score -= 8;
+      }
+    }
+
+    // Prefer pass if team prefers pass
+    if (capabilities.preferPass) {
+      score += 5;
+    }
+  }
+
+  // Risk tolerance adjustments
+  if (capabilities.riskTolerance === "conservative") {
+    // Penalize aggressive/risky concepts
+    if (concept.id.includes("trick") || concept.id.includes("double_pass")) {
+      score -= 15;
+    }
+  } else if (capabilities.riskTolerance === "aggressive") {
+    // Boost aggressive concepts
+    if (concept.id.includes("deep") || concept.id.includes("shot")) {
+      score += 5;
+    }
+  }
+
+  return score;
 }
 
 function scoreConceptWithContext(concept: Concept, context: SuggestionContext): number {
@@ -883,7 +986,11 @@ function generateWhyReasons(concept: Concept, context: SuggestionContext): strin
   return reasons.slice(0, 4);
 }
 
-function generateTypedReasons(concept: Concept, context: SuggestionContext): RecommendationReason[] {
+function generateTypedReasons(
+  concept: Concept,
+  context: SuggestionContext,
+  teamCapabilities?: TeamCapabilities | null
+): RecommendationReason[] {
   const typedReasons: RecommendationReason[] = [];
   const { offense, defense, situation } = context;
 
@@ -1014,6 +1121,55 @@ function generateTypedReasons(concept: Concept, context: SuggestionContext): Rec
         ? "Designed to attack this coverage structure"
         : "Execution and reads will determine success"
     ));
+  }
+
+  // Add team capability reasons if available
+  if (teamCapabilities) {
+    if (concept.conceptType === "run") {
+      if (teamCapabilities.runBlockingStrength >= 4) {
+        typedReasons.push(createReason(
+          "team_fit",
+          "Strong OL run blocking",
+          true,
+          "Your offensive line excels at run blocking"
+        ));
+      }
+      if (teamCapabilities.preferRun) {
+        typedReasons.push(createReason(
+          "team_fit",
+          "Fits run-heavy philosophy",
+          true,
+          "Aligns with your team's offensive style"
+        ));
+      }
+    }
+
+    if (concept.conceptType === "pass") {
+      if (teamCapabilities.receivingStrength >= 4) {
+        typedReasons.push(createReason(
+          "team_fit",
+          "Strong receiving corps",
+          true,
+          "Your receivers can win their matchups"
+        ));
+      }
+      if (teamCapabilities.passProtectionStrength >= 4) {
+        typedReasons.push(createReason(
+          "team_fit",
+          "Solid pass protection",
+          true,
+          "Your OL provides time for routes to develop"
+        ));
+      }
+      if (teamCapabilities.preferPass) {
+        typedReasons.push(createReason(
+          "team_fit",
+          "Fits pass-heavy philosophy",
+          true,
+          "Aligns with your team's offensive style"
+        ));
+      }
+    }
   }
 
   // Rank, deduplicate, and return top 3 strongest reasons
@@ -1237,7 +1393,8 @@ export function defensePresetToContext(preset: DefensePreset): Partial<DefenseCo
 export function getSuggestionsWithDefensePreset(
   play: Play,
   defensePresetId: string | null,
-  baseContext: Partial<SuggestionContext> = {}
+  baseContext: Partial<SuggestionContext> = {},
+  teamCapabilities?: TeamCapabilities | null
 ): EnhancedSuggestionResult[] {
   // Build context from defense preset
   let context: SuggestionContext = {
@@ -1259,7 +1416,7 @@ export function getSuggestionsWithDefensePreset(
     }
   }
 
-  return getEnhancedSuggestions(play, context);
+  return getEnhancedSuggestions(play, context, teamCapabilities);
 }
 
 // ============================================
@@ -1393,12 +1550,13 @@ export interface ComprehensiveSuggestions {
 export function getComprehensiveSuggestions(
   play: Play,
   defensePresetId: string | null,
-  playType: "run" | "pass" = "run"
+  playType: "run" | "pass" = "run",
+  teamCapabilities?: TeamCapabilities | null
 ): ComprehensiveSuggestions {
   const preset = defensePresetId ? getDefensePresetById(defensePresetId) : null;
 
   return {
-    enhanced: getSuggestionsWithDefensePreset(play, defensePresetId, { playType }),
+    enhanced: getSuggestionsWithDefensePreset(play, defensePresetId, { playType }, teamCapabilities),
     families: getFamilySuggestions(play, defensePresetId, playType),
     defenseAnalysis: preset
       ? {

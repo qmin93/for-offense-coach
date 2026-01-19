@@ -137,17 +137,42 @@ export const PASS_CONCEPTS: Concept[] = [
       buildPolicy: { placementStrategy: "relative_to_alignment" },
     },
     passHints: { category: "intermediate", manBeater: true, stress: ["crossing", "rub"] },
+    searchAlias: "mesh concept crossing routes",
     installFocus: {
       failurePoints: [
         {
           id: "fp_mesh_depth",
           name: "Mesh point depth",
-          drill: { name: "Mesh Point Drill", purpose: "Crossers at correct depth (2-3 yds)", phase: "group" },
+          drill: {
+            name: "Mesh Point Drill",
+            purpose: "Crossers at correct depth (2-3 yds)",
+            phase: "group",
+            url: "https://www.youtube.com/watch?v=RjQ2qJKXbZk",
+            source: "youtube",
+            tags: ["WR", "mesh", "crossing"],
+          },
         },
         {
           id: "fp_mesh_eye",
           name: "QB mesh read",
-          drill: { name: "Mesh Read Drill", purpose: "QB reads inside-out on mesh", phase: "group" },
+          drill: {
+            name: "Mesh Read Drill",
+            purpose: "QB reads inside-out on mesh",
+            phase: "group",
+            url: "https://www.youtube.com/watch?v=8hVJTkMfxCg",
+            source: "youtube",
+            tags: ["QB", "read", "mesh"],
+          },
+        },
+        {
+          id: "fp_mesh_timing",
+          name: "Route timing coordination",
+          drill: {
+            name: "Mesh Timing Drill",
+            purpose: "Receivers cross at proper timing to create natural picks",
+            phase: "group",
+            tags: ["WR", "timing"],
+          },
         },
       ],
     },

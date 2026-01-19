@@ -243,8 +243,8 @@ export function CompactStepPanel({
   };
 
   const handleConceptSelect = () => {
-    // Open suggestions panel for more options
-    toggleSuggestions("run");
+    // Open suggestions panel using context playType
+    toggleSuggestions();
   };
 
   return (

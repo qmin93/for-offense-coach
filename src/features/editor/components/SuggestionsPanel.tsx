@@ -13,6 +13,7 @@ import { getPassConceptById } from "@/domain/engine/concepts-pass";
 import { getDefensePresetById } from "@/domain/engine/defense-presets";
 import { telemetry, setLastAutobuildContext } from "@/lib/telemetry";
 import { ConceptPackIndicator } from "@/components/ui/concept-pack-badge";
+import { useTeamProfile } from "@/lib/team-profile";
 
 // ============================================
 // Streamlined Suggestions Panel
@@ -36,6 +37,9 @@ export function SuggestionsPanel() {
   // Track if we've already tracked the panel open
   const hasTrackedOpen = useRef(false);
 
+  // Get team capabilities for personalized recommendations
+  const { capabilities: teamCapabilities } = useTeamProfile();
+
   // Get current defense preset info
   const defensePreset = defensePresetId ? getDefensePresetById(defensePresetId) : null;
 
@@ -44,16 +48,18 @@ export function SuggestionsPanel() {
   const lockedPlayType = suggestionsType === "pass" ? "pass" : "run";
 
   // Get Top 5 suggestions based on locked playType and current formation
+  // Includes team capabilities for personalized recommendations
   const suggestions = useMemo(() => {
     if (!play || !suggestionsOpen) return [];
     const result = getComprehensiveSuggestions(
       play,
       defensePresetId,
-      lockedPlayType
+      lockedPlayType,
+      teamCapabilities
     );
     // Force Top 5 only - clean decision UI
     return result.enhanced.slice(0, 5);
-  }, [play, suggestionsOpen, defensePresetId, lockedPlayType]);
+  }, [play, suggestionsOpen, defensePresetId, lockedPlayType, teamCapabilities]);
 
   // Track panel open telemetry
   useEffect(() => {
@@ -209,8 +215,9 @@ function EmptyState({
 }
 
 // ============================================
-// Concept Card - Minimal, action-focused
-// No scores, no verbose explanations
+// Concept Card - Decision-focused with clear reasoning
+// Rule: Every card MUST show "why this concept" in human language
+// No scores - only readable reasons
 // ============================================
 
 interface ConceptCardProps {
@@ -220,19 +227,50 @@ interface ConceptCardProps {
 }
 
 function ConceptCard({ result, rank, onBuild }: ConceptCardProps) {
-  const { name, conceptId, conceptType, typedReasons } = result;
+  const { name, conceptId, conceptType, typedReasons, fit, why } = result;
 
-  // Get first favorable reason as the key insight (one line)
-  const keyReason =
-    typedReasons?.find((r) => r.favorable)?.text ||
-    typedReasons?.[0]?.text ||
-    (conceptType === "run" ? "Run concept" : "Pass concept");
+  // Build a meaningful reason from available data
+  // Priority: 1) favorable typed reason, 2) fit summary, 3) why array, 4) first typed reason
+  const getKeyReason = (): string => {
+    // 1. Find first favorable reason with text
+    const favorableReason = typedReasons?.find((r) => r.favorable);
+    if (favorableReason?.text && !favorableReason.text.includes("Standard")) {
+      return favorableReason.text;
+    }
+
+    // 2. Build from fit object (most contextual)
+    const fitParts: string[] = [];
+    if (fit?.numbers && fit.numbers.includes("favorable")) fitParts.push(fit.numbers);
+    if (fit?.coverage) fitParts.push(fit.coverage);
+    if (fit?.front && fit.front.includes("favorable")) fitParts.push(fit.front);
+    if (fit?.structure && fit.structure.includes("optimal")) fitParts.push(fit.structure);
+    if (fitParts.length > 0) {
+      return fitParts[0]; // Use most relevant fit
+    }
+
+    // 3. Use why array (human-readable reasons)
+    if (why && why.length > 0) {
+      return why[0];
+    }
+
+    // 4. Fall back to first typed reason
+    if (typedReasons?.[0]?.text) {
+      return typedReasons[0].text;
+    }
+
+    // 5. Ultimate fallback
+    return conceptType === "run"
+      ? "Effective run concept for this formation"
+      : "Effective pass concept for this formation";
+  };
+
+  const keyReason = getKeyReason();
 
   return (
     <Card className="bg-white/5 border-white/10 hover:border-primary/50 transition-colors">
       <CardContent className="p-3">
         {/* Header: Rank + Name */}
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-1">
           <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
             {rank}
           </span>
@@ -244,8 +282,10 @@ function ConceptCard({ result, rank, onBuild }: ConceptCardProps) {
           </div>
         </div>
 
-        {/* Key reason - one line only */}
-        <p className="text-xs text-white/60 mb-3 line-clamp-1">{keyReason}</p>
+        {/* Key reason - ALWAYS visible, more prominent */}
+        <p className="text-xs text-white/80 mb-3 line-clamp-2 pl-7 leading-relaxed">
+          {keyReason}
+        </p>
 
         {/* Build button - primary action */}
         <Button
