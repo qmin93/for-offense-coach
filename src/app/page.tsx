@@ -127,8 +127,8 @@ export default function Home() {
                     <ArrowRight className="w-5 h-5" />
                   </Button>
                 </Link>
-                <Button variant="outline" size="xl" className="group">
-                  <Play className="w-5 h-5 text-accent group-hover:text-accent" />
+                <Button variant="secondary" size="xl" className="group">
+                  <Play className="w-5 h-5" />
                   Watch Demo
                 </Button>
               </div>

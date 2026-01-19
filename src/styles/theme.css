@@ -5,6 +5,20 @@
  * ============================================ */
 
 :root {
+  /* === Brand Blue Identity === */
+  --brand-blue: 217 91% 56%;
+  --brand-blue-hover: 217 91% 50%;
+  --brand-blue-soft: 217 91% 96%;
+  --brand-blue-muted: 217 60% 25%;
+
+  /* === Button Tokens === */
+  --btn-primary-bg: var(--brand-blue);
+  --btn-primary-fg: 210 40% 98%;
+  --btn-secondary-bg: transparent;
+  --btn-secondary-fg: var(--brand-blue);
+  --btn-secondary-border: var(--brand-blue);
+  --btn-ghost-fg: var(--brand-blue);
+
   /* Core Dark Palette */
   --background: 230 15% 6%;
   --foreground: 210 20% 90%;
@@ -16,10 +30,10 @@
   --popover: 225 15% 11%;
   --popover-foreground: 210 20% 90%;
 
-  /* Primary - Cold Blue */
-  --primary: 217 91% 60%;
+  /* Primary - Cold Blue (linked to brand) */
+  --primary: var(--brand-blue);
   --primary-foreground: 210 40% 98%;
-  --primary-muted: 217 60% 25%;
+  --primary-muted: var(--brand-blue-muted);
 
   /* Secondary - Gunmetal */
   --secondary: 220 15% 14%;

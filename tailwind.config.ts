@@ -28,6 +28,13 @@ const config: Config = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        // Brand Blue Identity (single source of truth)
+        brand: {
+          blue: "hsl(var(--brand-blue))",
+          "blue-hover": "hsl(var(--brand-blue-hover))",
+          "blue-soft": "hsl(var(--brand-blue-soft))",
+          "blue-muted": "hsl(var(--brand-blue-muted))",
+        },
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
