@@ -1,5 +1,5 @@
 // ============================================
-// SVG Renderer - Whiteboard Theme
+// SVG Renderer - Green Field Theme
 // DSL → SVG 렌더링
 // ============================================
 
@@ -37,27 +37,27 @@ import {
 } from "../engine/yard-utils";
 
 // ============================================
-// Constants - Whiteboard Theme
+// Constants - Green Field Theme (Original)
 // ============================================
 
 const FIELD_WIDTH = 800;
-const FIELD_HEIGHT = 600; // Taller for more field depth
-const FIELD_COLOR = "#FAFBFC"; // Off-white (clean whiteboard)
-const LINE_COLOR = "#CBD5E1"; // Light slate gray for yard lines
-const LOS_COLOR = "#3B82F6"; // Blue for Line of Scrimmage
-const HASH_COLOR = "#E2E8F0"; // Very light gray for hash marks
-const YARD_NUMBER_COLOR = "#94A3B8"; // Muted gray for yard numbers
-const OFFENSE_COLOR = "#1E40AF"; // Navy blue for offense
-const DEFENSE_COLOR = "#DC2626"; // Red for defense
-const ROUTE_COLOR = "#F59E0B"; // Amber/orange for routes
-const BLOCK_COLOR = "#2563EB"; // Bright blue for blocks
-const PULL_COLOR = "#059669"; // Emerald green for pull blocks
-const MOTION_COLOR = "#7C3AED"; // Purple for motion (distinct on white)
+const FIELD_HEIGHT = 600;
+const FIELD_COLOR = "#1a472a"; // Dark green field
+const LINE_COLOR = "rgba(255, 255, 255, 0.15)"; // Subtle white lines
+const LOS_COLOR = "#84cc16"; // Lime green for LOS
+const HASH_COLOR = "rgba(255, 255, 255, 0.08)"; // Very subtle hash marks
+const YARD_NUMBER_COLOR = "rgba(255, 255, 255, 0.4)"; // Muted white for numbers
+const OFFENSE_COLOR = "#f97316"; // Orange for offense
+const DEFENSE_COLOR = "#ef4444"; // Red for defense
+const ROUTE_COLOR = "#f97316"; // Orange for routes
+const BLOCK_COLOR = "#22c55e"; // Green for blocks
+const PULL_COLOR = "#22c55e"; // Green for pull blocks
+const MOTION_COLOR = "#fbbf24"; // Yellow for motion
 const PLAYER_RADIUS = 14;
 const FONT_SIZE = 11;
-const LANDMARK_GAP_COLOR = "#10B981"; // Emerald for gap markers
-const LANDMARK_EMOL_COLOR = "#F97316"; // Orange for EMOL markers
-const TECH_LABEL_COLOR = "#DC2626"; // Red matching defense color
+const LANDMARK_GAP_COLOR = "#22c55e"; // Green for gap markers
+const LANDMARK_EMOL_COLOR = "#f97316"; // Orange for EMOL markers
+const TECH_LABEL_COLOR = "#ef4444"; // Red matching defense color
 
 // Field measurements (GoArmy Edge style)
 // LOS at 62% from top: gives 62% for defense, 38% for offense/backfield
@@ -94,7 +94,7 @@ function toSvgPoint(point: Point): { x: number; y: number } {
 }
 
 // ============================================
-// Field Component - Whiteboard Style with Grid Density
+// Field Component - Green Field Style with Grid Density
 // ============================================
 
 interface FieldProps {
@@ -162,7 +162,7 @@ function Field({
 
   return (
     <g className="field-layer">
-      {/* Field background - clean whiteboard */}
+      {/* Field background - green field */}
       <rect
         x={0}
         y={0}
@@ -178,7 +178,7 @@ function Field({
         width={FIELD_WIDTH}
         height={FIELD_HEIGHT}
         fill="none"
-        stroke="#E2E8F0"
+        stroke="rgba(255, 255, 255, 0.2)"
         strokeWidth={2}
       />
 
@@ -858,7 +858,7 @@ function LandmarkNode({ action }: LandmarkNodeProps) {
           x={pos.x}
           y={pos.y - 12}
           textAnchor="middle"
-          fill="#374151"
+          fill="#ffffff"
           fontSize={10}
           fontWeight="bold"
         >
@@ -885,7 +885,7 @@ function TextNode({ action }: TextNodeProps) {
       <text
         x={pos.x}
         y={pos.y}
-        fill="#374151"
+        fill="#ffffff"
         fontSize={12}
         fontWeight="500"
       >
@@ -1033,7 +1033,7 @@ function FieldLandmarkOverlay({
                   x={pos.x}
                   y={pos.y + 22}
                   textAnchor="middle"
-                  fill="#6B7280"
+                  fill="rgba(255, 255, 255, 0.7)"
                   fontSize={8}
                 >
                   {landmark.side === "strong" ? "S" : "W"}
@@ -1121,8 +1121,8 @@ function TechLegend() {
         width={88}
         height={80}
         rx={4}
-        fill="rgba(15,23,42,0.85)"
-        stroke="rgba(148,163,184,0.3)"
+        fill="rgba(0, 0, 0, 0.6)"
+        stroke="rgba(255, 255, 255, 0.2)"
         strokeWidth={0.5}
       />
       {/* Title */}
@@ -1131,7 +1131,7 @@ function TechLegend() {
         y={startY}
         fontSize={8}
         fontWeight="bold"
-        fill="#94A3B8"
+        fill="rgba(255, 255, 255, 0.9)"
       >
         Tech Legend
       </text>
@@ -1142,10 +1142,10 @@ function TechLegend() {
           x={startX}
           y={startY + 12 + i * lineHeight}
           fontSize={7}
-          fill="#94A3B8"
+          fill="rgba(255, 255, 255, 0.7)"
         >
-          <tspan fontWeight="bold" fill="#374151">{item.label}</tspan>
-          <tspan fill="#6B7280"> = </tspan>
+          <tspan fontWeight="bold" fill="#ffffff">{item.label}</tspan>
+          <tspan fill="rgba(255, 255, 255, 0.5)"> = </tspan>
           <tspan>{item.desc}</tspan>
         </text>
       ))}
