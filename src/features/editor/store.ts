@@ -208,6 +208,7 @@ export interface EditorState {
   // Defense state
   defensePresetId: string | null;
   showDefense: boolean;
+  defenseLocked: boolean; // When true, defense won't auto-reposition (PRD requirement)
 
   // Landmark overlay state
   showLandmarks: boolean;
@@ -302,6 +303,7 @@ export interface EditorState {
   // Defense actions
   applyDefensePreset: (presetId: string) => void;
   toggleDefenseVisibility: () => void;
+  toggleDefenseLock: () => void; // Toggle defense position lock (default: locked)
   resetDefense: () => void;
 
   // Landmark actions
@@ -394,6 +396,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // Defense state
   defensePresetId: null,
   showDefense: true,
+  defenseLocked: true, // Default: locked - defense won't auto-reposition (PRD requirement)
 
   // Landmark overlay state
   showLandmarks: false,
@@ -1386,6 +1389,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => ({ showDefense: !state.showDefense }));
   },
 
+  toggleDefenseLock: () => {
+    set((state) => ({ defenseLocked: !state.defenseLocked }));
+  },
+
   resetDefense: () => {
     const state = get();
     if (!state.play) return;
@@ -1785,10 +1792,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   /**
    * Auto-apply defense preset based on context settings
    * Called when entering editor with defense context (box count, front, etc.)
+   *
+   * IMPORTANT (PRD/DSL Requirement):
+   * - Defense is position-locked by default (defenseLocked = true)
+   * - This function respects the lock and will NOT auto-reposition if locked
+   * - Only manual preset selection or drag bypasses the lock
    */
   applyContextDefense: () => {
     const state = get();
     const activeContext = state.context.active;
+
+    // CRITICAL: Respect defense lock (PRD requirement - no auto-repositioning)
+    if (state.defenseLocked) {
+      editorLog.event("CONTEXT_DEFENSE_SKIPPED", { reason: "defense_locked" });
+      return;
+    }
 
     // Check if we have meaningful defense context
     if (!hasDefenseContext(activeContext)) {

@@ -41,9 +41,26 @@ function yBehindLOS(yardsBack: number): number {
 // DL should be 1 yard off the LOS
 const DL_Y = yAboveLOS(1);
 
-// DE positioning - must be OUTSIDE the OT (5-tech = outside shade)
-// OT is at ~4 yards from center, so DE should be at 7+ yards for clear outside alignment
-const DE_WIDTH = 7; // Wide-5 / Edge alignment - clearly outside OT
+// ============================================
+// ALIGNMENT ANCHORS (NON-NEGOTIABLE)
+// ============================================
+// DE alignment anchor = OT (LT/RT), NOT the widest offensive player (WR/X/Z)
+// This follows DSL "Offensive Surface" principle.
+//
+// Standard OL splits:
+// - C (Center): 0 yards from center
+// - G (Guards): ~1-1.5 yards from center
+// - OT (Tackles): ~4 yards from center (LT at -4, RT at +4)
+//
+// DE Technique reference:
+// - 4i = inside shoulder of OT (~3.5 yards)
+// - 4 = head-up on OT (~4 yards)
+// - 5 = outside shoulder of OT (~5 yards) ← DEFAULT
+// - 6/7/9 = wider edge alignments
+// ============================================
+
+const OT_WIDTH = 4; // OT is at ~4 yards from center
+const DE_WIDTH = 5; // 5-tech = OT outside shoulder (~5 yards from center)
 
 // ============================================
 // Defense Preset Definitions

@@ -6,13 +6,16 @@ import { DEFENSE_PRESETS } from "@/domain/engine/defense-presets";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Lock, Unlock } from "lucide-react";
 
 export function DefensePanel() {
   const {
     defensePresetId,
     showDefense,
+    defenseLocked,
     applyDefensePreset,
     toggleDefenseVisibility,
+    toggleDefenseLock,
     resetDefense,
   } = useEditorStore();
 
@@ -24,7 +27,32 @@ export function DefensePanel() {
     <div className="p-4 space-y-4">
       {/* Header with controls */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">Defense</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-foreground">Defense</h3>
+          {/* Lock indicator badge */}
+          <Badge
+            variant={defenseLocked ? "default" : "outline"}
+            className={cn(
+              "text-xs cursor-pointer",
+              defenseLocked
+                ? "bg-amber-500/20 text-amber-500 border-amber-500/30"
+                : "bg-green-500/20 text-green-500 border-green-500/30"
+            )}
+            onClick={toggleDefenseLock}
+          >
+            {defenseLocked ? (
+              <>
+                <Lock className="w-3 h-3 mr-1" />
+                Locked
+              </>
+            ) : (
+              <>
+                <Unlock className="w-3 h-3 mr-1" />
+                Auto
+              </>
+            )}
+          </Badge>
+        </div>
         <div className="flex items-center gap-2">
           <Button
             variant={showDefense ? "default" : "outline"}
@@ -150,9 +178,12 @@ export function DefensePanel() {
       </div>
 
       {/* Help text */}
-      <div className="text-xs text-muted-foreground pt-2 border-t">
-        Select a defense preset to add 11 defensive players to the field.
-        Use "Hide" to toggle visibility.
+      <div className="text-xs text-muted-foreground pt-2 border-t space-y-1">
+        <p>Select a defense preset to add 11 defensive players to the field.</p>
+        <p>
+          <strong>Locked:</strong> Defense won't auto-change when context changes.
+          <strong> Auto:</strong> Defense may update based on context filters.
+        </p>
       </div>
     </div>
   );
