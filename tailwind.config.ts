@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: ["class", "[data-theme='dark']"],
+  darkMode: ["class"],
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -9,64 +9,91 @@ const config: Config = {
     "./src/features/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
     extend: {
       fontFamily: {
-        sans: ["var(--font-sans)", "Inter", "system-ui", "sans-serif"],
+        sans: ["Inter", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "monospace"],
       },
       colors: {
-        // shadcn/ui standard colors (mapped to our theme)
-        background: "var(--bg-primary)",
-        foreground: "var(--text-primary)",
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "var(--accent)",
-          foreground: "#ffffff",
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
-          DEFAULT: "var(--bg-tertiary)",
-          foreground: "var(--text-primary)",
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
-          DEFAULT: "var(--error)",
-          foreground: "#ffffff",
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
         },
         muted: {
-          DEFAULT: "var(--bg-secondary)",
-          foreground: "var(--text-muted)",
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
         },
         popover: {
-          DEFAULT: "var(--bg-tertiary)",
-          foreground: "var(--text-primary)",
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
         },
         card: {
-          DEFAULT: "var(--bg-secondary)",
-          foreground: "var(--text-primary)",
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
         },
-        input: "var(--border-subtle)",
-        ring: "var(--accent)",
-        // Theme system colors (CSS variable based)
+        // Custom football tokens
+        field: {
+          DEFAULT: "hsl(var(--field))",
+          lines: "hsl(var(--field-lines))",
+          endzone: "hsl(var(--field-endzone))",
+        },
+        route: "hsl(var(--route))",
+        block: "hsl(var(--block))",
+        motion: "hsl(var(--motion))",
+        offense: "hsl(var(--offense))",
+        defense: "hsl(var(--defense))",
+        // Glass effects
+        "glass-border": "hsl(var(--glass-border))",
+        "glass-bg": "hsl(var(--glass-bg))",
+        "glow-primary": "hsl(var(--glow-primary))",
+        "glow-secondary": "hsl(var(--glow-secondary))",
+        // Sidebar
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar-background))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          primary: "hsl(var(--sidebar-primary))",
+          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          border: "hsl(var(--sidebar-border))",
+          ring: "hsl(var(--sidebar-ring))",
+        },
+        // Legacy support
         bg: {
           primary: "var(--bg-primary)",
           secondary: "var(--bg-secondary)",
           tertiary: "var(--bg-tertiary)",
           elevated: "var(--bg-elevated)",
         },
-        border: {
-          DEFAULT: "var(--border-subtle)",
-          subtle: "var(--border-subtle)",
-          strong: "var(--border-strong)",
-        },
         text: {
           primary: "var(--text-primary)",
           secondary: "var(--text-secondary)",
           muted: "var(--text-muted)",
           inverse: "var(--text-inverse)",
-        },
-        accent: {
-          DEFAULT: "var(--accent)",
-          strong: "var(--accent-strong)",
-          soft: "var(--accent-soft)",
-          foreground: "#ffffff",
         },
         success: {
           DEFAULT: "var(--success)",
@@ -80,63 +107,34 @@ const config: Config = {
           DEFAULT: "var(--error)",
           soft: "var(--error-soft)",
         },
-        // Field & canvas colors
-        field: {
-          DEFAULT: "var(--field-bg)",
-          bg: "var(--field-bg)",
-          "line-1yd": "var(--field-line-1yd)",
-          "line-5yd": "var(--field-line-5yd)",
-          "line-10yd": "var(--field-line-10yd)",
-          los: "var(--field-los)",
-          label: "var(--field-label)",
-          hash: "var(--field-hash)",
-        },
-        // Diagram colors
-        route: {
-          DEFAULT: "var(--route)",
-          selected: "var(--route-selected)",
-        },
-        block: {
-          run: "var(--block-run)",
-          pass: "var(--block-pass)",
-        },
-        motion: "var(--motion)",
-        landmark: "var(--landmark)",
-        // Player colors
-        player: {
-          offense: "var(--player-offense)",
-          defense: "var(--player-defense)",
-        },
-        // Legacy support (for backward compatibility)
-        "field-green": "#2d5a27",
-        "field-line": "#ffffff",
       },
       borderRadius: {
-        sm: "var(--radius-sm)",
-        md: "var(--radius-md)",
-        lg: "var(--radius-lg)",
-        xl: "var(--radius-xl)",
-      },
-      boxShadow: {
-        sm: "var(--shadow-sm)",
-        md: "var(--shadow-md)",
-        focus: "var(--focus-ring)",
-      },
-      transitionTimingFunction: {
-        "ease-out-custom": "var(--ease-out)",
-      },
-      animation: {
-        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
       },
       keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
         "pulse-glow": {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.6" },
         },
       },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+      },
     },
   },
-  plugins: [],
+  plugins: [require("tailwindcss-animate")],
 };
 
 export default config;

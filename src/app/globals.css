@@ -1,112 +1,65 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 @import "../styles/theme.css";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
-
-@plugin "tailwindcss-animate";
-@import "tw-animate-css";
-
-@custom-variant dark (&:is(.dark *));
-
-body {
-  font-family: var(--font-sans), 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-}
-
-/* SVG Editor Styles */
-.editor-canvas {
-  cursor: crosshair;
-}
-
-.editor-canvas.mode-select {
-  cursor: default;
-}
-
-.editor-canvas.mode-route {
-  cursor: crosshair;
-}
-
-.editor-canvas.mode-block {
-  cursor: pointer;
-}
-
-.editor-canvas.mode-motion {
-  cursor: move;
-}
-
-.editor-canvas.mode-text {
-  cursor: text;
-}
-
-/* Player Node Styles */
-.player-node {
-  cursor: grab;
-}
-
-.player-node:active {
-  cursor: grabbing;
-}
-
-.player-node.selected {
-  filter: drop-shadow(0 0 4px var(--accent));
-}
-
-/* Dark mode is default via data-theme attribute */
 
 @layer base {
   * {
-    border-color: var(--border-subtle);
+    @apply border-border;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
   }
 }
 
 @layer components {
-  /* Glass panel effect for sidebars and overlays */
   .glass-panel {
-    background-color: color-mix(in srgb, var(--bg-tertiary) 80%, transparent);
-    backdrop-filter: blur(12px);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
+    @apply bg-card/80 backdrop-blur-xl border border-glass-border rounded-lg;
   }
 
-  /* Glow effects */
   .glow-primary {
-    box-shadow: 0 0 40px -10px color-mix(in srgb, var(--accent) 40%, transparent);
+    box-shadow: 0 0 40px -10px hsl(var(--primary) / 0.4);
   }
 
   .glow-secondary {
-    box-shadow: 0 0 40px -10px color-mix(in srgb, var(--warning) 40%, transparent);
+    box-shadow: 0 0 40px -10px hsl(var(--accent) / 0.4);
   }
 
-  /* Gradient border wrapper */
   .gradient-border {
     position: relative;
-    background: var(--bg-tertiary);
-    border-radius: var(--radius-lg);
+    background: hsl(var(--card));
+    border-radius: var(--radius);
   }
 
   .gradient-border::before {
     content: '';
     position: absolute;
     inset: -1px;
-    border-radius: calc(var(--radius-lg) + 1px);
+    border-radius: calc(var(--radius) + 1px);
     background: linear-gradient(
       135deg,
-      color-mix(in srgb, var(--accent) 50%, transparent),
-      color-mix(in srgb, var(--success) 50%, transparent),
-      color-mix(in srgb, var(--accent) 30%, transparent)
+      hsl(var(--primary) / 0.5),
+      hsl(var(--accent) / 0.5),
+      hsl(var(--primary) / 0.3)
     );
     z-index: -1;
   }
 
-  /* Text gradient */
   .text-gradient {
-    background: linear-gradient(135deg, var(--accent), var(--success));
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -116,7 +69,12 @@ body {
 @layer utilities {
   /* Field gradient for SVG background */
   .field-gradient {
-    background: var(--field-bg);
+    background: linear-gradient(
+      180deg,
+      hsl(142 50% 28%) 0%,
+      hsl(142 50% 25%) 50%,
+      hsl(142 50% 22%) 100%
+    );
   }
 
   /* Floating animation */
@@ -196,15 +154,48 @@ body {
 
   @keyframes glow-pulse {
     0%, 100% {
-      box-shadow: 0 0 20px -5px color-mix(in srgb, var(--accent) 40%, transparent);
+      box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.4);
     }
     50% {
-      box-shadow: 0 0 30px -5px color-mix(in srgb, var(--accent) 60%, transparent);
+      box-shadow: 0 0 30px -5px hsl(var(--primary) / 0.6);
     }
   }
+}
 
-  /* Mono font utility */
-  .font-mono {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-  }
+/* SVG Editor Styles */
+.editor-canvas {
+  cursor: crosshair;
+}
+
+.editor-canvas.mode-select {
+  cursor: default;
+}
+
+.editor-canvas.mode-route {
+  cursor: crosshair;
+}
+
+.editor-canvas.mode-block {
+  cursor: pointer;
+}
+
+.editor-canvas.mode-motion {
+  cursor: move;
+}
+
+.editor-canvas.mode-text {
+  cursor: text;
+}
+
+/* Player Node Styles */
+.player-node {
+  cursor: grab;
+}
+
+.player-node:active {
+  cursor: grabbing;
+}
+
+.player-node.selected {
+  filter: drop-shadow(0 0 4px hsl(var(--primary)));
 }
