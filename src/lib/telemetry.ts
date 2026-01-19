@@ -45,7 +45,9 @@ export type TelemetryEventName =
   | "fork_created"
   // Install Focus
   | "install_focus_opened"
-  | "drill_video_clicked";
+  | "drill_video_clicked"
+  | "drill_link_clicked"
+  | "drill_link_missing";
 
 // ============================================
 // Event Payload Schemas (필드 고정)
@@ -229,6 +231,7 @@ export interface InstallFocusOpenedPayload {
   conceptId: string;
   conceptName: string;
   drillCount: number;
+  hasDirectLinksCount?: number;
 }
 
 export interface DrillVideoClickedPayload {
@@ -236,6 +239,23 @@ export interface DrillVideoClickedPayload {
   drillName: string;
   drillId: string;
   videoUrl?: string;
+}
+
+export interface DrillLinkClickedPayload {
+  conceptId: string;
+  drillId: string;
+  drillName: string;
+  action: "watch" | "search_youtube" | "search_instagram";
+  hasDirectUrl: boolean;
+  query?: string;
+  videoUrl?: string;
+}
+
+export interface DrillLinkMissingPayload {
+  conceptId: string;
+  drillId: string;
+  drillName: string;
+  reason: "no_url";
 }
 
 // ============================================
@@ -271,6 +291,8 @@ export interface TelemetryEventPayloads {
   fork_created: ForkCreatedPayload;
   install_focus_opened: InstallFocusOpenedPayload;
   drill_video_clicked: DrillVideoClickedPayload;
+  drill_link_clicked: DrillLinkClickedPayload;
+  drill_link_missing: DrillLinkMissingPayload;
 }
 
 // ============================================
@@ -515,6 +537,14 @@ export const telemetry = {
 
   drillVideoClicked: (payload: DrillVideoClickedPayload) => {
     track("drill_video_clicked", payload);
+  },
+
+  drillLinkClicked: (payload: DrillLinkClickedPayload) => {
+    track("drill_link_clicked", payload);
+  },
+
+  drillLinkMissing: (payload: DrillLinkMissingPayload) => {
+    track("drill_link_missing", payload);
   },
 };
 

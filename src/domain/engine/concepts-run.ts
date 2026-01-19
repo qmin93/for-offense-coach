@@ -254,23 +254,42 @@ export const RUN_CONCEPTS: Concept[] = [
       aim: "b_c_gap",
       category: "gap",
     },
+    searchAlias: "Counter run play",
     installFocus: {
       failurePoints: [
         {
           id: "fp_counter_timing",
           name: "Puller timing & path",
-          drill: { name: "Pull & Kick Drill", purpose: "Guard/Tackle pull coordination", phase: "group" },
+          drill: {
+            id: "drill_pull_kick",
+            name: "Pull & Kick Drill",
+            purpose: "Guard/Tackle pull coordination",
+            phase: "group",
+            tags: ["OL", "pull", "kickout"],
+          },
           videoRefs: [{ platform: "instagram", url: "https://instagram.com/p/counter1", accountName: "@olinedrills", hashtags: ["#counterdrill"] }],
         },
         {
           id: "fp_counter_rb",
           name: "RB press & cut decision",
-          drill: { name: "Press Read Drill", purpose: "RB reads kick block and cuts", phase: "group" },
+          drill: {
+            id: "drill_press_read",
+            name: "Press Read Drill",
+            purpose: "RB reads kick block and cuts",
+            phase: "group",
+            tags: ["RB", "read", "cutback"],
+          },
         },
         {
           id: "fp_counter_kicklog",
           name: "Kick vs Log recognition",
-          drill: { name: "DE Read Drill", purpose: "Kick or log based on DE", phase: "group" },
+          drill: {
+            id: "drill_de_read",
+            name: "DE Read Drill",
+            purpose: "Kick or log based on DE",
+            phase: "group",
+            tags: ["OL", "kick", "log"],
+          },
         },
       ],
     },

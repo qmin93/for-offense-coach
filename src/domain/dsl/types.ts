@@ -677,11 +677,22 @@ export interface RunHints {
 
 // Install Focus
 export type DrillPhase = "indy" | "group" | "team";
+export type DrillSource = "youtube" | "instagram" | "custom";
+
+export interface DrillSearchFallback {
+  enabled?: boolean;        // default true if no url
+  queries?: string[];       // optional override query list
+}
 
 export interface Drill {
+  id?: string;              // stable id (slug)
   name: string;
   purpose: string;
   phase: DrillPhase;
+  url?: string;             // optional direct link
+  source?: DrillSource;     // optional hint for UI
+  tags?: string[];          // ["OL", "pull", "kickout"]
+  searchFallback?: DrillSearchFallback;
 }
 
 export interface VideoRef {
@@ -708,6 +719,7 @@ export interface Concept {
   type: "concept";
   id: string;
   name: string;
+  searchAlias?: string;     // e.g. "Power O", "Flood concept" for search queries
   conceptType: ConceptType;
   summary: string;
   badges?: string[];

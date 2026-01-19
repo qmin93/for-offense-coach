@@ -31,18 +31,31 @@ export const PASS_CONCEPTS: Concept[] = [
       buildPolicy: { placementStrategy: "relative_to_alignment", defaultSide: "right" },
     },
     passHints: { category: "quick", manBeater: false, zoneBeater: true, stress: ["flat_conflict"] },
+    searchAlias: "Stick route concept",
     installFocus: {
       failurePoints: [
         {
           id: "fp_stick_depth",
           name: "Stick route depth consistency",
-          drill: { name: "6-Yard Hitch Drill", purpose: "Consistent 6yd depth on stick route", phase: "indy" },
+          drill: {
+            id: "drill_6yd_hitch",
+            name: "6-Yard Hitch Drill",
+            purpose: "Consistent 6yd depth on stick route",
+            phase: "indy",
+            tags: ["WR", "route", "hitch"],
+          },
           videoRefs: [{ platform: "instagram", url: "https://instagram.com/p/stick1", accountName: "@qbdrills", hashtags: ["#stickroute"] }],
         },
         {
           id: "fp_flat_timing",
           name: "Flat route timing vs zone",
-          drill: { name: "Flat Timing Drill", purpose: "RB timing on flat route", phase: "group" },
+          drill: {
+            id: "drill_flat_timing",
+            name: "Flat Timing Drill",
+            purpose: "RB timing on flat route",
+            phase: "group",
+            tags: ["RB", "route", "flat", "timing"],
+          },
         },
       ],
     },
