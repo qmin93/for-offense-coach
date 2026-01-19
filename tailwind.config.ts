@@ -15,6 +15,35 @@ const config: Config = {
         mono: ["JetBrains Mono", "ui-monospace", "monospace"],
       },
       colors: {
+        // shadcn/ui standard colors (mapped to our theme)
+        background: "var(--bg-primary)",
+        foreground: "var(--text-primary)",
+        primary: {
+          DEFAULT: "var(--accent)",
+          foreground: "#ffffff",
+        },
+        secondary: {
+          DEFAULT: "var(--bg-tertiary)",
+          foreground: "var(--text-primary)",
+        },
+        destructive: {
+          DEFAULT: "var(--error)",
+          foreground: "#ffffff",
+        },
+        muted: {
+          DEFAULT: "var(--bg-secondary)",
+          foreground: "var(--text-muted)",
+        },
+        popover: {
+          DEFAULT: "var(--bg-tertiary)",
+          foreground: "var(--text-primary)",
+        },
+        card: {
+          DEFAULT: "var(--bg-secondary)",
+          foreground: "var(--text-primary)",
+        },
+        input: "var(--border-subtle)",
+        ring: "var(--accent)",
         // Theme system colors (CSS variable based)
         bg: {
           primary: "var(--bg-primary)",
@@ -23,6 +52,7 @@ const config: Config = {
           elevated: "var(--bg-elevated)",
         },
         border: {
+          DEFAULT: "var(--border-subtle)",
           subtle: "var(--border-subtle)",
           strong: "var(--border-strong)",
         },
@@ -36,6 +66,7 @@ const config: Config = {
           DEFAULT: "var(--accent)",
           strong: "var(--accent-strong)",
           soft: "var(--accent-soft)",
+          foreground: "#ffffff",
         },
         success: {
           DEFAULT: "var(--success)",
