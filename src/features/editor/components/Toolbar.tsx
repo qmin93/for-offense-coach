@@ -54,8 +54,8 @@ export function Toolbar() {
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all",
                     mode === m.mode
-                      ? "bg-white text-primary shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                      ? "bg-brand-blue text-white shadow-sm"
+                      : "text-white/70 hover:text-white hover:bg-white/10"
                   )}
                 >
                   {m.icon}
@@ -78,8 +78,8 @@ export function Toolbar() {
                 className={cn(
                   "flex items-center gap-1 px-2.5 py-1.5 rounded-md text-sm font-medium transition-all ml-1",
                   curveMode
-                    ? "bg-blue-100 text-blue-700"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    ? "bg-brand-blue text-white"
+                    : "text-white/70 hover:text-white hover:bg-white/10"
                 )}
               >
                 〰 Curve
@@ -142,8 +142,10 @@ export function Toolbar() {
                   variant={autoApplyDefaults ? "secondary" : "outline"}
                   size="sm"
                   className={cn(
-                    "h-8 gap-1",
-                    autoApplyDefaults && "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                    "h-8 gap-1 border-white/20",
+                    autoApplyDefaults
+                      ? "bg-green-600 text-white border-green-500 hover:bg-green-700"
+                      : "text-white/70 hover:text-white hover:bg-white/10"
                   )}
                 >
                   OL Rules

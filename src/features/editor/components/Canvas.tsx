@@ -954,23 +954,8 @@ export function Canvas() {
           {blockDrag && <span className="ml-2 text-blue-300">(Dragging block...)</span>}
         </div>
 
-        {/* Zoom and snap controls */}
+        {/* Zoom controls */}
         <div className="flex items-center gap-3">
-          {/* Snap toggle */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className={`h-8 px-3 text-xs ${
-              snapConfig.enabled
-                ? "bg-blue-600 text-white hover:bg-blue-700"
-                : "bg-slate-800/80 text-white/60 hover:bg-slate-700/80"
-            }`}
-            onClick={toggleSnap}
-            title={snapConfig.enabled ? "Snap enabled (click to disable)" : "Snap disabled (click to enable)"}
-          >
-            Snap {snapConfig.enabled ? "ON" : "OFF"}
-          </Button>
-
           {/* Zoom controls */}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 rounded-lg">
             <Button

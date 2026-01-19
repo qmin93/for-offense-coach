@@ -164,8 +164,8 @@ export function getPassSuggestions(input: PassSuggestionInput): SuggestionResult
     return { concept, score, reasons, typedReasons, category };
   });
 
-  // Sort by score descending, limit to 8-12 for pass concepts
-  const sorted = results.sort((a, b) => b.score - a.score).slice(0, 12);
+  // Sort by score descending, show more pass concepts (up to 20)
+  const sorted = results.sort((a, b) => b.score - a.score).slice(0, 20);
   return normalizeScores(sorted);
 }
 
