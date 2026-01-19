@@ -5,6 +5,7 @@
 // ============================================
 
 import type { Point } from "../dsl/types";
+import { YARD_CONSTANTS } from "./yard-utils";
 
 // ============================================
 // Types
@@ -15,7 +16,8 @@ export interface SnapConfig {
   snapToLOS: boolean; // Line of Scrimmage (y = 0)
   snapToHash: boolean; // Hash marks (x = 0.33, 0.67)
   snapToGrid: boolean; // Grid lines
-  gridSpacing: number; // Grid spacing in normalized coords
+  gridSpacing: number; // Grid spacing in normalized coords (Y axis)
+  gridSpacingX?: number; // Grid spacing for X axis (if different from Y)
   threshold: number; // Snap threshold distance
 }
 
@@ -36,9 +38,20 @@ export const DEFAULT_SNAP_CONFIG: SnapConfig = {
   enabled: true,
   snapToLOS: true,
   snapToHash: true,
+  snapToGrid: true, // Enable by default for yard-accurate placement
+  gridSpacing: YARD_CONSTANTS.HALF_YARD_SNAP_Y, // 0.5 yards in Y
+  gridSpacingX: YARD_CONSTANTS.HALF_YARD_SNAP_X, // 0.5 yards in X
+  threshold: 0.005, // Tighter threshold for precise snapping
+};
+
+// Legacy config for backward compatibility
+export const LEGACY_SNAP_CONFIG: SnapConfig = {
+  enabled: true,
+  snapToLOS: true,
+  snapToHash: true,
   snapToGrid: false,
-  gridSpacing: 0.05, // 5% of field width/height
-  threshold: 0.02, // 2% snap threshold
+  gridSpacing: 0.05,
+  threshold: 0.02,
 };
 
 // Hash mark positions (normalized)
@@ -93,10 +106,13 @@ export function snapPoint(point: Point, config: SnapConfig): SnapResult {
     snappedToHashRight = true;
   }
 
-  // Snap to grid
+  // Snap to grid (with separate X/Y spacing for yard-accurate snapping)
   if (config.snapToGrid) {
-    const gridX = Math.round(x / config.gridSpacing) * config.gridSpacing;
-    const gridY = Math.round(y / config.gridSpacing) * config.gridSpacing;
+    const spacingX = config.gridSpacingX ?? config.gridSpacing;
+    const spacingY = config.gridSpacing;
+
+    const gridX = Math.round(x / spacingX) * spacingX;
+    const gridY = Math.round(y / spacingY) * spacingY;
 
     if (Math.abs(x - gridX) < config.threshold) {
       x = gridX;

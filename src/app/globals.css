@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../styles/theme.css";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
 
 @plugin "tailwindcss-animate";
@@ -6,83 +7,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
-:root {
-  /* ForOffenseCoach Design Tokens - Dark Mode Default */
-  --radius: 0.5rem;
-
-  /* Base colors - Dark theme */
-  --background: 222 47% 6%;
-  --foreground: 210 40% 98%;
-  --card: 222 47% 8%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222 47% 10%;
-  --popover-foreground: 210 40% 98%;
-
-  /* Primary - Green accent */
-  --primary: 142 70% 45%;
-  --primary-foreground: 222 47% 6%;
-
-  /* Secondary */
-  --secondary: 217 33% 17%;
-  --secondary-foreground: 210 40% 98%;
-
-  /* Muted */
-  --muted: 217 33% 14%;
-  --muted-foreground: 215 20% 55%;
-
-  /* Accent - Orange */
-  --accent: 24 95% 53%;
-  --accent-foreground: 222 47% 6%;
-
-  /* Destructive */
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 210 40% 98%;
-
-  /* Border & Input */
-  --border: 217 33% 20%;
-  --input: 217 33% 17%;
-  --ring: 142 70% 45%;
-
-  /* Chart colors */
-  --chart-1: 142 70% 45%;
-  --chart-2: 24 95% 53%;
-  --chart-3: 199 89% 48%;
-  --chart-4: 45 93% 47%;
-  --chart-5: 280 65% 60%;
-
-  /* Sidebar */
-  --sidebar: 222 47% 8%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-primary: 142 70% 45%;
-  --sidebar-primary-foreground: 222 47% 6%;
-  --sidebar-accent: 217 33% 17%;
-  --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-border: 217 33% 20%;
-  --sidebar-ring: 142 70% 45%;
-
-  /* Football Field Tokens */
-  --field: 142 50% 25%;
-  --field-lines: 142 40% 45%;
-  --field-endzone: 142 60% 20%;
-
-  /* Action Colors */
-  --route: 24 95% 53%;
-  --block: 199 89% 48%;
-  --motion: 45 93% 47%;
-
-  /* Unit Colors */
-  --offense: 210 40% 98%;
-  --defense: 0 84% 60%;
-
-  /* Glass Panel */
-  --panel-glass: 222 47% 8%;
-  --panel-border: 217 33% 25%;
-}
-
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+  font-family: var(--font-sans), 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 /* SVG Editor Styles */
@@ -120,117 +48,65 @@ body {
 }
 
 .player-node.selected {
-  filter: drop-shadow(0 0 4px var(--offense-secondary));
+  filter: drop-shadow(0 0 4px var(--accent));
 }
 
-@theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
-
-  /* Base colors */
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
-
-  /* Chart colors */
-  --color-chart-1: hsl(var(--chart-1));
-  --color-chart-2: hsl(var(--chart-2));
-  --color-chart-3: hsl(var(--chart-3));
-  --color-chart-4: hsl(var(--chart-4));
-  --color-chart-5: hsl(var(--chart-5));
-
-  /* Sidebar */
-  --color-sidebar: hsl(var(--sidebar));
-  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
-  --color-sidebar-primary: hsl(var(--sidebar-primary));
-  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
-  --color-sidebar-accent: hsl(var(--sidebar-accent));
-  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
-  --color-sidebar-border: hsl(var(--sidebar-border));
-  --color-sidebar-ring: hsl(var(--sidebar-ring));
-
-  /* Field & Action colors */
-  --color-field: hsl(var(--field));
-  --color-field-lines: hsl(var(--field-lines));
-  --color-field-endzone: hsl(var(--field-endzone));
-  --color-route: hsl(var(--route));
-  --color-block: hsl(var(--block));
-  --color-motion: hsl(var(--motion));
-  --color-offense: hsl(var(--offense));
-  --color-defense: hsl(var(--defense));
-}
-
-/* Dark mode is default - no need for .dark override */
+/* Dark mode is default via data-theme attribute */
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    border-color: var(--border-subtle);
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
 @layer components {
   /* Glass panel effect for sidebars and overlays */
   .glass-panel {
-    @apply bg-card/80 backdrop-blur-xl border border-border/50 rounded-lg;
+    background-color: color-mix(in srgb, var(--bg-tertiary) 80%, transparent);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
   }
 
   /* Glow effects */
   .glow-primary {
-    box-shadow: 0 0 40px -10px hsl(var(--primary) / 0.4);
+    box-shadow: 0 0 40px -10px color-mix(in srgb, var(--accent) 40%, transparent);
   }
 
   .glow-secondary {
-    box-shadow: 0 0 40px -10px hsl(var(--accent) / 0.4);
+    box-shadow: 0 0 40px -10px color-mix(in srgb, var(--warning) 40%, transparent);
   }
 
   /* Gradient border wrapper */
   .gradient-border {
     position: relative;
-    background: hsl(var(--card));
-    border-radius: var(--radius);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-lg);
   }
 
   .gradient-border::before {
     content: '';
     position: absolute;
     inset: -1px;
-    border-radius: calc(var(--radius) + 1px);
+    border-radius: calc(var(--radius-lg) + 1px);
     background: linear-gradient(
       135deg,
-      hsl(var(--primary) / 0.5),
-      hsl(var(--accent) / 0.5),
-      hsl(var(--primary) / 0.3)
+      color-mix(in srgb, var(--accent) 50%, transparent),
+      color-mix(in srgb, var(--success) 50%, transparent),
+      color-mix(in srgb, var(--accent) 30%, transparent)
     );
     z-index: -1;
   }
 
   /* Text gradient */
   .text-gradient {
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    background: linear-gradient(135deg, var(--accent), var(--success));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -240,12 +116,7 @@ body {
 @layer utilities {
   /* Field gradient for SVG background */
   .field-gradient {
-    background: linear-gradient(
-      180deg,
-      hsl(142 50% 28%) 0%,
-      hsl(142 50% 25%) 50%,
-      hsl(142 50% 22%) 100%
-    );
+    background: var(--field-bg);
   }
 
   /* Floating animation */
@@ -325,10 +196,10 @@ body {
 
   @keyframes glow-pulse {
     0%, 100% {
-      box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.4);
+      box-shadow: 0 0 20px -5px color-mix(in srgb, var(--accent) 40%, transparent);
     }
     50% {
-      box-shadow: 0 0 30px -5px hsl(var(--primary) / 0.6);
+      box-shadow: 0 0 30px -5px color-mix(in srgb, var(--accent) 60%, transparent);
     }
   }
 

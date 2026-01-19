@@ -1,0 +1,146 @@
+/* ============================================
+ * Theme System v1 - Graphite + Steel Blue
+ * Dark/Light mode CSS variables
+ * ============================================ */
+
+/* ============================================
+ * Base Tokens (Shared)
+ * ============================================ */
+:root {
+  /* Typography */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+
+  /* Radii */
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.35);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============================================
+ * Dark Theme (Graphite) - Default
+ * ============================================ */
+:root,
+:root[data-theme="dark"] {
+  /* Backgrounds */
+  --bg-primary: #121416;    /* Graphite */
+  --bg-secondary: #1A1D21;  /* Panels */
+  --bg-tertiary: #242833;   /* Cards/Popovers */
+  --bg-elevated: #2B3140;   /* Hover/Active surfaces */
+
+  /* Borders */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Text */
+  --text-primary: #E7EAF0;
+  --text-secondary: #A6AEBB;
+  --text-muted: #70798A;
+  --text-inverse: #0E0F12;
+
+  /* Accent (Brand) - Steel Blue */
+  --accent: #4F8EF7;
+  --accent-strong: #3B82F6;
+  --accent-soft: rgba(79, 142, 247, 0.16);
+
+  /* Success / Warning / Error */
+  --success: #22C55E;
+  --success-soft: rgba(34, 197, 94, 0.16);
+  --warning: #F59E0B;
+  --warning-soft: rgba(245, 158, 11, 0.16);
+  --error: #EF4444;
+  --error-soft: rgba(239, 68, 68, 0.16);
+
+  /* Canvas / Field */
+  --field-bg: #14171B;
+  --field-line-1yd: rgba(255, 255, 255, 0.06);
+  --field-line-5yd: rgba(255, 255, 255, 0.12);
+  --field-line-10yd: rgba(255, 255, 255, 0.18);
+  --field-los: rgba(79, 142, 247, 0.9);
+  --field-label: rgba(231, 234, 240, 0.60);
+
+  /* Diagram colors */
+  --route: rgba(231, 234, 240, 0.95);
+  --route-selected: rgba(79, 142, 247, 1.0);
+  --block-run: rgba(34, 197, 94, 0.95);
+  --block-pass: rgba(79, 142, 247, 0.95);
+  --motion: rgba(231, 234, 240, 0.85);
+  --landmark: rgba(245, 158, 11, 0.90);
+
+  /* Player colors */
+  --player-offense: #1E40AF;
+  --player-defense: #DC2626;
+
+  /* Focus rings */
+  --focus-ring: 0 0 0 3px rgba(79, 142, 247, 0.22);
+
+  /* Hash marks */
+  --field-hash: rgba(255, 255, 255, 0.10);
+}
+
+/* ============================================
+ * Light Theme (Cool Gray)
+ * ============================================ */
+:root[data-theme="light"] {
+  /* Backgrounds */
+  --bg-primary: #F7F8FA;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #EEF1F5;
+  --bg-elevated: #E6EAF1;
+
+  /* Borders */
+  --border-subtle: rgba(17, 24, 39, 0.08);
+  --border-strong: rgba(17, 24, 39, 0.14);
+
+  /* Text */
+  --text-primary: #0F172A;
+  --text-secondary: #334155;
+  --text-muted: #64748B;
+  --text-inverse: #F7F8FA;
+
+  /* Accent (Brand) - Deeper Blue for light mode */
+  --accent: #2563EB;
+  --accent-strong: #1D4ED8;
+  --accent-soft: rgba(37, 99, 235, 0.14);
+
+  /* Success / Warning / Error */
+  --success: #16A34A;
+  --success-soft: rgba(22, 163, 74, 0.14);
+  --warning: #D97706;
+  --warning-soft: rgba(217, 119, 6, 0.14);
+  --error: #DC2626;
+  --error-soft: rgba(220, 38, 38, 0.14);
+
+  /* Canvas / Field */
+  --field-bg: #F1F4F8;
+  --field-line-1yd: rgba(15, 23, 42, 0.08);
+  --field-line-5yd: rgba(15, 23, 42, 0.14);
+  --field-line-10yd: rgba(15, 23, 42, 0.20);
+  --field-los: rgba(37, 99, 235, 0.90);
+  --field-label: rgba(15, 23, 42, 0.55);
+
+  /* Diagram colors */
+  --route: rgba(15, 23, 42, 0.90);
+  --route-selected: rgba(37, 99, 235, 1.0);
+  --block-run: rgba(22, 163, 74, 0.95);
+  --block-pass: rgba(37, 99, 235, 0.95);
+  --motion: rgba(15, 23, 42, 0.75);
+  --landmark: rgba(217, 119, 6, 0.90);
+
+  /* Player colors */
+  --player-offense: #1E40AF;
+  --player-defense: #DC2626;
+
+  /* Focus rings */
+  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.20);
+
+  /* Hash marks */
+  --field-hash: rgba(15, 23, 42, 0.10);
+}

@@ -116,6 +116,7 @@ export interface BuildFromConceptResult {
 }
 import { createPlay, createPlayFromFormation } from "@/domain/dsl/factories";
 import { type SnapConfig, DEFAULT_SNAP_CONFIG } from "@/domain/engine/snap";
+import { YARD_CONSTANTS } from "@/domain/engine/yard-utils";
 import { autoBuildFromConcept, applyAutoBuildToPlay } from "@/domain/engine/auto-build";
 import {
   getDefensePresetById,
@@ -215,6 +216,9 @@ export interface EditorState {
   // Defense label overlay state
   showDefenseLabels: boolean;
 
+  // Measurement overlay state
+  showMeasurement: boolean;
+
   // Export render override (for PDF/PNG export)
   exportOverride: {
     showDefenseLabels: boolean;
@@ -231,6 +235,12 @@ export interface EditorState {
 
   // Route drawing options
   curveMode: boolean; // Draw routes as Bezier curves
+
+  // Viewport configuration (in yards from LOS)
+  viewportConfig: {
+    minYards: number;
+    maxYards: number;
+  };
 
   // Player defaults
   autoApplyDefaults: boolean; // Auto-apply role-based defaults
@@ -301,6 +311,9 @@ export interface EditorState {
   // Defense label actions
   toggleDefenseLabels: () => void;
 
+  // Measurement actions
+  toggleMeasurement: () => void;
+
   // Export override actions
   applyExportOverride: (override: { showDefenseLabels: boolean; showLandmarks: boolean; showGrid: boolean }) => void;
   clearExportOverride: () => void;
@@ -313,6 +326,9 @@ export interface EditorState {
   pauseAnimation: () => void;
   seekTo: (ms: number) => void;
   setPlaybackSpeed: (speed: number) => void;
+
+  // Viewport actions
+  setViewport: (minYards: number, maxYards: number) => void;
 
   // History
   undo: () => void;
@@ -386,6 +402,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   // Defense label overlay state
   showDefenseLabels: false,
 
+  // Measurement overlay state
+  showMeasurement: false,
+
   // Export render override (for PDF/PNG export)
   exportOverride: null,
 
@@ -398,6 +417,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   // Route drawing options
   curveMode: false,
+
+  // Viewport configuration (default: 0-25 yards from LOS)
+  viewportConfig: {
+    minYards: YARD_CONSTANTS.DEFAULT_VIEWPORT_MIN,
+    maxYards: YARD_CONSTANTS.DEFAULT_VIEWPORT_MAX,
+  },
 
   // Player defaults
   autoApplyDefaults: true, // Auto-apply defaults by default
@@ -1397,6 +1422,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => ({ showDefenseLabels: !state.showDefenseLabels }));
   },
 
+  // Measurement actions
+  toggleMeasurement: () => {
+    set((state) => ({ showMeasurement: !state.showMeasurement }));
+  },
+
   // Export override actions
   applyExportOverride: (override) => {
     set({ exportOverride: override });
@@ -1461,6 +1491,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set((state) => ({
       playbackState: { ...state.playbackState, speed },
     }));
+  },
+
+  // Viewport actions
+  setViewport: (minYards: number, maxYards: number) => {
+    set({
+      viewportConfig: { minYards, maxYards },
+    });
   },
 
   // Undo

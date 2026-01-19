@@ -30,28 +30,60 @@ import {
   createLandmarkLabels,
   type OverlayLabel,
 } from "../engine/overlay-collision";
+import {
+  YARD_CONSTANTS,
+  getYardLinesInViewport,
+  yardsToNormalizedY,
+} from "../engine/yard-utils";
 
 // ============================================
-// Constants - Whiteboard Theme
+// Constants - Theme System v1 (CSS Variables)
 // ============================================
 
 const FIELD_WIDTH = 800;
 const FIELD_HEIGHT = 600; // Taller for more field depth
-const FIELD_COLOR = "#FAFBFC"; // Off-white (clean whiteboard)
-const LINE_COLOR = "#CBD5E1"; // Light slate gray for yard lines
-const LOS_COLOR = "#3B82F6"; // Blue for Line of Scrimmage
-const HASH_COLOR = "#E2E8F0"; // Very light gray for hash marks
-const YARD_NUMBER_COLOR = "#94A3B8"; // Muted gray for yard numbers
-const OFFENSE_COLOR = "#1E40AF"; // Navy blue for offense
-const DEFENSE_COLOR = "#DC2626"; // Red for defense
-const ROUTE_COLOR = "#F59E0B"; // Amber/orange for routes
-const BLOCK_COLOR = "#2563EB"; // Bright blue for blocks
-const PULL_COLOR = "#059669"; // Emerald green for pull blocks
-const MOTION_COLOR = "#7C3AED"; // Purple for motion (distinct on white)
 const PLAYER_RADIUS = 14;
 const FONT_SIZE = 11;
-const LANDMARK_GAP_COLOR = "#10B981"; // Emerald for gap markers
-const LANDMARK_EMOL_COLOR = "#F97316"; // Orange for EMOL markers
+
+// CSS Variable references for theme colors
+// These work in SVG because React renders them inline and browsers resolve CSS vars
+const CSS_VARS = {
+  // Field colors
+  fieldBg: "var(--field-bg)",
+  fieldLine1yd: "var(--field-line-1yd)",
+  fieldLine5yd: "var(--field-line-5yd)",
+  fieldLine10yd: "var(--field-line-10yd)",
+  fieldLos: "var(--field-los)",
+  fieldHash: "var(--field-hash)",
+  fieldLabel: "var(--field-label)",
+  // Borders
+  borderSubtle: "var(--border-subtle)",
+  borderStrong: "var(--border-strong)",
+  // Player colors
+  playerOffense: "var(--player-offense)",
+  playerDefense: "var(--player-defense)",
+  // Diagram colors
+  route: "var(--route)",
+  routeSelected: "var(--route-selected)",
+  blockRun: "var(--block-run)",
+  blockPass: "var(--block-pass)",
+  motion: "var(--motion)",
+  landmark: "var(--landmark)",
+  // Semantic colors
+  accent: "var(--accent)",
+  success: "var(--success)",
+  warning: "var(--warning)",
+  error: "var(--error)",
+  // Text
+  textPrimary: "var(--text-primary)",
+  textSecondary: "var(--text-secondary)",
+  textMuted: "var(--text-muted)",
+  textInverse: "var(--text-inverse)",
+  // Backgrounds
+  bgPrimary: "var(--bg-primary)",
+  bgSecondary: "var(--bg-secondary)",
+  bgTertiary: "var(--bg-tertiary)",
+};
 
 // Field measurements (GoArmy Edge style)
 // LOS at 62% from top: gives 62% for defense, 38% for offense/backfield
@@ -95,9 +127,17 @@ interface FieldProps {
   showGrid?: boolean;
   showHash?: boolean;
   gridDensity?: GridDensity; // low = 10yd, medium = 5yd, high = 5yd + 1yd ticks
+  viewportMinYards?: number; // Default: 0 (LOS)
+  viewportMaxYards?: number; // Default: 25
 }
 
-function Field({ showGrid = true, showHash = true, gridDensity = "medium" }: FieldProps) {
+function Field({
+  showGrid = true,
+  showHash = true,
+  gridDensity = "medium",
+  viewportMinYards = YARD_CONSTANTS.DEFAULT_VIEWPORT_MIN,
+  viewportMaxYards = YARD_CONSTANTS.DEFAULT_VIEWPORT_MAX,
+}: FieldProps) {
   const losY = toSvgY(0);
   const hashLeftX = toSvgX(0.355); // College hash (closer to center)
   const hashRightX = toSvgX(0.645);
@@ -106,37 +146,55 @@ function Field({ showGrid = true, showHash = true, gridDensity = "medium" }: Fie
   const gridStep = gridDensity === "low" ? 10 : 5;
   const show1YardTicks = gridDensity === "high";
 
-  // Generate yard lines relative to LOS
-  // With LOS at 62% and full scale, show -15 to +40 yards
-  const yardLines: { yards: number; y: number; isMajor: boolean }[] = [];
-  for (let yds = -15; yds <= 40; yds += gridStep) {
-    const normalizedY = yds * 0.02; // 1 yard = 0.02 normalized
-    yardLines.push({ yards: yds, y: toSvgY(normalizedY), isMajor: yds % 10 === 0 });
-  }
+  // Generate yard lines based on viewport range
+  // Extend a bit beyond viewport to ensure lines at edges render
+  const extendedMin = viewportMinYards - 5;
+  const extendedMax = viewportMaxYards + 5;
 
-  // Generate 1-yard tick positions for high density
-  const oneYardTicks: { yards: number; y: number }[] = [];
-  if (show1YardTicks) {
-    for (let yds = -15; yds <= 40; yds += 1) {
-      // Skip major (5-yard) lines
-      if (yds % 5 === 0) continue;
-      const normalizedY = yds * 0.02;
+  // Generate yard lines relative to LOS using yard-utils
+  const yardLines = React.useMemo(() => {
+    const lines: { yards: number; y: number; isMajor: boolean; is10Yard: boolean }[] = [];
+    for (let yds = Math.floor(extendedMin / gridStep) * gridStep; yds <= extendedMax; yds += gridStep) {
+      const normalizedY = yardsToNormalizedY(yds);
       const y = toSvgY(normalizedY);
-      if (y >= 0 && y <= FIELD_HEIGHT) {
-        oneYardTicks.push({ yards: yds, y });
+      // Only include if within SVG bounds
+      if (y >= -50 && y <= FIELD_HEIGHT + 50) {
+        lines.push({
+          yards: yds,
+          y,
+          isMajor: yds % 10 === 0,
+          is10Yard: yds % 10 === 0,
+        });
       }
     }
-  }
+    return lines;
+  }, [extendedMin, extendedMax, gridStep]);
+
+  // Generate 1-yard tick positions for high density
+  const oneYardTicks = React.useMemo(() => {
+    if (!show1YardTicks) return [];
+    const ticks: { yards: number; y: number }[] = [];
+    for (let yds = Math.floor(extendedMin); yds <= extendedMax; yds += 1) {
+      // Skip major (5-yard) lines
+      if (yds % 5 === 0) continue;
+      const normalizedY = yardsToNormalizedY(yds);
+      const y = toSvgY(normalizedY);
+      if (y >= 0 && y <= FIELD_HEIGHT) {
+        ticks.push({ yards: yds, y });
+      }
+    }
+    return ticks;
+  }, [extendedMin, extendedMax, show1YardTicks]);
 
   return (
     <g className="field-layer">
-      {/* Field background - clean whiteboard */}
+      {/* Field background - theme-aware */}
       <rect
         x={0}
         y={0}
         width={FIELD_WIDTH}
         height={FIELD_HEIGHT}
-        fill={FIELD_COLOR}
+        fill={CSS_VARS.fieldBg}
       />
 
       {/* Subtle border */}
@@ -146,7 +204,7 @@ function Field({ showGrid = true, showHash = true, gridDensity = "medium" }: Fie
         width={FIELD_WIDTH}
         height={FIELD_HEIGHT}
         fill="none"
-        stroke="#E2E8F0"
+        stroke={CSS_VARS.borderSubtle}
         strokeWidth={2}
       />
 
@@ -161,9 +219,8 @@ function Field({ showGrid = true, showHash = true, gridDensity = "medium" }: Fie
                 y1={y}
                 x2={35}
                 y2={y}
-                stroke={LINE_COLOR}
+                stroke={CSS_VARS.fieldLine1yd}
                 strokeWidth={0.5}
-                opacity={0.4}
               />
               {/* Right sideline tick */}
               <line
@@ -171,9 +228,8 @@ function Field({ showGrid = true, showHash = true, gridDensity = "medium" }: Fie
                 y1={y}
                 x2={FIELD_WIDTH - 20}
                 y2={y}
-                stroke={LINE_COLOR}
+                stroke={CSS_VARS.fieldLine1yd}
                 strokeWidth={0.5}
-                opacity={0.4}
               />
               {/* Hash area ticks */}
               <line
@@ -181,18 +237,16 @@ function Field({ showGrid = true, showHash = true, gridDensity = "medium" }: Fie
                 y1={y}
                 x2={hashLeftX + 4}
                 y2={y}
-                stroke={LINE_COLOR}
+                stroke={CSS_VARS.fieldLine1yd}
                 strokeWidth={0.5}
-                opacity={0.3}
               />
               <line
                 x1={hashRightX - 4}
                 y1={y}
                 x2={hashRightX + 4}
                 y2={y}
-                stroke={LINE_COLOR}
+                stroke={CSS_VARS.fieldLine1yd}
                 strokeWidth={0.5}
-                opacity={0.3}
               />
             </g>
           ))}
@@ -216,16 +270,15 @@ function Field({ showGrid = true, showHash = true, gridDensity = "medium" }: Fie
                   y1={y}
                   x2={FIELD_WIDTH - 20}
                   y2={y}
-                  stroke={LINE_COLOR}
+                  stroke={isMajor ? CSS_VARS.fieldLine10yd : CSS_VARS.fieldLine5yd}
                   strokeWidth={isMajor ? 1.5 : 1}
-                  opacity={isMajor ? 0.7 : 0.5}
                 />
                 {/* Yard number on left (every 10 yards) */}
                 {yards > 0 && isMajor && (
                   <text
                     x={8}
                     y={y + 4}
-                    fill={YARD_NUMBER_COLOR}
+                    fill={CSS_VARS.fieldLabel}
                     fontSize={10}
                     fontWeight="500"
                   >
@@ -237,7 +290,7 @@ function Field({ showGrid = true, showHash = true, gridDensity = "medium" }: Fie
                   <text
                     x={8}
                     y={y + 4}
-                    fill={YARD_NUMBER_COLOR}
+                    fill={CSS_VARS.fieldLabel}
                     fontSize={8}
                     opacity={0.6}
                   >
@@ -264,7 +317,7 @@ function Field({ showGrid = true, showHash = true, gridDensity = "medium" }: Fie
                   y1={y}
                   x2={hashLeftX + 8}
                   y2={y}
-                  stroke={HASH_COLOR}
+                  stroke={CSS_VARS.fieldHash}
                   strokeWidth={2}
                 />
                 {/* Right hash tick */}
@@ -273,7 +326,7 @@ function Field({ showGrid = true, showHash = true, gridDensity = "medium" }: Fie
                   y1={y}
                   x2={hashRightX + 8}
                   y2={y}
-                  stroke={HASH_COLOR}
+                  stroke={CSS_VARS.fieldHash}
                   strokeWidth={2}
                 />
               </g>
@@ -282,19 +335,19 @@ function Field({ showGrid = true, showHash = true, gridDensity = "medium" }: Fie
         </g>
       )}
 
-      {/* Line of Scrimmage - prominent blue */}
+      {/* Line of Scrimmage - prominent accent color */}
       <line
         x1={0}
         y1={losY}
         x2={FIELD_WIDTH}
         y2={losY}
-        stroke={LOS_COLOR}
+        stroke={CSS_VARS.fieldLos}
         strokeWidth={3}
       />
       <text
         x={FIELD_WIDTH - 30}
         y={losY - 8}
-        fill={LOS_COLOR}
+        fill={CSS_VARS.fieldLos}
         fontSize={10}
         fontWeight="600"
       >
@@ -307,20 +360,18 @@ function Field({ showGrid = true, showHash = true, gridDensity = "medium" }: Fie
         y1={0}
         x2={20}
         y2={FIELD_HEIGHT}
-        stroke={LINE_COLOR}
+        stroke={CSS_VARS.fieldLine5yd}
         strokeWidth={1}
         strokeDasharray="4,8"
-        opacity={0.4}
       />
       <line
         x1={FIELD_WIDTH - 20}
         y1={0}
         x2={FIELD_WIDTH - 20}
         y2={FIELD_HEIGHT}
-        stroke={LINE_COLOR}
+        stroke={CSS_VARS.fieldLine5yd}
         strokeWidth={1}
         strokeDasharray="4,8"
-        opacity={0.4}
       />
     </g>
   );
@@ -339,7 +390,7 @@ interface PlayerNodeProps {
 function PlayerNode({ player, selected, onClick }: PlayerNodeProps) {
   const pos = toSvgPoint(player.alignment);
   const isOffense = player.unit === "offense";
-  const color = isOffense ? OFFENSE_COLOR : DEFENSE_COLOR;
+  const color = isOffense ? CSS_VARS.playerOffense : CSS_VARS.playerDefense;
 
   // Determine stance visual (subtle indicator)
   const isLineman = ["LT", "LG", "C", "RG", "RT", "TE"].includes(player.role || "");
@@ -377,7 +428,7 @@ function PlayerNode({ player, selected, onClick }: PlayerNodeProps) {
         cy={pos.y}
         r={PLAYER_RADIUS}
         fill={color}
-        stroke={selected ? "#F59E0B" : "#ffffff"}
+        stroke={selected ? CSS_VARS.routeSelected : CSS_VARS.bgSecondary}
         strokeWidth={selected ? 3 : 2}
       />
       {/* Stance indicator for linemen (small line at bottom) */}
@@ -482,11 +533,11 @@ function RoutePath({ action }: RoutePathProps) {
 
   return (
     <g className="route-action">
-      {/* Shadow for visibility on white */}
+      {/* Shadow for visibility */}
       <path
         d={pathD}
         fill="none"
-        stroke="rgba(0,0,0,0.2)"
+        stroke="rgba(0,0,0,0.15)"
         strokeWidth={6}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -495,7 +546,7 @@ function RoutePath({ action }: RoutePathProps) {
       <path
         d={pathD}
         fill="none"
-        stroke={ROUTE_COLOR}
+        stroke={CSS_VARS.route}
         strokeWidth={4}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -508,8 +559,8 @@ function RoutePath({ action }: RoutePathProps) {
             ${lastPoint.x - 14 * Math.cos(arrowAngle - 0.4)},${lastPoint.y - 14 * Math.sin(arrowAngle - 0.4)}
             ${lastPoint.x - 14 * Math.cos(arrowAngle + 0.4)},${lastPoint.y - 14 * Math.sin(arrowAngle + 0.4)}
           `}
-          fill={ROUTE_COLOR}
-          stroke="rgba(0,0,0,0.2)"
+          fill={CSS_VARS.route}
+          stroke="rgba(0,0,0,0.15)"
           strokeWidth={2}
         />
       )}
@@ -645,7 +696,7 @@ function BlockPath({ action }: BlockPathProps) {
   );
 
   const isPull = action.block.scheme?.includes("pull") || action.block.scheme === "wrap";
-  const color = isPull ? PULL_COLOR : BLOCK_COLOR;
+  const color = isPull ? CSS_VARS.blockRun : CSS_VARS.blockPass;
   const endCap = action.block.endCap;
   const showLabel = action.block.showLabel;
   const schemeLabel = getSchemeLabel(action.block.scheme);
@@ -788,7 +839,7 @@ function MotionPath({ action }: MotionPathProps) {
       <path
         d={pathD}
         fill="none"
-        stroke={MOTION_COLOR}
+        stroke={CSS_VARS.motion}
         strokeWidth={3}
         strokeDasharray="8,5"
         strokeLinecap="round"
@@ -801,7 +852,7 @@ function MotionPath({ action }: MotionPathProps) {
           ${lastPoint.x - 10 * Math.cos(arrowAngle - 0.4)},${lastPoint.y - 10 * Math.sin(arrowAngle - 0.4)}
           ${lastPoint.x - 10 * Math.cos(arrowAngle + 0.4)},${lastPoint.y - 10 * Math.sin(arrowAngle + 0.4)}
         `}
-        fill={MOTION_COLOR}
+        fill={CSS_VARS.motion}
       />
     </g>
   );
@@ -824,8 +875,8 @@ function LandmarkNode({ action }: LandmarkNodeProps) {
         cx={pos.x}
         cy={pos.y}
         r={6}
-        fill="#EF4444"
-        stroke="#ffffff"
+        fill={CSS_VARS.landmark}
+        stroke={CSS_VARS.bgSecondary}
         strokeWidth={2}
       />
       {action.landmark.label && (
@@ -833,7 +884,7 @@ function LandmarkNode({ action }: LandmarkNodeProps) {
           x={pos.x}
           y={pos.y - 12}
           textAnchor="middle"
-          fill="#374151"
+          fill={CSS_VARS.textPrimary}
           fontSize={10}
           fontWeight="bold"
         >
@@ -860,7 +911,7 @@ function TextNode({ action }: TextNodeProps) {
       <text
         x={pos.x}
         y={pos.y}
-        fill="#1F2937"
+        fill={CSS_VARS.textPrimary}
         fontSize={12}
         fontWeight="500"
       >
@@ -873,8 +924,6 @@ function TextNode({ action }: TextNodeProps) {
 // ============================================
 // Defense Tech Label Overlay Component (3T/5T/N/9 labels)
 // ============================================
-
-const TECH_LABEL_COLOR = "#DC2626"; // Red matching defense color
 
 interface DefenseTechLabelOverlayProps {
   players: Player[];
@@ -917,8 +966,8 @@ function DefenseTechLabelOverlay({ players, labelVisibility }: DefenseTechLabelO
               width={24}
               height={14}
               rx={7}
-              fill="white"
-              stroke={TECH_LABEL_COLOR}
+              fill={CSS_VARS.bgSecondary}
+              stroke={CSS_VARS.playerDefense}
               strokeWidth={1.5}
               opacity={0.95}
             />
@@ -927,7 +976,7 @@ function DefenseTechLabelOverlay({ players, labelVisibility }: DefenseTechLabelO
               x={pos.x}
               y={pos.y - PLAYER_RADIUS - 8}
               textAnchor="middle"
-              fill={TECH_LABEL_COLOR}
+              fill={CSS_VARS.playerDefense}
               fontSize={10}
               fontWeight="bold"
             >
@@ -968,7 +1017,7 @@ function FieldLandmarkOverlay({
 
         const pos = toSvgPoint({ x: landmark.x, y: landmark.y });
         const isGap = landmark.type === "gap";
-        const color = isGap ? LANDMARK_GAP_COLOR : LANDMARK_EMOL_COLOR;
+        const color = isGap ? CSS_VARS.success : CSS_VARS.warning;
         const isHighlighted = highlightedId === landmark.id;
 
         // Gap markers: pill-shaped label
@@ -988,7 +1037,7 @@ function FieldLandmarkOverlay({
                 width={28}
                 height={20}
                 rx={10}
-                fill={isHighlighted ? color : "white"}
+                fill={isHighlighted ? color : CSS_VARS.bgSecondary}
                 stroke={color}
                 strokeWidth={isHighlighted ? 3 : 2}
                 opacity={0.95}
@@ -998,7 +1047,7 @@ function FieldLandmarkOverlay({
                 x={pos.x}
                 y={pos.y + 4}
                 textAnchor="middle"
-                fill={isHighlighted ? "white" : color}
+                fill={isHighlighted ? CSS_VARS.textInverse : color}
                 fontSize={12}
                 fontWeight="bold"
               >
@@ -1010,7 +1059,7 @@ function FieldLandmarkOverlay({
                   x={pos.x}
                   y={pos.y + 22}
                   textAnchor="middle"
-                  fill="#6B7280"
+                  fill={CSS_VARS.textMuted}
                   fontSize={8}
                 >
                   {landmark.side === "strong" ? "S" : "W"}
@@ -1036,7 +1085,7 @@ function FieldLandmarkOverlay({
                 ${pos.x},${pos.y + 12}
                 ${pos.x - 10},${pos.y}
               `}
-              fill={isHighlighted ? color : "white"}
+              fill={isHighlighted ? color : CSS_VARS.bgSecondary}
               stroke={color}
               strokeWidth={isHighlighted ? 3 : 2}
               opacity={0.95}
@@ -1057,7 +1106,7 @@ function FieldLandmarkOverlay({
               x={pos.x}
               y={pos.y + 4}
               textAnchor="middle"
-              fill={isHighlighted ? "white" : color}
+              fill={isHighlighted ? CSS_VARS.textInverse : color}
               fontSize={8}
               fontWeight="bold"
             >
@@ -1098,8 +1147,8 @@ function TechLegend() {
         width={88}
         height={80}
         rx={4}
-        fill="rgba(15,23,42,0.85)"
-        stroke="rgba(148,163,184,0.3)"
+        fill={CSS_VARS.bgTertiary}
+        stroke={CSS_VARS.borderSubtle}
         strokeWidth={0.5}
       />
       {/* Title */}
@@ -1108,7 +1157,7 @@ function TechLegend() {
         y={startY}
         fontSize={8}
         fontWeight="bold"
-        fill="#94A3B8"
+        fill={CSS_VARS.textSecondary}
       >
         Tech Legend
       </text>
@@ -1119,10 +1168,10 @@ function TechLegend() {
           x={startX}
           y={startY + 12 + i * lineHeight}
           fontSize={7}
-          fill="#CBD5E1"
+          fill={CSS_VARS.textSecondary}
         >
-          <tspan fontWeight="bold" fill="#F8FAFC">{item.label}</tspan>
-          <tspan fill="#64748B"> = </tspan>
+          <tspan fontWeight="bold" fill={CSS_VARS.textPrimary}>{item.label}</tspan>
+          <tspan fill={CSS_VARS.textMuted}> = </tspan>
           <tspan>{item.desc}</tspan>
         </text>
       ))}
@@ -1153,6 +1202,9 @@ export interface PlayRendererProps {
   useCollisionAvoidance?: boolean;
   // Show tech legend (for export)
   showLegend?: boolean;
+  // Viewport configuration (in yards from LOS)
+  viewportMinYards?: number;
+  viewportMaxYards?: number;
 }
 
 export function PlayRenderer({
@@ -1169,6 +1221,8 @@ export function PlayRenderer({
   overlayDensity = "standard",
   useCollisionAvoidance = true,
   showLegend = false,
+  viewportMinYards = YARD_CONSTANTS.DEFAULT_VIEWPORT_MIN,
+  viewportMaxYards = YARD_CONSTANTS.DEFAULT_VIEWPORT_MAX,
 }: PlayRendererProps) {
   const fieldSettings = play.field || {};
 
@@ -1229,13 +1283,15 @@ export function PlayRenderer({
     <svg
       viewBox={`0 0 ${FIELD_WIDTH} ${FIELD_HEIGHT}`}
       className={`w-full h-full ${className}`}
-      style={{ backgroundColor: FIELD_COLOR }}
+      style={{ backgroundColor: CSS_VARS.fieldBg }}
     >
       {/* Field layer */}
       <Field
         showGrid={fieldSettings.showGrid !== false}
         showHash={fieldSettings.showHash !== false}
         gridDensity={fieldSettings.gridDensity || "medium"}
+        viewportMinYards={viewportMinYards}
+        viewportMaxYards={viewportMaxYards}
       />
 
       {/* Actions layer (routes, blocks, motions) */}
@@ -1330,4 +1386,6 @@ export function getSvgDimensions() {
   return { width: FIELD_WIDTH, height: FIELD_HEIGHT };
 }
 
-export { FIELD_WIDTH, FIELD_HEIGHT };
+// Export coordinate conversion functions for use by other components
+export { toSvgX, toSvgY, toSvgPoint };
+export { FIELD_WIDTH, FIELD_HEIGHT, LOS_POSITION, YARD_SCALE };
