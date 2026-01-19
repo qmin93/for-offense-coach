@@ -484,6 +484,317 @@ export const PASS_CONCEPTS: Concept[] = [
     },
     passHints: { category: "screen", stress: ["quick_game"] },
   },
+
+  // ============================================
+  // Four Verticals - Deep stretch
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_four_verts",
+    name: "Four Verts",
+    conceptType: "pass",
+    summary: "4 receivers run vertical routes",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 4,
+      preferredStructures: ["2x2", "empty"],
+    },
+    template: {
+      roles: [
+        { roleName: "X_VERT", appliesTo: ["X"], defaultRoute: { pattern: "go", depth: 25 } },
+        { roleName: "Z_VERT", appliesTo: ["Z"], defaultRoute: { pattern: "go", depth: 25 } },
+        { roleName: "SLOT_VERT", appliesTo: ["H"], defaultRoute: { pattern: "seam", depth: 20 } },
+        { roleName: "Y_VERT", appliesTo: ["Y"], defaultRoute: { pattern: "seam", depth: 20 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "deep", stress: ["cover3", "cover1"] },
+  },
+
+  // ============================================
+  // China (Bench) - TE option route
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_china",
+    name: "China",
+    conceptType: "pass",
+    summary: "TE option route with flat",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["ace", "2x2"],
+    },
+    template: {
+      roles: [
+        { roleName: "BENCH", appliesTo: ["Y"], defaultRoute: { pattern: "curl", depth: 12 } },
+        { roleName: "FLAT", appliesTo: ["H"], defaultRoute: { pattern: "flat", depth: 2 } },
+        { roleName: "CLEAR", appliesTo: ["Z"], defaultRoute: { pattern: "corner", depth: 18 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "intermediate", stress: ["cover2", "cover4"] },
+  },
+
+  // ============================================
+  // Snag - Triangle concept
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_snag",
+    name: "Snag",
+    conceptType: "pass",
+    summary: "Triangle read concept",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["3x1", "bunch"],
+    },
+    template: {
+      roles: [
+        { roleName: "SNAG", appliesTo: ["Y"], defaultRoute: { pattern: "hitch", depth: 5 } },
+        { roleName: "CORNER", appliesTo: ["Z"], defaultRoute: { pattern: "corner", depth: 12 } },
+        { roleName: "FLAT", appliesTo: ["H"], defaultRoute: { pattern: "flat", depth: 2 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "quick", stress: ["cover3", "cover2"] },
+  },
+
+  // ============================================
+  // Texas - RB angle route
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_texas",
+    name: "Texas",
+    conceptType: "pass",
+    summary: "RB angle route concept",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["2x2", "ace"],
+    },
+    template: {
+      roles: [
+        { roleName: "ANGLE", appliesTo: ["RB"], defaultRoute: { pattern: "arrow", depth: 6 } },
+        { roleName: "CLEAR_GO", appliesTo: ["Z"], defaultRoute: { pattern: "go", depth: 20 } },
+        { roleName: "OUT", appliesTo: ["X"], defaultRoute: { pattern: "out", depth: 12 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "intermediate", stress: ["man", "cover1"] },
+  },
+
+  // ============================================
+  // Double Slant - Quick game
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_double_slant",
+    name: "Double Slant",
+    conceptType: "pass",
+    summary: "Two quick slants",
+    badges: ["nfl_style", "youth_friendly"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "FRONT_SLANT", appliesTo: ["Z"], defaultRoute: { pattern: "slant", depth: 5 } },
+        { roleName: "BACK_SLANT", appliesTo: ["H"], defaultRoute: { pattern: "slant", depth: 7 } },
+        { roleName: "FLAT", appliesTo: ["Y"], defaultRoute: { pattern: "flat", depth: 3 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "quick", stress: ["cover2", "cover4"] },
+  },
+
+  // ============================================
+  // Out - Quick outs
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_out",
+    name: "Quick Out",
+    conceptType: "pass",
+    summary: "Quick 5-yard out routes",
+    badges: ["nfl_style", "youth_friendly"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "OUT", appliesTo: ["X", "Z"], defaultRoute: { pattern: "out", depth: 5 } },
+        { roleName: "SEAM", appliesTo: ["Y"], defaultRoute: { pattern: "seam", depth: 15 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "quick", stress: ["cover3", "soft_corner"] },
+  },
+
+  // ============================================
+  // Dragon - Deep crossers
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_dragon",
+    name: "Dragon",
+    conceptType: "pass",
+    summary: "Deep crossing routes",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "DEEP_CROSS", appliesTo: ["Z"], defaultRoute: { pattern: "cross", depth: 18 } },
+        { roleName: "SHALLOW", appliesTo: ["Y"], defaultRoute: { pattern: "shallow", depth: 3 } },
+        { roleName: "CLEAR", appliesTo: ["X"], defaultRoute: { pattern: "go", depth: 25 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "deep", stress: ["cover3", "man"] },
+  },
+
+  // ============================================
+  // Follow - Delayed dig
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_follow",
+    name: "Follow",
+    conceptType: "pass",
+    summary: "Drag + delayed dig concept",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["3x1", "bunch"],
+    },
+    template: {
+      roles: [
+        { roleName: "DRAG", appliesTo: ["Y"], defaultRoute: { pattern: "shallow", depth: 3 } },
+        { roleName: "FOLLOW_DIG", appliesTo: ["H"], defaultRoute: { pattern: "dig", depth: 12 } },
+        { roleName: "CLEAR", appliesTo: ["Z"], defaultRoute: { pattern: "post", depth: 18 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "intermediate", stress: ["man", "cover1"] },
+  },
+
+  // ============================================
+  // Whip - Quick whip routes
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_whip",
+    name: "Whip",
+    conceptType: "pass",
+    summary: "Quick inside whip routes",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "WHIP", appliesTo: ["H"], defaultRoute: { pattern: "whip", depth: 6 } },
+        { roleName: "OUT", appliesTo: ["Z"], defaultRoute: { pattern: "out", depth: 10 } },
+        { roleName: "FLAT", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 2 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "quick", stress: ["man", "cover1"] },
+  },
+
+  // ============================================
+  // Scissors - Double-move crossers
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_scissors",
+    name: "Scissors",
+    conceptType: "pass",
+    summary: "Crossing corner and post routes",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "CORNER", appliesTo: ["Y"], defaultRoute: { pattern: "corner", depth: 15 } },
+        { roleName: "POST", appliesTo: ["H"], defaultRoute: { pattern: "post", depth: 18 } },
+        { roleName: "FLAT", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 3 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "deep", stress: ["cover2", "cover4"] },
+  },
+
+  // ============================================
+  // Shake - Double move concept
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_shake",
+    name: "Shake",
+    conceptType: "pass",
+    summary: "Double move routes with hitch-and-go",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "HITCH_GO", appliesTo: ["Z"], defaultRoute: { pattern: "go", depth: 18 } },
+        { roleName: "DIG", appliesTo: ["Y"], defaultRoute: { pattern: "dig", depth: 12 } },
+        { roleName: "WHEEL", appliesTo: ["RB"], defaultRoute: { pattern: "wheel", depth: 15 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "deep", stress: ["man", "cover1"] },
+  },
+
+  // ============================================
+  // Comeback - Deep comeback routes
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_comeback",
+    name: "Comeback",
+    conceptType: "pass",
+    summary: "Deep comeback routes",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["2x2"],
+    },
+    template: {
+      roles: [
+        { roleName: "COMEBACK", appliesTo: ["X", "Z"], defaultRoute: { pattern: "curl", depth: 16 } },
+        { roleName: "FLAT", appliesTo: ["H"], defaultRoute: { pattern: "flat", depth: 3 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "intermediate", stress: ["cover3", "soft_corner"] },
+  },
 ];
 
 export function getPassConceptById(id: string): Concept | undefined {

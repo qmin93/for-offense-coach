@@ -293,6 +293,8 @@ export type BlockScheme =
   | "arc"
   | "sift"
   | "seal"
+  // Pass Protection
+  | "pass_set"
   // Hand-drawn
   | "custom";
 
@@ -365,7 +367,7 @@ export interface BlockAction extends ActionBase {
 }
 
 // Motion Action
-export type MotionType = "jet" | "orbit" | "return" | "shift" | "short" | "custom";
+export type MotionType = "jet" | "orbit" | "return" | "shift" | "short" | "run_path" | "custom";
 
 export interface MotionData {
   motionType: MotionType;
@@ -378,7 +380,7 @@ export interface MotionData {
 export interface MotionAction extends ActionBase {
   actionType: "motion";
   motion: MotionData;
-  timing?: { phase: "pre_snap" };
+  timing?: { phase: "pre_snap" | "post_snap" };
 }
 
 // Landmark Action

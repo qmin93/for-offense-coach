@@ -181,14 +181,46 @@ export function autoBuildFromConcept(
           actions.push(routeAction);
         }
       } else if (concept.conceptType === "run" && "defaultBlock" in role) {
-        const blockAction = buildBlockAction(
-          targetPlayer,
-          role.defaultBlock as Partial<BlockAction["block"]>,
-          role.roleName,
-          play
-        );
-        if (blockAction) {
-          actions.push(blockAction);
+        // Special handling for RB "BALL" role - create run path (motion) instead of block
+        if (role.roleName === "BALL" && ["RB", "FB", "QB"].includes(targetPlayer.role)) {
+          const runPathAction = buildRunPathAction(
+            targetPlayer,
+            concept.runHints?.aim || "a_b_gap",
+            side
+          );
+          if (runPathAction) {
+            actions.push(runPathAction);
+          }
+        } else {
+          const blockAction = buildBlockAction(
+            targetPlayer,
+            role.defaultBlock as Partial<BlockAction["block"]>,
+            role.roleName,
+            play
+          );
+          if (blockAction) {
+            actions.push(blockAction);
+          }
+        }
+      }
+    }
+  }
+
+  // AUTO-ADD: OL pass protection for pass concepts
+  if (concept.conceptType === "pass") {
+    const olRoles = ["LT", "LG", "C", "RG", "RT"];
+    const olPlayers = players.filter(p => olRoles.includes(p.role));
+
+    // Only add if we have OL and no explicit OL role in template
+    const hasOLRole = template.roles.some(r =>
+      r.appliesTo.some(pos => olRoles.includes(pos))
+    );
+
+    if (!hasOLRole && olPlayers.length > 0) {
+      for (const olPlayer of olPlayers) {
+        const passProAction = buildPassProtectionAction(olPlayer, side);
+        if (passProAction) {
+          actions.push(passProAction);
         }
       }
     }
@@ -609,6 +641,112 @@ function buildAimPointLandmark(
     style: {
       line: "dashed",
     } as any,
+  };
+}
+
+// ============================================
+// RB Run Path Action (for BALL carrier role)
+// ============================================
+
+function buildRunPathAction(
+  player: Player,
+  aim: string,
+  side: "left" | "right"
+): MotionAction | null {
+  const startX = player.alignment?.x || 0.5;
+  const startY = player.alignment?.y || -0.35;
+
+  // Determine target based on aim point and side
+  let targetX = side === "right" ? 0.56 : 0.44; // Default B-gap
+  let targetY = startY + 0.2;
+
+  if (aim.includes("a")) {
+    targetX = side === "right" ? 0.52 : 0.48;
+  } else if (aim.includes("b")) {
+    targetX = side === "right" ? 0.56 : 0.44;
+  } else if (aim.includes("c")) {
+    targetX = side === "right" ? 0.62 : 0.38;
+  } else if (aim.includes("edge")) {
+    targetX = side === "right" ? 0.72 : 0.28;
+    targetY = startY + 0.15;
+  }
+
+  const pathPoints: Point[] = [
+    { x: startX, y: startY },
+    { x: (startX + targetX) / 2, y: startY + 0.08 },
+    { x: targetX, y: targetY },
+  ];
+
+  return {
+    id: `a_motion_${uuid().slice(0, 8)}`,
+    actionType: "motion",
+    fromPlayerId: player.id,
+    layer: "primary",
+    motion: {
+      motionType: "run_path" as any,
+      pathPoints,
+      endAlignment: pathPoints[pathPoints.length - 1],
+    },
+    timing: {
+      phase: "post_snap",
+    },
+    style: {
+      line: "solid",
+      endMarker: "arrow",
+      thickness: "bold",
+    } as any,
+    meta: {
+      runRole: "BALL",
+      aim,
+    },
+  };
+}
+
+// ============================================
+// OL Pass Protection Action
+// ============================================
+
+function buildPassProtectionAction(
+  player: Player,
+  side: "left" | "right"
+): BlockAction | null {
+  const startX = player.alignment?.x || 0.5;
+  const startY = player.alignment?.y || 0;
+
+  // Pass protection: slight kick-step back and set
+  const isPlayside = side === "right" ? startX > 0.5 : startX < 0.5;
+  const kickDir = isPlayside ? (side === "right" ? 0.015 : -0.015) : 0;
+
+  const pathPoints: Point[] = [
+    { x: startX, y: startY },
+    { x: startX + kickDir, y: startY - 0.02 },
+    { x: startX + kickDir * 1.5, y: startY - 0.04 },
+  ];
+
+  return {
+    id: `a_block_${uuid().slice(0, 8)}`,
+    actionType: "block",
+    fromPlayerId: player.id,
+    layer: "primary",
+    block: {
+      scheme: "pass_set" as BlockScheme,
+      target: {
+        type: "landmark",
+        landmark: pathPoints[pathPoints.length - 1],
+      },
+      pathPoints,
+      lineStyle: {
+        endCap: "flat",
+        line: "solid",
+      },
+    },
+    style: {
+      line: "solid",
+      endMarker: "none",
+    },
+    meta: {
+      passProRole: "PASS_PRO",
+    },
   };
 }
 

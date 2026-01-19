@@ -159,7 +159,7 @@ export const RouteActionSchema = ActionBaseSchema.extend({
 export const BlockSchemeSchema = z.enum([
   "reach", "zone_step", "combo", "climb", "down",
   "kick", "wrap", "pull_lead", "pull_kick", "trap",
-  "wham", "arc", "sift", "seal", "custom",
+  "wham", "arc", "sift", "seal", "pass_set", "custom",
 ]);
 
 export const BlockTargetTypeSchema = z.enum(["landmark", "defender", "gap", "none"]);
@@ -189,7 +189,7 @@ export const BlockActionSchema = ActionBaseSchema.extend({
 });
 
 // Motion Action
-export const MotionTypeSchema = z.enum(["jet", "orbit", "return", "shift", "short", "custom"]);
+export const MotionTypeSchema = z.enum(["jet", "orbit", "return", "shift", "short", "run_path", "custom"]);
 
 export const MotionDataSchema = z.object({
   motionType: MotionTypeSchema,
@@ -200,7 +200,7 @@ export const MotionDataSchema = z.object({
 export const MotionActionSchema = ActionBaseSchema.extend({
   actionType: z.literal("motion"),
   motion: MotionDataSchema,
-  timing: z.object({ phase: z.literal("pre_snap") }).optional(),
+  timing: z.object({ phase: z.enum(["pre_snap", "post_snap"]) }).optional(),
 });
 
 // Landmark Action

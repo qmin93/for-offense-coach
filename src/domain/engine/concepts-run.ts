@@ -162,6 +162,7 @@ export const RUN_CONCEPTS: Concept[] = [
       roles: [
         { roleName: "COMBO", appliesTo: ["LG", "C", "RG"], defaultBlock: { scheme: "combo" } },
         { roleName: "ZONE", appliesTo: ["LT", "RT"], defaultBlock: { scheme: "zone_step" } },
+        { roleName: "BALL", appliesTo: ["RB"], defaultBlock: { scheme: "zone_step" } },
       ],
       buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
     },
@@ -457,6 +458,7 @@ export const RUN_CONCEPTS: Concept[] = [
         { roleName: "REACH", appliesTo: ["LT", "LG", "C", "RG", "RT"], defaultBlock: { scheme: "reach" } },
         { roleName: "SEAL", appliesTo: ["Y", "H"], defaultBlock: { scheme: "seal" } },
         { roleName: "MOTION", appliesTo: ["Z", "X"], defaultBlock: { scheme: "zone_step" } },
+        { roleName: "FAKE", appliesTo: ["RB"], defaultBlock: { scheme: "zone_step" } },
       ],
       buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
     },
@@ -651,6 +653,391 @@ export const RUN_CONCEPTS: Concept[] = [
     },
     runHints: {
       bestVsFront: ["odd"],
+      bestWhenBox: ["6", "7"],
+      aim: "a_b_gap",
+      category: "zone",
+    },
+  },
+
+  // ============================================
+  // Dive - FB Dive play
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_run_dive",
+    name: "FB Dive",
+    conceptType: "run",
+    summary: "Quick hitting FB dive",
+    badges: ["youth_friendly"],
+    requirements: {
+      preferredStructures: ["I", "ace"],
+      needsPuller: "none",
+      boxTolerance: "7_ok",
+    },
+    template: {
+      roles: [
+        { roleName: "MAN", appliesTo: ["LT", "LG", "C", "RG", "RT"], defaultBlock: { scheme: "down" } },
+        { roleName: "BALL", appliesTo: ["FB"], defaultBlock: { scheme: "down" } },
+        { roleName: "FAKE", appliesTo: ["RB"], defaultBlock: { scheme: "down" } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
+    },
+    runHints: {
+      bestVsFront: ["odd", "even"],
+      bestWhenBox: ["6", "7"],
+      aim: "a_gap",
+      category: "gap",
+    },
+  },
+
+  // ============================================
+  // Lead - Lead play with FB
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_run_lead",
+    name: "Lead",
+    conceptType: "run",
+    summary: "FB leads for RB",
+    badges: ["youth_friendly"],
+    requirements: {
+      preferredStructures: ["I", "ace"],
+      needsPuller: "none",
+      boxTolerance: "7_ok",
+    },
+    template: {
+      roles: [
+        { roleName: "MAN", appliesTo: ["LT", "LG", "C", "RG", "RT"], defaultBlock: { scheme: "down" } },
+        { roleName: "LEAD", appliesTo: ["FB"], defaultBlock: { scheme: "kick" } },
+        { roleName: "BALL", appliesTo: ["RB"], defaultBlock: { scheme: "down" } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
+    },
+    runHints: {
+      bestVsFront: ["odd", "even"],
+      bestWhenBox: ["7", "8"],
+      aim: "b_gap",
+      category: "gap",
+    },
+  },
+
+  // ============================================
+  // Draw - Delayed handoff
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_run_draw",
+    name: "Draw",
+    conceptType: "run",
+    summary: "Delayed handoff from pass look",
+    badges: ["nfl_style"],
+    requirements: {
+      preferredStructures: ["2x2", "3x1"],
+      needsPuller: "none",
+      boxTolerance: "6_ok",
+    },
+    template: {
+      roles: [
+        { roleName: "DRAW_SET", appliesTo: ["LT", "LG", "C", "RG", "RT"], defaultBlock: { scheme: "pass_set" } },
+        { roleName: "BALL", appliesTo: ["RB"], defaultBlock: { scheme: "zone_step" } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
+    },
+    runHints: {
+      bestVsFront: ["even", "odd"],
+      bestWhenBox: ["6"],
+      aim: "a_b_gap",
+      category: "gap",
+    },
+  },
+
+  // ============================================
+  // Speed Option - Quick pitch option
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_run_speed_option",
+    name: "Speed Option",
+    conceptType: "run",
+    summary: "Quick pitch option to perimeter",
+    badges: ["nfl_style"],
+    requirements: {
+      preferredStructures: ["2x2", "3x1"],
+      needsPuller: "none",
+      boxTolerance: "7_ok",
+    },
+    template: {
+      roles: [
+        { roleName: "REACH", appliesTo: ["LT", "LG", "C", "RG", "RT"], defaultBlock: { scheme: "reach" } },
+        { roleName: "PITCH", appliesTo: ["RB"], defaultBlock: { scheme: "zone_step" } },
+        { roleName: "READ", appliesTo: ["QB"], defaultBlock: { scheme: "zone_step" } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
+    },
+    runHints: {
+      bestVsFront: ["even", "odd"],
+      bestWhenBox: ["6", "7"],
+      aim: "c_gap",
+      category: "perimeter",
+    },
+  },
+
+  // ============================================
+  // Load Option - Option with lead blocker
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_run_load_option",
+    name: "Load Option",
+    conceptType: "run",
+    summary: "Option with FB lead blocker",
+    badges: ["nfl_style"],
+    requirements: {
+      preferredStructures: ["I", "ace"],
+      needsPuller: "none",
+      boxTolerance: "7_ok",
+    },
+    template: {
+      roles: [
+        { roleName: "ZONE", appliesTo: ["LT", "LG", "C", "RG", "RT"], defaultBlock: { scheme: "zone_step" } },
+        { roleName: "LOAD", appliesTo: ["FB"], defaultBlock: { scheme: "kick" } },
+        { roleName: "PITCH", appliesTo: ["RB"], defaultBlock: { scheme: "zone_step" } },
+        { roleName: "READ", appliesTo: ["QB"], defaultBlock: { scheme: "zone_step" } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
+    },
+    runHints: {
+      bestVsFront: ["odd", "even"],
+      bestWhenBox: ["7", "8"],
+      aim: "b_c_gap",
+      category: "perimeter",
+    },
+  },
+
+  // ============================================
+  // Blast - Power without pulling guard
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_run_blast",
+    name: "Blast",
+    conceptType: "run",
+    summary: "FB kicks out, RB follows",
+    badges: ["youth_friendly"],
+    requirements: {
+      preferredStructures: ["I", "ace"],
+      needsPuller: "none",
+      boxTolerance: "8_risky",
+    },
+    template: {
+      roles: [
+        { roleName: "MAN", appliesTo: ["LT", "LG", "C", "RG", "RT"], defaultBlock: { scheme: "down" } },
+        { roleName: "KICKOUT", appliesTo: ["FB"], defaultBlock: { scheme: "kick" } },
+        { roleName: "BALL", appliesTo: ["RB"], defaultBlock: { scheme: "down" } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
+    },
+    runHints: {
+      bestVsFront: ["odd", "even"],
+      bestWhenBox: ["7", "8"],
+      aim: "c_gap",
+      category: "gap",
+    },
+  },
+
+  // ============================================
+  // Belly - Misdirection dive
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_run_belly",
+    name: "Belly",
+    conceptType: "run",
+    summary: "Misdirection inside run",
+    badges: ["youth_friendly"],
+    requirements: {
+      preferredStructures: ["I", "ace"],
+      needsPuller: "none",
+      boxTolerance: "7_ok",
+    },
+    template: {
+      roles: [
+        { roleName: "ZONE", appliesTo: ["LT", "LG", "C", "RG", "RT"], defaultBlock: { scheme: "zone_step" } },
+        { roleName: "FAKE", appliesTo: ["FB"], defaultBlock: { scheme: "zone_step" } },
+        { roleName: "BALL", appliesTo: ["RB"], defaultBlock: { scheme: "zone_step" } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
+    },
+    runHints: {
+      bestVsFront: ["odd", "even"],
+      bestWhenBox: ["6", "7"],
+      aim: "b_gap",
+      category: "zone",
+    },
+  },
+
+  // ============================================
+  // G/T Counter - Counter with both guards
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_run_gt_counter",
+    name: "G/T Counter",
+    conceptType: "run",
+    summary: "Counter with guard and tackle pull",
+    badges: ["nfl_style"],
+    requirements: {
+      preferredStructures: ["2x2", "I"],
+      needsPuller: "GT",
+      boxTolerance: "7_ok",
+    },
+    template: {
+      roles: [
+        { roleName: "PULL_G", appliesTo: ["RG"], defaultBlock: { scheme: "pull_lead" } },
+        { roleName: "PULL_T", appliesTo: ["RT"], defaultBlock: { scheme: "wrap" } },
+        { roleName: "DOWN", appliesTo: ["LT", "LG", "C"], defaultBlock: { scheme: "down" } },
+        { roleName: "BALL", appliesTo: ["RB"], defaultBlock: { scheme: "zone_step" } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
+    },
+    runHints: {
+      bestVsFront: ["odd"],
+      bestWhenBox: ["7", "8"],
+      aim: "b_gap",
+      category: "gap",
+    },
+  },
+
+  // ============================================
+  // Power Read - Power with RPO
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_run_power_read",
+    name: "Power Read",
+    conceptType: "run",
+    summary: "Power blocking with QB read option",
+    badges: ["nfl_style"],
+    requirements: {
+      preferredStructures: ["2x2", "3x1"],
+      needsPuller: "G",
+      boxTolerance: "7_ok",
+    },
+    template: {
+      roles: [
+        { roleName: "PULL", appliesTo: ["LG"], defaultBlock: { scheme: "pull_lead" } },
+        { roleName: "DOWN", appliesTo: ["LT", "C", "RG", "RT"], defaultBlock: { scheme: "down" } },
+        { roleName: "BALL", appliesTo: ["RB"], defaultBlock: { scheme: "zone_step" } },
+        { roleName: "READ_KEY", appliesTo: ["QB"], defaultBlock: { scheme: "zone_step" } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
+    },
+    runHints: {
+      bestVsFront: ["odd", "even"],
+      bestWhenBox: ["7", "8"],
+      aim: "b_c_gap",
+      category: "gap",
+    },
+  },
+
+  // ============================================
+  // Weak Zone - Zone to weak side
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_run_weak_zone",
+    name: "Weak Zone",
+    conceptType: "run",
+    summary: "Zone run to weak side",
+    badges: ["nfl_style"],
+    requirements: {
+      preferredStructures: ["3x1", "ace"],
+      needsPuller: "none",
+      boxTolerance: "6_ok",
+    },
+    template: {
+      roles: [
+        { roleName: "ZONE", appliesTo: ["LT", "LG", "C", "RG", "RT"], defaultBlock: { scheme: "zone_step" } },
+        { roleName: "BALL", appliesTo: ["RB"], defaultBlock: { scheme: "zone_step" } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
+    },
+    runHints: {
+      bestVsFront: ["even", "odd"],
+      bestWhenBox: ["6", "7"],
+      aim: "weak_a_b_gap",
+      category: "zone",
+    },
+  },
+
+  // ============================================
+  // RPO Stick - Zone with stick RPO
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_run_rpo_stick",
+    name: "RPO Stick",
+    conceptType: "run",
+    summary: "Inside zone with stick route option",
+    badges: ["nfl_style"],
+    requirements: {
+      preferredStructures: ["2x2", "3x1"],
+      needsPuller: "none",
+      boxTolerance: "6_ok",
+    },
+    template: {
+      roles: [
+        { roleName: "ZONE", appliesTo: ["LT", "LG", "C", "RG", "RT"], defaultBlock: { scheme: "zone_step" } },
+        { roleName: "BALL", appliesTo: ["RB"], defaultBlock: { scheme: "zone_step" } },
+        { roleName: "STICK", appliesTo: ["Y"], defaultRoute: { pattern: "hitch", depth: 5 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
+    },
+    runHints: {
+      bestVsFront: ["even", "odd"],
+      bestWhenBox: ["6", "7"],
+      aim: "a_b_gap",
+      category: "zone",
+    },
+  },
+
+  // ============================================
+  // RPO Slant - Zone with slant option
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_run_rpo_slant",
+    name: "RPO Slant",
+    conceptType: "run",
+    summary: "Inside zone with slant route option",
+    badges: ["nfl_style"],
+    requirements: {
+      preferredStructures: ["2x2", "3x1"],
+      needsPuller: "none",
+      boxTolerance: "6_ok",
+    },
+    template: {
+      roles: [
+        { roleName: "ZONE", appliesTo: ["LT", "LG", "C", "RG", "RT"], defaultBlock: { scheme: "zone_step" } },
+        { roleName: "BALL", appliesTo: ["RB"], defaultBlock: { scheme: "zone_step" } },
+        { roleName: "SLANT", appliesTo: ["Z"], defaultRoute: { pattern: "slant", depth: 6 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
+    },
+    runHints: {
+      bestVsFront: ["even", "odd"],
       bestWhenBox: ["6", "7"],
       aim: "a_b_gap",
       category: "zone",
