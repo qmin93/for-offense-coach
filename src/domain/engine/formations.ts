@@ -205,6 +205,8 @@ export const FORMATIONS: Formation[] = [
         // X/Z: ON LOS
         { id: "p_x", role: "X", label: "X", alignment: { x: 0.1, y: 0, splitPreset: "wide", onLOS: true, depthYards: 0 } },
         { id: "p_z", role: "Z", label: "Z", alignment: { x: 0.9, y: 0, splitPreset: "wide", onLOS: true, depthYards: 0 } },
+        // H: OFF LOS (weak side slot for 11 personnel)
+        { id: "p_h", role: "H", label: "H", alignment: { x: 0.22, y: -0.02, splitPreset: "slot", onLOS: false, depthYards: 1.0 } },
       ],
       snapRules: {
         olSpacingPreset: "standard",

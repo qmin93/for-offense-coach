@@ -48,6 +48,11 @@ import { getRunConceptById } from "@/domain/engine/concepts-run";
 import { useClipboard } from "@/hooks";
 import { Sparkles } from "lucide-react";
 
+// Dev mode audit helpers - registers __audit on window
+if (process.env.NODE_ENV === "development") {
+  import("@/lib/audit");
+}
+
 // Suggestions Panel Tab (always visible on right edge when panel is closed)
 function SuggestionsPanelTab() {
   const suggestionsOpen = useEditorStore((s) => s.suggestionsOpen);

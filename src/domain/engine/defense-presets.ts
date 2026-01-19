@@ -1,419 +1,361 @@
 // ============================================
-// Defense Formation Presets
-// Tech-based positioning with gap anchors
+// Defense Formation Presets (12 Presets)
+// Based on PRD & GoArmy Edge-style coach tools
 // ============================================
 
-import type { DefensePreset, DefenseTechValue, Strength, Formation } from "../dsl/types";
-import { techToNormalizedX } from "../dsl/types";
+import type {
+  DefensePreset,
+  DefenseFront,
+  DefenseShell,
+  DefenseTechValue,
+  Formation,
+  Strength,
+} from "../dsl/types";
 
 // ============================================
-// Coordinate System
-// ============================================
-// LOS is at y=0
-// Y > 0 = downfield (defense territory, top of screen)
-// Y < 0 = backfield (offense territory, bottom of screen)
-//
-// Defense players are positioned ABOVE the LOS (POSITIVE y values)
-// D-Line: y ≈ 0.04-0.06 (just past LOS)
-// LBs: y ≈ 0.12-0.18 (4-5 yards deep)
-// Secondary: y ≈ 0.20-0.45 (deep coverage)
-
-// ============================================
-// Offensive Strength Calculation
+// Helper Functions
 // ============================================
 
-/**
- * Compute offensive strength based on formation
- * Rules:
- * 1. If TE exists, TE side = Strong
- * 2. If no TE but Trips, Trips side = Strong
- * 3. Fallback: Right = Strong
- */
-export function computeOffensiveStrength(formation: Formation): Strength {
-  const players = formation.defaults.players;
+// Convert yards from center to normalized x (0-1 scale)
+const CENTER_X = 0.5;
+const YARD_TO_X = 0.06; // ~1 yard in normalized coords
 
-  // Check for TE (Y role with inline position, typically x > 0.65 or x < 0.35)
-  const te = players.find(p => p.role === "Y" && p.label === "TE");
-  if (te) {
-    return te.alignment.x > 0.5 ? "right" : "left";
-  }
-
-  // Count receivers on each side
-  const receivers = players.filter(p => ["X", "Y", "Z", "H"].includes(p.role as string));
-  const leftCount = receivers.filter(p => p.alignment.x < 0.4).length;
-  const rightCount = receivers.filter(p => p.alignment.x > 0.6).length;
-
-  // Trips check
-  if (rightCount >= 3) return "right";
-  if (leftCount >= 3) return "left";
-
-  // Fallback to right
-  return "right";
+function xFromCenter(yardsFromCenter: number): number {
+  return CENTER_X + yardsFromCenter * YARD_TO_X;
 }
 
-/**
- * Get side sign for tech positioning
- * @param side "strong" or "weak"
- * @param strength "left" or "right" (offensive strength)
- * @returns +1 or -1 for x-coordinate offset direction
- */
-export function getSideSign(side: "strong" | "weak", strength: Strength): 1 | -1 {
-  const strongSign: 1 | -1 = strength === "right" ? 1 : -1;
-  return side === "strong" ? strongSign : (strongSign === 1 ? -1 : 1);
+// Convert yards behind LOS to normalized y
+const LOS_Y = 0;
+const YARD_TO_Y = 0.03; // ~1 yard in normalized y coords
+
+function yBehindLOS(yardsBack: number): number {
+  return LOS_Y + yardsBack * YARD_TO_Y;
 }
 
-/**
- * Build DL position from tech
- */
-export function buildDLPosition(
-  tech: DefenseTechValue,
-  side: "strong" | "weak",
-  strength: Strength
-): { x: number; y: number } {
-  const sideSign = getSideSign(side, strength);
-  return {
-    x: techToNormalizedX(tech, sideSign),
-    y: 0.04, // Just past LOS
-  };
-}
+// ============================================
+// Defense Preset Definitions
+// ============================================
 
 export const DEFENSE_PRESETS: DefensePreset[] = [
   // ============================================
-  // Front-Based Presets (6 fronts)
+  // Even Front Presets (4-down)
   // ============================================
-
-  // 1. Even 4-3 (Base)
   {
-    id: "def_even",
-    name: "Even (4-3)",
+    id: "defense_4_2",
+    name: "Even 4-2 (Base)",
+    family: "front",
+    front: "even",
+    boxCount: 6,
+    shell: "unknown",
+    tags: ["base", "balanced"],
+    alignments: [
+      // DL (4-man front)
+      { role: "DE", label: "DE", x: xFromCenter(-4), y: LOS_Y, technique: "5" },
+      { role: "DT", label: "3T", x: xFromCenter(-1.5), y: LOS_Y, technique: "3" },
+      { role: "DT", label: "1T", x: xFromCenter(1), y: LOS_Y, technique: "1" },
+      { role: "DE", label: "DE", x: xFromCenter(4), y: LOS_Y, technique: "5" },
+      // LBs (2)
+      { role: "ILB", label: "Mike", x: xFromCenter(-2), y: yBehindLOS(4) },
+      { role: "ILB", label: "Will", x: xFromCenter(2), y: yBehindLOS(4) },
+      // Secondary (5)
+      { role: "CB", label: "CB", x: xFromCenter(-15), y: yBehindLOS(7) },
+      { role: "CB", label: "CB", x: xFromCenter(15), y: yBehindLOS(7) },
+      { role: "SS", label: "SS", x: xFromCenter(-6), y: yBehindLOS(10) },
+      { role: "FS", label: "FS", x: xFromCenter(0), y: yBehindLOS(12) },
+      { role: "Nickel", label: "$", x: xFromCenter(6), y: yBehindLOS(8) },
+    ],
+  },
+  {
+    id: "defense_4_3",
+    name: "Even 4-3",
     family: "front",
     front: "even",
     boxCount: 7,
     shell: "unknown",
-    threeTechSide: "strong", // Default 3T to strong side
-    tags: ["base", "4-man", "even"],
+    tags: ["base", "balanced", "run_stop"],
     alignments: [
-      // D-Line (4) - just past LOS
-      { role: "DE", label: "DE", x: 0.28, y: 0.04, technique: "5" },
-      { role: "DT", label: "3T", x: 0.42, y: 0.04, technique: "3" },
-      { role: "DT", label: "1T", x: 0.58, y: 0.04, technique: "1" },
-      { role: "DE", label: "DE", x: 0.72, y: 0.04, technique: "5" },
-      // Linebackers (3)
-      { role: "OLB", label: "Sam", x: 0.26, y: 0.14 },
-      { role: "MLB", label: "Mike", x: 0.50, y: 0.16 },
-      { role: "OLB", label: "Will", x: 0.74, y: 0.14 },
+      // DL (4-man front)
+      { role: "DE", label: "DE", x: xFromCenter(-4), y: LOS_Y, technique: "5" },
+      { role: "DT", label: "3T", x: xFromCenter(-1.5), y: LOS_Y, technique: "3" },
+      { role: "DT", label: "1T", x: xFromCenter(1), y: LOS_Y, technique: "1" },
+      { role: "DE", label: "DE", x: xFromCenter(4), y: LOS_Y, technique: "5" },
+      // LBs (3)
+      { role: "OLB", label: "Sam", x: xFromCenter(-5), y: yBehindLOS(3.5) },
+      { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
+      { role: "OLB", label: "Will", x: xFromCenter(5), y: yBehindLOS(3.5) },
       // Secondary (4)
-      { role: "CB", label: "CB", x: 0.08, y: 0.06 },
-      { role: "CB", label: "CB", x: 0.92, y: 0.06 },
-      { role: "SS", label: "SS", x: 0.38, y: 0.28 },
-      { role: "FS", label: "FS", x: 0.62, y: 0.36 },
+      { role: "CB", label: "CB", x: xFromCenter(-15), y: yBehindLOS(7) },
+      { role: "CB", label: "CB", x: xFromCenter(15), y: yBehindLOS(7) },
+      { role: "SS", label: "SS", x: xFromCenter(-4), y: yBehindLOS(10) },
+      { role: "FS", label: "FS", x: xFromCenter(4), y: yBehindLOS(12) },
     ],
   },
-
-  // 2. Over (3T Strong)
   {
-    id: "def_over",
-    name: "Over",
+    id: "defense_over",
+    name: "Over (3T Strong)",
     family: "front",
     front: "over",
     boxCount: 7,
     shell: "unknown",
-    threeTechSide: "strong", // Over = 3T to strong side
-    tags: ["over", "4-man", "strong"],
+    threeTechSide: "strong",
+    tags: ["even", "strong_side_heavy"],
     alignments: [
-      // D-Line shifted strong
-      { role: "DE", label: "DE", x: 0.26, y: 0.04, technique: "5" },
-      { role: "DT", label: "3T", x: 0.38, y: 0.04, technique: "3" },
-      { role: "NT", label: "1T", x: 0.52, y: 0.04, technique: "1" },
-      { role: "DE", label: "DE", x: 0.70, y: 0.04, technique: "5" },
-      // Linebackers (3)
-      { role: "OLB", label: "Sam", x: 0.22, y: 0.12 },
-      { role: "MLB", label: "Mike", x: 0.50, y: 0.16 },
-      { role: "OLB", label: "Will", x: 0.76, y: 0.12 },
-      // Secondary (4)
-      { role: "CB", label: "CB", x: 0.08, y: 0.06 },
-      { role: "CB", label: "CB", x: 0.92, y: 0.06 },
-      { role: "SS", label: "SS", x: 0.35, y: 0.26 },
-      { role: "FS", label: "FS", x: 0.60, y: 0.36 },
+      // DL - 3T to strong side
+      { role: "DE", label: "DE", x: xFromCenter(-4), y: LOS_Y, technique: "5" },
+      { role: "DT", label: "1T", x: xFromCenter(-0.75), y: LOS_Y, technique: "1" },
+      { role: "DT", label: "3T", x: xFromCenter(1.5), y: LOS_Y, technique: "3" },
+      { role: "DE", label: "DE", x: xFromCenter(4.5), y: LOS_Y, technique: "5" },
+      // LBs (3)
+      { role: "OLB", label: "Sam", x: xFromCenter(-5), y: yBehindLOS(3.5) },
+      { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
+      { role: "OLB", label: "Will", x: xFromCenter(5), y: yBehindLOS(3.5) },
+      // Secondary
+      { role: "CB", label: "CB", x: xFromCenter(-15), y: yBehindLOS(7) },
+      { role: "CB", label: "CB", x: xFromCenter(15), y: yBehindLOS(7) },
+      { role: "SS", label: "SS", x: xFromCenter(-4), y: yBehindLOS(10) },
+      { role: "FS", label: "FS", x: xFromCenter(4), y: yBehindLOS(12) },
     ],
   },
-
-  // 3. Under (3T Weak)
   {
-    id: "def_under",
-    name: "Under",
+    id: "defense_under",
+    name: "Under (3T Weak)",
     family: "front",
     front: "under",
     boxCount: 7,
     shell: "unknown",
-    threeTechSide: "weak", // Under = 3T to weak side
-    tags: ["under", "4-man", "weak"],
+    threeTechSide: "weak",
+    tags: ["even", "weak_side_heavy"],
     alignments: [
-      // D-Line shifted weak
-      { role: "DE", label: "DE", x: 0.30, y: 0.04, technique: "5" },
-      { role: "NT", label: "1T", x: 0.48, y: 0.04, technique: "1" },
-      { role: "DT", label: "3T", x: 0.62, y: 0.04, technique: "3" },
-      { role: "DE", label: "DE", x: 0.74, y: 0.04, technique: "5" },
-      // Linebackers (3)
-      { role: "OLB", label: "Sam", x: 0.24, y: 0.12 },
-      { role: "MLB", label: "Mike", x: 0.50, y: 0.16 },
-      { role: "OLB", label: "Will", x: 0.78, y: 0.12 },
-      // Secondary (4)
-      { role: "CB", label: "CB", x: 0.08, y: 0.06 },
-      { role: "CB", label: "CB", x: 0.92, y: 0.06 },
-      { role: "SS", label: "SS", x: 0.65, y: 0.26 },
-      { role: "FS", label: "FS", x: 0.40, y: 0.36 },
+      // DL - 3T to weak side
+      { role: "DE", label: "DE", x: xFromCenter(-4.5), y: LOS_Y, technique: "5" },
+      { role: "DT", label: "3T", x: xFromCenter(-1.5), y: LOS_Y, technique: "3" },
+      { role: "DT", label: "1T", x: xFromCenter(0.75), y: LOS_Y, technique: "1" },
+      { role: "DE", label: "DE", x: xFromCenter(4), y: LOS_Y, technique: "5" },
+      // LBs (3)
+      { role: "OLB", label: "Sam", x: xFromCenter(-5), y: yBehindLOS(3.5) },
+      { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
+      { role: "OLB", label: "Will", x: xFromCenter(5), y: yBehindLOS(3.5) },
+      // Secondary
+      { role: "CB", label: "CB", x: xFromCenter(-15), y: yBehindLOS(7) },
+      { role: "CB", label: "CB", x: xFromCenter(15), y: yBehindLOS(7) },
+      { role: "SS", label: "SS", x: xFromCenter(-4), y: yBehindLOS(10) },
+      { role: "FS", label: "FS", x: xFromCenter(4), y: yBehindLOS(12) },
     ],
   },
 
-  // 4. Odd 3-4
+  // ============================================
+  // Odd Front Presets (3-down)
+  // ============================================
   {
-    id: "def_odd",
-    name: "Odd (3-4)",
+    id: "defense_3_3_stack",
+    name: "Odd 3-3 Stack",
+    family: "front",
+    front: "odd",
+    boxCount: 6,
+    shell: "unknown",
+    tags: ["odd", "spread_defense", "athletic"],
+    alignments: [
+      // DL (3-man front)
+      { role: "DE", label: "DE", x: xFromCenter(-4), y: LOS_Y, technique: "5" },
+      { role: "NT", label: "NT", x: xFromCenter(0), y: LOS_Y, technique: "0" },
+      { role: "DE", label: "DE", x: xFromCenter(4), y: LOS_Y, technique: "5" },
+      // LBs (3) - stacked
+      { role: "OLB", label: "Sam", x: xFromCenter(-4), y: yBehindLOS(3) },
+      { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
+      { role: "OLB", label: "Will", x: xFromCenter(4), y: yBehindLOS(3) },
+      // Secondary
+      { role: "CB", label: "CB", x: xFromCenter(-15), y: yBehindLOS(7) },
+      { role: "CB", label: "CB", x: xFromCenter(15), y: yBehindLOS(7) },
+      { role: "SS", label: "SS", x: xFromCenter(-6), y: yBehindLOS(10) },
+      { role: "FS", label: "FS", x: xFromCenter(0), y: yBehindLOS(12) },
+      { role: "Nickel", label: "$", x: xFromCenter(6), y: yBehindLOS(8) },
+    ],
+  },
+  {
+    id: "defense_3_4",
+    name: "Odd 3-4",
     family: "front",
     front: "odd",
     boxCount: 7,
     shell: "unknown",
-    tags: ["odd", "3-man", "base"],
+    tags: ["odd", "run_stop", "versatile"],
     alignments: [
-      // D-Line (3)
-      { role: "DE", label: "DE", x: 0.32, y: 0.04, technique: "5" },
-      { role: "NT", label: "0T", x: 0.50, y: 0.04, technique: "0" },
-      { role: "DE", label: "DE", x: 0.68, y: 0.04, technique: "5" },
-      // Linebackers (4)
-      { role: "OLB", label: "Jack", x: 0.22, y: 0.10 },
-      { role: "ILB", label: "Will", x: 0.40, y: 0.16 },
-      { role: "ILB", label: "Mike", x: 0.60, y: 0.16 },
-      { role: "OLB", label: "Sam", x: 0.78, y: 0.10 },
+      // DL (3-man front)
+      { role: "DE", label: "DE", x: xFromCenter(-4), y: LOS_Y, technique: "5" },
+      { role: "NT", label: "NT", x: xFromCenter(0), y: LOS_Y, technique: "0" },
+      { role: "DE", label: "DE", x: xFromCenter(4), y: LOS_Y, technique: "5" },
+      // LBs (4)
+      { role: "OLB", label: "Sam", x: xFromCenter(-6), y: yBehindLOS(2.5) },
+      { role: "ILB", label: "Mike", x: xFromCenter(-1.5), y: yBehindLOS(4) },
+      { role: "ILB", label: "Will", x: xFromCenter(1.5), y: yBehindLOS(4) },
+      { role: "OLB", label: "Jack", x: xFromCenter(6), y: yBehindLOS(2.5) },
       // Secondary (4)
-      { role: "CB", label: "CB", x: 0.08, y: 0.06 },
-      { role: "CB", label: "CB", x: 0.92, y: 0.06 },
-      { role: "SS", label: "SS", x: 0.40, y: 0.28 },
-      { role: "FS", label: "FS", x: 0.60, y: 0.36 },
+      { role: "CB", label: "CB", x: xFromCenter(-15), y: yBehindLOS(7) },
+      { role: "CB", label: "CB", x: xFromCenter(15), y: yBehindLOS(7) },
+      { role: "SS", label: "SS", x: xFromCenter(-4), y: yBehindLOS(10) },
+      { role: "FS", label: "FS", x: xFromCenter(4), y: yBehindLOS(12) },
     ],
   },
 
-  // 5. Bear (5-man front, short yardage)
+  // ============================================
+  // Specialty Fronts
+  // ============================================
   {
-    id: "def_bear",
-    name: "Bear",
+    id: "defense_bear",
+    name: "Bear (5-man)",
     family: "front",
     front: "bear",
-    boxCount: 8,
+    boxCount: 7,
     shell: "unknown",
-    tags: ["bear", "5-man", "goal-line"],
+    tags: ["goal_line", "short_yardage", "heavy"],
     alignments: [
-      // D-Line (5) - heavy front
-      { role: "DE", label: "DE", x: 0.26, y: 0.04, technique: "5" },
-      { role: "DT", label: "3T", x: 0.36, y: 0.04, technique: "3" },
-      { role: "NT", label: "0T", x: 0.50, y: 0.04, technique: "0" },
-      { role: "DT", label: "3T", x: 0.64, y: 0.04, technique: "3" },
-      { role: "DE", label: "DE", x: 0.74, y: 0.04, technique: "5" },
-      // Linebackers (2)
-      { role: "ILB", label: "Will", x: 0.38, y: 0.14 },
-      { role: "ILB", label: "Mike", x: 0.62, y: 0.14 },
+      // DL (5-man front)
+      { role: "DE", label: "DE", x: xFromCenter(-4.5), y: LOS_Y, technique: "5" },
+      { role: "DT", label: "3T", x: xFromCenter(-2), y: LOS_Y, technique: "3" },
+      { role: "NT", label: "NT", x: xFromCenter(0), y: LOS_Y, technique: "0" },
+      { role: "DT", label: "3T", x: xFromCenter(2), y: LOS_Y, technique: "3" },
+      { role: "DE", label: "DE", x: xFromCenter(4.5), y: LOS_Y, technique: "5" },
+      // LBs (2)
+      { role: "MLB", label: "Mike", x: xFromCenter(-3), y: yBehindLOS(3.5) },
+      { role: "MLB", label: "Will", x: xFromCenter(3), y: yBehindLOS(3.5) },
       // Secondary (4)
-      { role: "CB", label: "CB", x: 0.08, y: 0.06 },
-      { role: "CB", label: "CB", x: 0.92, y: 0.06 },
-      { role: "SS", label: "SS", x: 0.40, y: 0.26 },
-      { role: "FS", label: "FS", x: 0.60, y: 0.32 },
+      { role: "CB", label: "CB", x: xFromCenter(-12), y: yBehindLOS(5) },
+      { role: "CB", label: "CB", x: xFromCenter(12), y: yBehindLOS(5) },
+      { role: "SS", label: "SS", x: xFromCenter(-6), y: yBehindLOS(8) },
+      { role: "FS", label: "FS", x: xFromCenter(6), y: yBehindLOS(8) },
     ],
   },
-
-  // 6. Mint/Tite (4i-0-4i gap control)
   {
-    id: "def_mint",
-    name: "Mint/Tite",
+    id: "defense_tite",
+    name: "Mint/Tite (4i-0-4i)",
     family: "front",
     front: "tite",
     boxCount: 6,
     shell: "unknown",
-    tags: ["tite", "mint", "gap-control"],
+    tags: ["spread_defense", "athletic", "run_fit"],
     alignments: [
-      // D-Line (3) - tight alignment
-      { role: "DE", label: "4i", x: 0.40, y: 0.04, technique: "4i" },
-      { role: "NT", label: "0T", x: 0.50, y: 0.04, technique: "0" },
-      { role: "DE", label: "4i", x: 0.60, y: 0.04, technique: "4i" },
-      // Linebackers (3)
-      { role: "OLB", label: "Sam", x: 0.26, y: 0.10 },
-      { role: "MLB", label: "Mike", x: 0.50, y: 0.18 },
-      { role: "OLB", label: "Will", x: 0.74, y: 0.10 },
+      // DL (3-man front - tight techniques)
+      { role: "DE", label: "DE", x: xFromCenter(-3), y: LOS_Y, technique: "4i" },
+      { role: "NT", label: "NT", x: xFromCenter(0), y: LOS_Y, technique: "0" },
+      { role: "DE", label: "DE", x: xFromCenter(3), y: LOS_Y, technique: "4i" },
+      // LBs (3)
+      { role: "OLB", label: "Apex", x: xFromCenter(-6), y: yBehindLOS(3) },
+      { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
+      { role: "OLB", label: "Apex", x: xFromCenter(6), y: yBehindLOS(3) },
       // Secondary (5)
-      { role: "CB", label: "CB", x: 0.08, y: 0.06 },
-      { role: "CB", label: "CB", x: 0.92, y: 0.06 },
-      { role: "SS", label: "SS", x: 0.35, y: 0.26 },
-      { role: "FS", label: "FS", x: 0.50, y: 0.38 },
-      { role: "SS", label: "$", x: 0.65, y: 0.26 },
+      { role: "CB", label: "CB", x: xFromCenter(-15), y: yBehindLOS(7) },
+      { role: "CB", label: "CB", x: xFromCenter(15), y: yBehindLOS(7) },
+      { role: "SS", label: "SS", x: xFromCenter(-8), y: yBehindLOS(10) },
+      { role: "FS", label: "FS", x: xFromCenter(0), y: yBehindLOS(12) },
+      { role: "Nickel", label: "$", x: xFromCenter(8), y: yBehindLOS(8) },
     ],
   },
 
   // ============================================
-  // Shell-Based Presets (2 coverage shells)
+  // Sub-Package Presets (Nickel/Dime)
   // ============================================
-
-  // 7. Cover 1 (Man Free / Single High)
   {
-    id: "def_cover1",
-    name: "Cover 1",
-    family: "shell",
-    front: "even",
-    boxCount: 7,
-    shell: "cover1",
-    tags: ["cover1", "man", "single-high"],
-    alignments: [
-      // D-Line (4)
-      { role: "DE", label: "DE", x: 0.28, y: 0.04, technique: "5" },
-      { role: "DT", label: "3T", x: 0.42, y: 0.04, technique: "3" },
-      { role: "DT", label: "1T", x: 0.58, y: 0.04, technique: "1" },
-      { role: "DE", label: "DE", x: 0.72, y: 0.04, technique: "5" },
-      // Linebackers (3)
-      { role: "OLB", label: "Sam", x: 0.26, y: 0.12 },
-      { role: "MLB", label: "Mike", x: 0.50, y: 0.16 },
-      { role: "OLB", label: "Will", x: 0.74, y: 0.12 },
-      // Secondary (4) - press corners, single high safety
-      { role: "CB", label: "CB", x: 0.08, y: 0.02 },
-      { role: "CB", label: "CB", x: 0.92, y: 0.02 },
-      { role: "SS", label: "SS", x: 0.30, y: 0.20 },
-      { role: "FS", label: "FS", x: 0.50, y: 0.42 },
-    ],
-  },
-
-  // 8. Cover 3 (3-Deep Zone / Cloud)
-  {
-    id: "def_cover3",
-    name: "Cover 3",
-    family: "shell",
-    front: "even",
-    boxCount: 7,
-    shell: "cover3",
-    tags: ["cover3", "zone", "3-deep"],
-    alignments: [
-      // D-Line (4)
-      { role: "DE", label: "DE", x: 0.28, y: 0.04, technique: "5" },
-      { role: "DT", label: "3T", x: 0.42, y: 0.04, technique: "3" },
-      { role: "DT", label: "1T", x: 0.58, y: 0.04, technique: "1" },
-      { role: "DE", label: "DE", x: 0.72, y: 0.04, technique: "5" },
-      // Linebackers (3)
-      { role: "OLB", label: "Sam", x: 0.26, y: 0.12 },
-      { role: "MLB", label: "Mike", x: 0.50, y: 0.16 },
-      { role: "OLB", label: "Will", x: 0.74, y: 0.12 },
-      // Secondary (4) - deep thirds coverage
-      { role: "CB", label: "CB", x: 0.15, y: 0.32 },
-      { role: "CB", label: "CB", x: 0.85, y: 0.32 },
-      { role: "SS", label: "SS", x: 0.35, y: 0.18 },
-      { role: "FS", label: "FS", x: 0.50, y: 0.42 },
-    ],
-  },
-
-  // ============================================
-  // Additional Presets (Nickel, Dime, etc.)
-  // ============================================
-
-  // 9. Nickel 4-2-5 (Spread offense counter)
-  {
-    id: "def_nickel",
-    name: "Nickel 4-2-5",
+    id: "defense_nickel",
+    name: "2-4-5 Nickel",
     family: "shell",
     front: "even",
     boxCount: 6,
     shell: "nickel",
-    tags: ["nickel", "spread", "pass"],
+    tags: ["pass_defense", "spread", "sub_package"],
     alignments: [
-      // D-Line (4)
-      { role: "DE", label: "DE", x: 0.28, y: 0.04, technique: "5" },
-      { role: "DT", label: "3T", x: 0.42, y: 0.04, technique: "3" },
-      { role: "DT", label: "1T", x: 0.58, y: 0.04, technique: "1" },
-      { role: "DE", label: "DE", x: 0.72, y: 0.04, technique: "5" },
-      // Linebackers (2)
-      { role: "ILB", label: "Mike", x: 0.44, y: 0.14 },
-      { role: "ILB", label: "Will", x: 0.56, y: 0.14 },
-      // Secondary (5) - Nickel back added
-      { role: "CB", label: "CB", x: 0.08, y: 0.06 },
-      { role: "CB", label: "CB", x: 0.92, y: 0.06 },
-      { role: "Nickel", label: "$", x: 0.78, y: 0.12 },
-      { role: "SS", label: "SS", x: 0.32, y: 0.26 },
-      { role: "FS", label: "FS", x: 0.55, y: 0.38 },
+      // DL (4-man front with edge rushers)
+      { role: "DE", label: "DE", x: xFromCenter(-4), y: LOS_Y, technique: "5" },
+      { role: "DT", label: "3T", x: xFromCenter(-1.5), y: LOS_Y, technique: "3" },
+      { role: "DT", label: "1T", x: xFromCenter(1.5), y: LOS_Y, technique: "1" },
+      { role: "DE", label: "DE", x: xFromCenter(4), y: LOS_Y, technique: "5" },
+      // LBs (2)
+      { role: "ILB", label: "Mike", x: xFromCenter(-2), y: yBehindLOS(4) },
+      { role: "ILB", label: "Will", x: xFromCenter(2), y: yBehindLOS(4) },
+      // Secondary (5)
+      { role: "CB", label: "CB", x: xFromCenter(-15), y: yBehindLOS(7) },
+      { role: "CB", label: "CB", x: xFromCenter(15), y: yBehindLOS(7) },
+      { role: "Nickel", label: "$", x: xFromCenter(-8), y: yBehindLOS(5) },
+      { role: "SS", label: "SS", x: xFromCenter(5), y: yBehindLOS(10) },
+      { role: "FS", label: "FS", x: xFromCenter(0), y: yBehindLOS(12) },
     ],
   },
-
-  // 10. Dime 4-1-6 (Prevent / 3rd & Long)
   {
-    id: "def_dime",
-    name: "Dime 4-1-6",
+    id: "defense_dime",
+    name: "4-1-6 Dime",
     family: "shell",
     front: "even",
     boxCount: 5,
     shell: "dime",
-    tags: ["dime", "prevent", "3rd-long"],
+    tags: ["pass_defense", "prevent", "sub_package"],
     alignments: [
-      // D-Line (4)
-      { role: "DE", label: "DE", x: 0.28, y: 0.04, technique: "5" },
-      { role: "DT", label: "3T", x: 0.42, y: 0.04, technique: "3" },
-      { role: "DT", label: "1T", x: 0.58, y: 0.04, technique: "1" },
-      { role: "DE", label: "DE", x: 0.72, y: 0.04, technique: "5" },
-      // Linebacker (1)
-      { role: "MLB", label: "Mike", x: 0.50, y: 0.14 },
-      // Secondary (6) - Dime back added
-      { role: "CB", label: "CB", x: 0.08, y: 0.08 },
-      { role: "CB", label: "CB", x: 0.92, y: 0.08 },
-      { role: "Nickel", label: "$", x: 0.22, y: 0.12 },
-      { role: "Dime", label: "D", x: 0.78, y: 0.12 },
-      { role: "SS", label: "SS", x: 0.35, y: 0.32 },
-      { role: "FS", label: "FS", x: 0.65, y: 0.32 },
+      // DL (4-man front)
+      { role: "DE", label: "DE", x: xFromCenter(-4), y: LOS_Y, technique: "5" },
+      { role: "DT", label: "3T", x: xFromCenter(-1.5), y: LOS_Y, technique: "3" },
+      { role: "DT", label: "1T", x: xFromCenter(1.5), y: LOS_Y, technique: "1" },
+      { role: "DE", label: "DE", x: xFromCenter(4), y: LOS_Y, technique: "5" },
+      // LB (1)
+      { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
+      // Secondary (6)
+      { role: "CB", label: "CB", x: xFromCenter(-15), y: yBehindLOS(7) },
+      { role: "CB", label: "CB", x: xFromCenter(15), y: yBehindLOS(7) },
+      { role: "Nickel", label: "$", x: xFromCenter(-8), y: yBehindLOS(5) },
+      { role: "Dime", label: "$$", x: xFromCenter(8), y: yBehindLOS(5) },
+      { role: "SS", label: "SS", x: xFromCenter(-4), y: yBehindLOS(10) },
+      { role: "FS", label: "FS", x: xFromCenter(4), y: yBehindLOS(12) },
     ],
   },
 
-  // 11. Cover 2 (Tampa 2 style)
+  // ============================================
+  // Coverage Shell Presets
+  // ============================================
   {
-    id: "def_cover2",
-    name: "Cover 2",
+    id: "defense_cover1",
+    name: "Cover 1 Shell",
     family: "shell",
     front: "even",
     boxCount: 7,
-    shell: "cover2",
-    tags: ["cover2", "zone", "2-high"],
+    shell: "cover1",
+    tags: ["man_coverage", "single_high"],
     alignments: [
-      // D-Line (4)
-      { role: "DE", label: "DE", x: 0.28, y: 0.04, technique: "5" },
-      { role: "DT", label: "3T", x: 0.42, y: 0.04, technique: "3" },
-      { role: "DT", label: "1T", x: 0.58, y: 0.04, technique: "1" },
-      { role: "DE", label: "DE", x: 0.72, y: 0.04, technique: "5" },
-      // Linebackers (3) - Tampa 2 MLB drops deep
-      { role: "OLB", label: "Sam", x: 0.26, y: 0.12 },
-      { role: "MLB", label: "Mike", x: 0.50, y: 0.18 },
-      { role: "OLB", label: "Will", x: 0.74, y: 0.12 },
-      // Secondary (4) - Two high safeties
-      { role: "CB", label: "CB", x: 0.12, y: 0.12 },
-      { role: "CB", label: "CB", x: 0.88, y: 0.12 },
-      { role: "SS", label: "SS", x: 0.30, y: 0.38 },
-      { role: "FS", label: "FS", x: 0.70, y: 0.38 },
+      // DL
+      { role: "DE", label: "DE", x: xFromCenter(-4), y: LOS_Y, technique: "5" },
+      { role: "DT", label: "3T", x: xFromCenter(-1.5), y: LOS_Y, technique: "3" },
+      { role: "DT", label: "1T", x: xFromCenter(1.5), y: LOS_Y, technique: "1" },
+      { role: "DE", label: "DE", x: xFromCenter(4), y: LOS_Y, technique: "5" },
+      // LBs (3) - press man with robber/rat
+      { role: "OLB", label: "Sam", x: xFromCenter(-5), y: yBehindLOS(3.5) },
+      { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
+      { role: "OLB", label: "Will", x: xFromCenter(5), y: yBehindLOS(3.5) },
+      // Secondary (4) - man coverage shell
+      { role: "CB", label: "CB", x: xFromCenter(-14), y: yBehindLOS(2) },
+      { role: "CB", label: "CB", x: xFromCenter(14), y: yBehindLOS(2) },
+      { role: "SS", label: "SS", x: xFromCenter(-6), y: yBehindLOS(8) },
+      { role: "FS", label: "FS", x: xFromCenter(0), y: yBehindLOS(14) }, // Deep middle
     ],
   },
-
-  // 12. Cover 4 (Quarters)
   {
-    id: "def_cover4",
-    name: "Cover 4 (Quarters)",
+    id: "defense_cover3",
+    name: "Cover 3 Shell",
     family: "shell",
     front: "even",
     boxCount: 7,
-    shell: "cover4",
-    tags: ["cover4", "quarters", "2-high"],
+    shell: "cover3",
+    tags: ["zone_coverage", "single_high", "run_support"],
     alignments: [
-      // D-Line (4)
-      { role: "DE", label: "DE", x: 0.28, y: 0.04, technique: "5" },
-      { role: "DT", label: "3T", x: 0.42, y: 0.04, technique: "3" },
-      { role: "DT", label: "1T", x: 0.58, y: 0.04, technique: "1" },
-      { role: "DE", label: "DE", x: 0.72, y: 0.04, technique: "5" },
-      // Linebackers (3)
-      { role: "OLB", label: "Sam", x: 0.26, y: 0.12 },
-      { role: "MLB", label: "Mike", x: 0.50, y: 0.16 },
-      { role: "OLB", label: "Will", x: 0.74, y: 0.12 },
-      // Secondary (4) - Quarters coverage
-      { role: "CB", label: "CB", x: 0.18, y: 0.28 },
-      { role: "CB", label: "CB", x: 0.82, y: 0.28 },
-      { role: "SS", label: "SS", x: 0.35, y: 0.36 },
-      { role: "FS", label: "FS", x: 0.65, y: 0.36 },
+      // DL
+      { role: "DE", label: "DE", x: xFromCenter(-4), y: LOS_Y, technique: "5" },
+      { role: "DT", label: "3T", x: xFromCenter(-1.5), y: LOS_Y, technique: "3" },
+      { role: "DT", label: "1T", x: xFromCenter(1.5), y: LOS_Y, technique: "1" },
+      { role: "DE", label: "DE", x: xFromCenter(4), y: LOS_Y, technique: "5" },
+      // LBs (3)
+      { role: "OLB", label: "Sam", x: xFromCenter(-5), y: yBehindLOS(3.5) },
+      { role: "MLB", label: "Mike", x: xFromCenter(0), y: yBehindLOS(4) },
+      { role: "OLB", label: "Will", x: xFromCenter(5), y: yBehindLOS(3.5) },
+      // Secondary (4) - Cover 3 zones
+      { role: "CB", label: "CB", x: xFromCenter(-14), y: yBehindLOS(10) }, // Deep 1/3
+      { role: "CB", label: "CB", x: xFromCenter(14), y: yBehindLOS(10) }, // Deep 1/3
+      { role: "SS", label: "SS", x: xFromCenter(-8), y: yBehindLOS(5) },  // Flat/curl
+      { role: "FS", label: "FS", x: xFromCenter(0), y: yBehindLOS(14) },  // Deep middle 1/3
     ],
   },
 ];
@@ -426,6 +368,10 @@ export function getDefensePresetById(id: string): DefensePreset | undefined {
   return DEFENSE_PRESETS.find((p) => p.id === id);
 }
 
+export function getDefensePresetsByFront(front: DefenseFront): DefensePreset[] {
+  return DEFENSE_PRESETS.filter((p) => p.front === front);
+}
+
 export function getDefensePresetsByFamily(family: "front" | "shell"): DefensePreset[] {
   return DEFENSE_PRESETS.filter((p) => p.family === family);
 }
@@ -434,161 +380,95 @@ export function getDefensePresetsByBoxCount(boxCount: number): DefensePreset[] {
   return DEFENSE_PRESETS.filter((p) => p.boxCount === boxCount);
 }
 
-export function getDefensePresetsByShell(shell: string): DefensePreset[] {
+export function getDefensePresetsByShell(shell: DefenseShell): DefensePreset[] {
   return DEFENSE_PRESETS.filter((p) => p.shell === shell);
 }
 
-// ============================================
-// Tech Label Generation
-// ============================================
-
-/**
- * Generate tech label for display (e.g., "3T", "5T", "N", "9")
- */
-export function techToLabel(tech: DefenseTechValue | undefined): string | null {
-  if (!tech) return null;
-  if (tech === "0") return "N"; // Nose tackle
-  return `${tech}T`;
-}
-
-/**
- * Resolve 3-tech position based on front and context
- * Over = strong, Under = weak, Even = configurable
- */
-export function resolveThreeTechSide(
-  front: DefensePreset["front"],
-  contextThreeTech?: "strong" | "weak" | "none"
-): "strong" | "weak" | "none" {
-  // If context specifies, use that
-  if (contextThreeTech && contextThreeTech !== "none") {
-    return contextThreeTech;
-  }
-
-  // Default by front type
-  switch (front) {
-    case "over":
-      return "strong";
-    case "under":
-      return "weak";
-    case "even":
-    case "odd":
-    case "okie":
-      return "strong"; // Default for even fronts
-    case "bear":
-    case "tite":
-    case "mint":
-      return "none"; // These don't have a single 3T
-    default:
-      return "strong";
-  }
-}
-
-// ============================================
-// Shell Position Builders
-// ============================================
-
-/**
- * Build 1-high shell positions (Cover 1/3 style)
- */
-export function build1HighShell(): Array<{ role: string; label: string; x: number; y: number }> {
-  return [
-    { role: "FS", label: "FS", x: 0.50, y: 0.42 },  // Single high safety
-    { role: "CB", label: "CB", x: 0.10, y: 0.08 },  // Press corner
-    { role: "CB", label: "CB", x: 0.90, y: 0.08 },  // Press corner
-    { role: "SS", label: "SS", x: 0.35, y: 0.22 },  // Strong overhang
-  ];
-}
-
-/**
- * Build 2-high shell positions (Cover 2/4 style)
- */
-export function build2HighShell(): Array<{ role: string; label: string; x: number; y: number }> {
-  return [
-    { role: "SS", label: "SS", x: 0.35, y: 0.38 },  // High safety left
-    { role: "FS", label: "FS", x: 0.65, y: 0.38 },  // High safety right
-    { role: "CB", label: "CB", x: 0.12, y: 0.12 },  // Flat/buzz corner
-    { role: "CB", label: "CB", x: 0.88, y: 0.12 },  // Flat/buzz corner
-  ];
-}
-
-// ============================================
-// Fine-tuned Tech Positioning (Optional)
-// ============================================
-
-// Additional offset adjustments for more realistic spacing
-const TECH_FINE_TUNE: Partial<Record<DefenseTechValue, number>> = {
-  "1": 0.00,
-  "3": 0.005,
-  "5": 0.01,
-  "9": 0.02,
-  "4i": 0.003,
-  "2i": 0.002,
-};
-
-/**
- * Get fine-tuned tech position (more accurate spacing)
- */
-export function techToNormalizedXFine(tech: DefenseTechValue, sideSign: 1 | -1): number {
-  const baseX = techToNormalizedX(tech, sideSign);
-  const fineTune = TECH_FINE_TUNE[tech] ?? 0;
-  return baseX + sideSign * fineTune;
-}
-
-// ============================================
-// Quick Chips for UI Selection
-// ============================================
-
-/**
- * Quick chips for front selection
- */
-export const FRONT_CHIPS: Array<{ value: DefensePreset["front"]; label: string }> = [
-  { value: "even", label: "Even" },
-  { value: "odd", label: "Odd" },
-  { value: "over", label: "Over" },
-  { value: "under", label: "Under" },
-  { value: "bear", label: "Bear" },
-  { value: "tite", label: "Tite" },
-];
-
-/**
- * Quick chips for shell selection
- */
-export const SHELL_CHIPS: Array<{ value: DefensePreset["shell"]; label: string }> = [
-  { value: "cover1", label: "Cov 1" },
-  { value: "cover2", label: "Cov 2" },
-  { value: "cover3", label: "Cov 3" },
-  { value: "cover4", label: "Cov 4" },
-  { value: "nickel", label: "Nickel" },
-  { value: "dime", label: "Dime" },
-];
-
-/**
- * Box count chips
- */
-export const BOX_CHIPS: Array<{ value: 5 | 6 | 7 | 8; label: string }> = [
-  { value: 5, label: "5-Box" },
-  { value: 6, label: "6-Box" },
-  { value: 7, label: "7-Box" },
-  { value: 8, label: "8-Box" },
-];
-
-/**
- * Convert preset alignments to Player array for rendering
- */
-export function presetToDefensePlayers(preset: DefensePreset): Array<{
-  id: string;
-  role: string;
+// Preset display grouping for UI
+export interface DefensePresetGroup {
   label: string;
-  x: number;
-  y: number;
-  technique?: string;
-}> {
-  return preset.alignments.map((align, idx) => ({
-    id: `def_${preset.id}_${idx}`,
-    role: align.role,
-    label: align.label,
-    x: align.x,
-    y: align.y,
-    technique: align.technique,
-  }));
+  presets: DefensePreset[];
+}
+
+export function getDefensePresetGroups(): DefensePresetGroup[] {
+  return [
+    {
+      label: "Even Fronts (4-down)",
+      presets: DEFENSE_PRESETS.filter((p) =>
+        p.front === "even" || p.front === "over" || p.front === "under"
+      ),
+    },
+    {
+      label: "Odd Fronts (3-down)",
+      presets: DEFENSE_PRESETS.filter((p) =>
+        p.front === "odd" || p.front === "bear" || p.front === "tite"
+      ),
+    },
+    {
+      label: "Sub-Packages",
+      presets: DEFENSE_PRESETS.filter((p) =>
+        p.shell === "nickel" || p.shell === "dime"
+      ),
+    },
+    {
+      label: "Coverage Shells",
+      presets: DEFENSE_PRESETS.filter((p) =>
+        p.shell === "cover1" || p.shell === "cover3"
+      ),
+    },
+  ];
+}
+
+// ============================================
+// Technique Label Helper
+// ============================================
+
+export function techToLabel(tech: DefenseTechValue | undefined): string {
+  if (!tech) return "";
+  const labels: Record<DefenseTechValue, string> = {
+    "0": "0T",
+    "1": "1T",
+    "2i": "2i",
+    "2": "2T",
+    "3": "3T",
+    "4i": "4i",
+    "5": "5T",
+    "7": "7T",
+    "9": "9T",
+  };
+  return labels[tech] || tech;
+}
+
+// ============================================
+// Offensive Strength Computation
+// ============================================
+
+export function computeOffensiveStrength(formation: Formation): Strength {
+  // Get formation meta strength if defined
+  if (formation.meta?.strength) {
+    return formation.meta.strength;
+  }
+
+  // Compute from player positions - strength is to the side with TE/more receivers
+  const players = formation.defaults.players;
+  const CENTER_X = 0.5;
+
+  // Find TE position (Y role often is TE in pro-style formations)
+  const tePlayer = players.find((p) => p.role === "Y" && p.label?.includes("TE"));
+  if (tePlayer) {
+    return tePlayer.alignment.x > CENTER_X ? "right" : "left";
+  }
+
+  // Count receivers on each side
+  const receivers = players.filter((p) =>
+    ["X", "Y", "Z", "H"].includes(p.role as string)
+  );
+  const leftCount = receivers.filter((p) => p.alignment.x < CENTER_X).length;
+  const rightCount = receivers.filter((p) => p.alignment.x > CENTER_X).length;
+
+  if (rightCount > leftCount) return "right";
+  if (leftCount > rightCount) return "left";
+
+  // Default to right
+  return "right";
 }

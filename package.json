@@ -21,7 +21,9 @@
     "test:e2e:headed": "playwright test --headed",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "audit": "npx tsx scripts/audit-assets.ts",
+    "audit:ci": "npx tsx scripts/audit-assets.ts"
   },
   "engines": {
     "node": ">=18.0.0"
