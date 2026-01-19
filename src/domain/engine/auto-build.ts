@@ -32,6 +32,13 @@ export interface AutoBuildResult {
   failure?: AutoBuildFailure; // Typed failure info
   warnings?: string[];
   appliedActions?: number;
+  coverage?: {
+    allCovered: boolean;
+    totalPlayers: number;
+    playersWithActions: number;
+    uncoveredRoles: string[];
+    coveragePercent: number;
+  };
 }
 
 export interface AutoBuildOptions {
@@ -160,12 +167,14 @@ export function autoBuildFromConcept(
       continue; // Skip if no matching player
     }
 
-    // Check if this is a "full unit" role (applies to all 5 OL or similar)
-    const isFullUnitRole = role.appliesTo.length >= 3 && isOLRole(role.appliesTo);
+    // Check if this is a "unit" role (applies to multiple OL or block/run role)
+    // For OL roles (DOWN, ZONE, COMBO, etc.), apply to ALL matching OL players
+    const isOLOnlyRole = isOLRole(role.appliesTo);
+    const isMultiPlayerRole = role.appliesTo.length >= 2 && isOLOnlyRole;
 
-    // For full unit roles (like OL blocking), apply to ALL matching players
+    // For OL unit roles (any OL-only role), apply to ALL matching players
     // Otherwise, select the best player for the role
-    const targetPlayers = isFullUnitRole
+    const targetPlayers = isMultiPlayerRole
       ? matchingPlayers
       : [selectPlayerForRole(matchingPlayers, side, role.roleName)].filter(Boolean) as Player[];
 
@@ -206,21 +215,124 @@ export function autoBuildFromConcept(
     }
   }
 
+  // Helper to track players who already have actions
+  const playersWithActionsSet = new Set(
+    actions
+      .filter((a): a is Action & { fromPlayerId: string } => "fromPlayerId" in a && !!a.fromPlayerId)
+      .map(a => a.fromPlayerId)
+  );
+  const playerHasAction = (playerId: string) => playersWithActionsSet.has(playerId);
+
   // AUTO-ADD: OL pass protection for pass concepts
   if (concept.conceptType === "pass") {
     const olRoles = ["LT", "LG", "C", "RG", "RT"];
     const olPlayers = players.filter(p => olRoles.includes(p.role));
 
-    // Only add if we have OL and no explicit OL role in template
-    const hasOLRole = template.roles.some(r =>
-      r.appliesTo.some(pos => olRoles.includes(pos))
-    );
-
-    if (!hasOLRole && olPlayers.length > 0) {
-      for (const olPlayer of olPlayers) {
+    for (const olPlayer of olPlayers) {
+      if (!playerHasAction(olPlayer.id)) {
         const passProAction = buildPassProtectionAction(olPlayer, side);
         if (passProAction) {
           actions.push(passProAction);
+          playersWithActionsSet.add(olPlayer.id);
+        }
+      }
+    }
+  }
+
+  // AUTO-ADD: QB dropback for pass concepts
+  if (concept.conceptType === "pass") {
+    const qbPlayers = players.filter(p => p.role === "QB");
+
+    for (const qbPlayer of qbPlayers) {
+      if (!playerHasAction(qbPlayer.id)) {
+        const dropbackAction = buildQBDropbackAction(qbPlayer, concept.passHints?.category || "intermediate");
+        if (dropbackAction) {
+          actions.push(dropbackAction);
+          playersWithActionsSet.add(qbPlayer.id);
+        }
+      }
+    }
+  }
+
+  // AUTO-ADD: FB blocking for run concepts (if not assigned)
+  if (concept.conceptType === "run") {
+    const fbPlayers = players.filter(p => p.role === "FB");
+
+    for (const fbPlayer of fbPlayers) {
+      if (!playerHasAction(fbPlayer.id)) {
+        // FB typically leads or blocks based on run type
+        const fbAction = buildFBLeadBlockAction(fbPlayer, side, concept.runHints?.aim || "b_gap");
+        if (fbAction) {
+          actions.push(fbAction);
+          playersWithActionsSet.add(fbPlayer.id);
+        }
+      }
+    }
+  }
+
+  // AUTO-ADD: WR stalk blocking for run concepts
+  if (concept.conceptType === "run") {
+    const wrRoles = ["X", "Z"];
+    const wrPlayers = players.filter(p => wrRoles.includes(p.role));
+
+    for (const wrPlayer of wrPlayers) {
+      // Only add if player doesn't already have an action
+      if (!playerHasAction(wrPlayer.id)) {
+        const stalkAction = buildWRStalkBlockAction(wrPlayer, side);
+        if (stalkAction) {
+          actions.push(stalkAction);
+          playersWithActionsSet.add(wrPlayer.id);
+        }
+      }
+    }
+  }
+
+  // AUTO-ADD: TE arc/seal blocking for run concepts (if not assigned)
+  if (concept.conceptType === "run") {
+    const teRoles = ["Y"];
+    const tePlayers = players.filter(p => teRoles.includes(p.role));
+
+    for (const tePlayer of tePlayers) {
+      // Only add if player doesn't already have an action
+      if (!playerHasAction(tePlayer.id)) {
+        const arcAction = buildTEArcBlockAction(tePlayer, side);
+        if (arcAction) {
+          actions.push(arcAction);
+          playersWithActionsSet.add(tePlayer.id);
+        }
+      }
+    }
+  }
+
+  // AUTO-ADD: QB mesh/handoff for run concepts
+  if (concept.conceptType === "run") {
+    const qbPlayers = players.filter(p => p.role === "QB");
+
+    for (const qbPlayer of qbPlayers) {
+      // Only add if QB doesn't already have an action
+      if (!playerHasAction(qbPlayer.id)) {
+        const meshAction = buildQBMeshAction(qbPlayer, side, concept.runHints?.aim || "b_gap");
+        if (meshAction) {
+          actions.push(meshAction);
+          playersWithActionsSet.add(qbPlayer.id);
+        }
+      }
+    }
+  }
+
+  // AUTO-ADD: H-back blocking for run concepts (if not assigned)
+  if (concept.conceptType === "run") {
+    const hRoles = ["H"];
+    const hPlayers = players.filter(p => hRoles.includes(p.role));
+
+    for (const hPlayer of hPlayers) {
+      // Only add if H doesn't already have an action
+      if (!playerHasAction(hPlayer.id)) {
+        // H-backs typically crack or arc based on alignment
+        const hAction = buildHBackBlockAction(hPlayer, side);
+        if (hAction) {
+          actions.push(hAction);
+          playersWithActionsSet.add(hPlayer.id);
         }
       }
     }
@@ -253,12 +365,35 @@ export function autoBuildFromConcept(
     };
   }
 
+  // Calculate coverage info from final actions list
+  const finalPlayersWithActions = new Set<string>();
+  for (const action of actions) {
+    if ("fromPlayerId" in action && action.fromPlayerId) {
+      finalPlayersWithActions.add(action.fromPlayerId);
+    }
+  }
+
+  const uncoveredPlayers = players.filter(p => !finalPlayersWithActions.has(p.id));
+  const uncoveredRoles = uncoveredPlayers.map(p => p.role);
+
+  // Add warning if not all players have actions
+  if (uncoveredPlayers.length > 0) {
+    warnings.push(`${uncoveredPlayers.length} player(s) without assignments: ${uncoveredRoles.join(", ")}`);
+  }
+
   return {
     success: true,
     actions,
     errors: errors.length > 0 ? errors : undefined,
     warnings: warnings.length > 0 ? warnings : undefined,
     appliedActions: actions.length,
+    coverage: {
+      allCovered: uncoveredPlayers.length === 0,
+      totalPlayers: players.length,
+      playersWithActions: finalPlayersWithActions.size,
+      uncoveredRoles,
+      coveragePercent: players.length > 0 ? Math.round((finalPlayersWithActions.size / players.length) * 100) : 0,
+    },
   };
 }
 
@@ -291,8 +426,9 @@ function detectFormationStructure(players: Player[]): string {
 function isOLRole(appliesTo: string[]): boolean {
   const olPositions = ["LT", "LG", "C", "RG", "RT"];
   const olCount = appliesTo.filter(role => olPositions.includes(role)).length;
-  // Consider it an OL role if majority of positions are OL
-  return olCount >= Math.ceil(appliesTo.length / 2) && olCount >= 3;
+  // Consider it an OL role if ALL positions are OL (pure OL role)
+  // or if majority of positions are OL and there's at least 2 OL
+  return olCount === appliesTo.length || (olCount >= Math.ceil(appliesTo.length / 2) && olCount >= 2);
 }
 
 function selectPlayerForRole(
@@ -645,6 +781,369 @@ function buildAimPointLandmark(
 }
 
 // ============================================
+// QB Dropback Action (for pass concepts)
+// ============================================
+
+function buildQBDropbackAction(
+  player: Player,
+  category: string
+): MotionAction | null {
+  const startX = player.alignment?.x || 0.5;
+  const startY = player.alignment?.y || -0.06;
+
+  // Determine drop depth based on pass category
+  let dropDepth = -0.12; // Default 5-step
+  if (category === "quick") {
+    dropDepth = -0.08; // 3-step
+  } else if (category === "deep") {
+    dropDepth = -0.16; // 7-step
+  } else if (category === "screen") {
+    dropDepth = -0.06; // Quick set
+  }
+
+  const pathPoints: Point[] = [
+    { x: startX, y: startY },
+    { x: startX, y: startY + dropDepth }, // Dropback
+  ];
+
+  return {
+    id: `a_motion_${uuid().slice(0, 8)}`,
+    actionType: "motion",
+    fromPlayerId: player.id,
+    layer: "primary",
+    motion: {
+      motionType: "run_path" as any, // Using motion for QB dropback
+      pathPoints,
+      endAlignment: pathPoints[pathPoints.length - 1],
+    },
+    timing: {
+      phase: "post_snap",
+    },
+    style: {
+      line: "dashed",
+      endMarker: "none",
+      thickness: "normal",
+    } as any,
+    meta: {
+      passRole: "DROPBACK",
+      category,
+    },
+  };
+}
+
+// ============================================
+// FB Lead Block Action (for run concepts)
+// ============================================
+
+function buildFBLeadBlockAction(
+  player: Player,
+  side: "left" | "right",
+  aim: string
+): BlockAction | null {
+  const startX = player.alignment?.x || 0.5;
+  const startY = player.alignment?.y || -0.1;
+
+  // FB leads through the hole based on aim point
+  let targetX = side === "right" ? 0.54 : 0.46; // Default B-gap
+  let targetY = startY + 0.15;
+
+  if (aim.includes("a")) {
+    targetX = side === "right" ? 0.52 : 0.48;
+  } else if (aim.includes("b")) {
+    targetX = side === "right" ? 0.55 : 0.45;
+  } else if (aim.includes("c")) {
+    targetX = side === "right" ? 0.60 : 0.40;
+  } else if (aim.includes("edge")) {
+    targetX = side === "right" ? 0.68 : 0.32;
+    targetY = startY + 0.12;
+  }
+
+  const pathPoints: Point[] = [
+    { x: startX, y: startY },
+    { x: (startX + targetX) / 2, y: startY + 0.06 },
+    { x: targetX, y: targetY },
+  ];
+
+  return {
+    id: `a_block_${uuid().slice(0, 8)}`,
+    actionType: "block",
+    fromPlayerId: player.id,
+    layer: "primary",
+    block: {
+      scheme: "pull_lead" as BlockScheme,
+      target: {
+        type: "landmark",
+        landmark: pathPoints[pathPoints.length - 1],
+      },
+      pathPoints,
+      lineStyle: {
+        endCap: "slash",
+        line: "solid",
+      },
+    },
+    style: {
+      line: "solid",
+      endMarker: "arrow",
+    },
+    meta: {
+      runRole: "FB_LEAD",
+      aim,
+    },
+  };
+}
+
+// ============================================
+// WR Stalk Block Action (for run concepts)
+// ============================================
+
+function buildWRStalkBlockAction(
+  player: Player,
+  side: "left" | "right"
+): BlockAction | null {
+  const startX = player.alignment?.x || 0.5;
+  const startY = player.alignment?.y || 0;
+
+  // Determine if this is playside or backside WR
+  const isLeftSide = startX < 0.5;
+  const isPlayside = side === "right" ? !isLeftSide : isLeftSide;
+
+  // Stalk block: maintain leverage, inside-out position on CB
+  // Playside: force stalk (seal CB/SS from pursuit)
+  // Backside: cutoff stalk (inside-out leverage)
+  const lateralMove = isPlayside
+    ? (isLeftSide ? -0.02 : 0.02) // Slight outside release
+    : (isLeftSide ? 0.03 : -0.03); // Inside-out position
+
+  const pathPoints: Point[] = [
+    { x: startX, y: startY },
+    { x: startX + lateralMove, y: startY + 0.02 },
+    { x: startX + lateralMove * 1.5, y: startY + 0.06 },
+  ];
+
+  return {
+    id: `a_block_${uuid().slice(0, 8)}`,
+    actionType: "block",
+    fromPlayerId: player.id,
+    layer: "primary",
+    block: {
+      scheme: "seal" as BlockScheme, // Stalk is like a seal block
+      target: {
+        type: "landmark",
+        landmark: pathPoints[pathPoints.length - 1],
+      },
+      pathPoints,
+      lineStyle: {
+        endCap: "slash",
+        line: "solid",
+      },
+    },
+    style: {
+      line: "solid",
+      endMarker: "arrow",
+    },
+    meta: {
+      runRole: isPlayside ? "STALK_FORCE" : "STALK_CUTOFF",
+    },
+  };
+}
+
+// ============================================
+// TE Arc/Seal Block Action (for run concepts)
+// ============================================
+
+function buildTEArcBlockAction(
+  player: Player,
+  side: "left" | "right"
+): BlockAction | null {
+  const startX = player.alignment?.x || 0.5;
+  const startY = player.alignment?.y || 0;
+
+  // TE typically arcs to second level (LB or safety)
+  const isLeftTE = startX < 0.5;
+  const isPlayside = side === "right" ? !isLeftTE : isLeftTE;
+
+  // Arc path: release outside, work up to 2nd level
+  const arcDir = isPlayside
+    ? (side === "right" ? 0.04 : -0.04)
+    : (side === "right" ? -0.02 : 0.02);
+
+  const pathPoints: Point[] = [
+    { x: startX, y: startY },
+    { x: startX + arcDir, y: startY + 0.03 },
+    { x: startX + arcDir * 1.5, y: startY + 0.08 },
+  ];
+
+  return {
+    id: `a_block_${uuid().slice(0, 8)}`,
+    actionType: "block",
+    fromPlayerId: player.id,
+    layer: "primary",
+    block: {
+      scheme: "arc" as BlockScheme,
+      target: {
+        type: "landmark",
+        landmark: pathPoints[pathPoints.length - 1],
+      },
+      pathPoints,
+      lineStyle: {
+        endCap: "slash",
+        line: "solid",
+      },
+    },
+    style: {
+      line: "solid",
+      endMarker: "arrow",
+    },
+    meta: {
+      runRole: isPlayside ? "ARC_PLAYSIDE" : "ARC_BACKSIDE",
+    },
+  };
+}
+
+// ============================================
+// H-Back Block Action (crack or arc)
+// ============================================
+
+function buildHBackBlockAction(
+  player: Player,
+  side: "left" | "right"
+): BlockAction | null {
+  const startX = player.alignment?.x || 0.5;
+  const startY = player.alignment?.y || 0;
+
+  // H-back: crack inside or arc outside based on alignment
+  const isLeftH = startX < 0.5;
+  const isPlayside = side === "right" ? !isLeftH : isLeftH;
+
+  // If aligned wide, crack inside to EMOL/LB
+  // If aligned tight, arc outside to force
+  const isWideAligned = Math.abs(startX - 0.5) > 0.15;
+
+  if (isWideAligned) {
+    // Crack block: attack inside to EMOL or LB
+    const crackDir = isLeftH ? 0.08 : -0.08;
+    const pathPoints: Point[] = [
+      { x: startX, y: startY },
+      { x: startX + crackDir * 0.5, y: startY + 0.02 },
+      { x: startX + crackDir, y: startY + 0.05 },
+    ];
+
+    return {
+      id: `a_block_${uuid().slice(0, 8)}`,
+      actionType: "block",
+      fromPlayerId: player.id,
+      layer: "primary",
+      block: {
+        scheme: "down" as BlockScheme, // Crack is like a down block
+        target: {
+          type: "landmark",
+          landmark: pathPoints[pathPoints.length - 1],
+        },
+        pathPoints,
+        lineStyle: {
+          endCap: "slash",
+          line: "solid",
+        },
+      },
+      style: {
+        line: "solid",
+        endMarker: "arrow",
+      },
+      meta: {
+        runRole: "CRACK",
+      },
+    };
+  } else {
+    // Arc block: release outside to force
+    const arcDir = isPlayside
+      ? (side === "right" ? 0.05 : -0.05)
+      : (side === "right" ? -0.03 : 0.03);
+
+    const pathPoints: Point[] = [
+      { x: startX, y: startY },
+      { x: startX + arcDir, y: startY + 0.03 },
+      { x: startX + arcDir * 1.5, y: startY + 0.08 },
+    ];
+
+    return {
+      id: `a_block_${uuid().slice(0, 8)}`,
+      actionType: "block",
+      fromPlayerId: player.id,
+      layer: "primary",
+      block: {
+        scheme: "arc" as BlockScheme,
+        target: {
+          type: "landmark",
+          landmark: pathPoints[pathPoints.length - 1],
+        },
+        pathPoints,
+        lineStyle: {
+          endCap: "slash",
+          line: "solid",
+        },
+      },
+      style: {
+        line: "solid",
+        endMarker: "arrow",
+      },
+      meta: {
+        runRole: "ARC",
+      },
+    };
+  }
+}
+
+// ============================================
+// QB Mesh/Handoff Action (for run concepts)
+// ============================================
+
+function buildQBMeshAction(
+  player: Player,
+  side: "left" | "right",
+  aim: string
+): MotionAction | null {
+  const startX = player.alignment?.x || 0.5;
+  const startY = player.alignment?.y || -0.06;
+
+  // QB mesh point: move toward handoff point
+  const meshX = side === "right" ? startX + 0.03 : startX - 0.03;
+  const meshY = startY + 0.02;
+
+  // After handoff, QB fakes or boots opposite
+  const bootDir = side === "right" ? -0.06 : 0.06;
+
+  const pathPoints: Point[] = [
+    { x: startX, y: startY },
+    { x: meshX, y: meshY }, // Mesh point
+    { x: meshX + bootDir, y: meshY - 0.02 }, // Boot fake
+  ];
+
+  return {
+    id: `a_motion_${uuid().slice(0, 8)}`,
+    actionType: "motion",
+    fromPlayerId: player.id,
+    layer: "primary",
+    motion: {
+      motionType: "run_path" as any,
+      pathPoints,
+      endAlignment: pathPoints[pathPoints.length - 1],
+    },
+    timing: {
+      phase: "post_snap",
+    },
+    style: {
+      line: "dashed",
+      endMarker: "none",
+      thickness: "normal",
+    } as any,
+    meta: {
+      runRole: "MESH",
+      aim,
+    },
+  };
+}
+
+// ============================================
 // RB Run Path Action (for BALL carrier role)
 // ============================================
 
@@ -747,6 +1246,51 @@ function buildPassProtectionAction(
     meta: {
       passProRole: "PASS_PRO",
     },
+  };
+}
+
+// ============================================
+// 11-Player Coverage Validation
+// ============================================
+
+export interface CoverageValidation {
+  allCovered: boolean;
+  totalPlayers: number;
+  playersWithActions: number;
+  uncoveredPlayers: Array<{ id: string; role: string }>;
+  coveragePercent: number;
+}
+
+export function validateAllPlayersCovered(
+  play: Play,
+  actions: Action[]
+): CoverageValidation {
+  const players = play.roster.players;
+  const totalPlayers = players.length;
+
+  // Get all player IDs that have actions
+  const playersWithActionsSet = new Set<string>();
+  for (const action of actions) {
+    if ("fromPlayerId" in action && action.fromPlayerId) {
+      playersWithActionsSet.add(action.fromPlayerId);
+    }
+  }
+
+  const playersWithActions = playersWithActionsSet.size;
+  const uncoveredPlayers: Array<{ id: string; role: string }> = [];
+
+  for (const player of players) {
+    if (!playersWithActionsSet.has(player.id)) {
+      uncoveredPlayers.push({ id: player.id, role: player.role });
+    }
+  }
+
+  return {
+    allCovered: uncoveredPlayers.length === 0,
+    totalPlayers,
+    playersWithActions,
+    uncoveredPlayers,
+    coveragePercent: totalPlayers > 0 ? Math.round((playersWithActions / totalPlayers) * 100) : 0,
   };
 }
 

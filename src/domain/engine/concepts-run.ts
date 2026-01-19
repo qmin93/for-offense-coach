@@ -340,7 +340,9 @@ export const RUN_CONCEPTS: Concept[] = [
     },
     template: {
       roles: [
-        { roleName: "PIN", appliesTo: ["Y", "RT"], defaultBlock: { scheme: "seal" } },
+        { roleName: "BACKSIDE", appliesTo: ["LT", "LG"], defaultBlock: { scheme: "reach" } },
+        { roleName: "PIN_TE", appliesTo: ["Y"], defaultBlock: { scheme: "seal" } },
+        { roleName: "PIN_OL", appliesTo: ["RT"], defaultBlock: { scheme: "seal" } },
         { roleName: "PULL", appliesTo: ["RG", "C"], defaultBlock: { scheme: "pull_lead" } },
         { roleName: "BALL", appliesTo: ["RB"], defaultBlock: { scheme: "zone_step" } },
       ],
@@ -426,6 +428,7 @@ export const RUN_CONCEPTS: Concept[] = [
     },
     template: {
       roles: [
+        { roleName: "BACKSIDE", appliesTo: ["LT", "LG", "C"], defaultBlock: { scheme: "reach" } },
         { roleName: "CRACK", appliesTo: ["Z", "Y"], defaultBlock: { scheme: "seal" } },
         { roleName: "LEAD", appliesTo: ["FB", "H"], defaultBlock: { scheme: "pull_lead" } },
         { roleName: "PULL", appliesTo: ["RG", "RT"], defaultBlock: { scheme: "pull_lead" } },
@@ -456,8 +459,10 @@ export const RUN_CONCEPTS: Concept[] = [
     template: {
       roles: [
         { roleName: "REACH", appliesTo: ["LT", "LG", "C", "RG", "RT"], defaultBlock: { scheme: "reach" } },
-        { roleName: "SEAL", appliesTo: ["Y", "H"], defaultBlock: { scheme: "seal" } },
-        { roleName: "MOTION", appliesTo: ["Z", "X"], defaultBlock: { scheme: "zone_step" } },
+        { roleName: "SEAL", appliesTo: ["Y"], defaultBlock: { scheme: "seal" } },
+        { roleName: "ARC", appliesTo: ["H"], defaultBlock: { scheme: "arc" } },
+        { roleName: "STALK", appliesTo: ["X"], defaultBlock: { scheme: "seal" } },
+        { roleName: "MOTION", appliesTo: ["Z"], defaultBlock: { scheme: "zone_step" } },
         { roleName: "FAKE", appliesTo: ["RB"], defaultBlock: { scheme: "zone_step" } },
       ],
       buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
@@ -549,7 +554,8 @@ export const RUN_CONCEPTS: Concept[] = [
       roles: [
         { roleName: "DOWN", appliesTo: ["LT", "LG", "C", "RT"], defaultBlock: { scheme: "down" } },
         { roleName: "PULL", appliesTo: ["RG"], defaultBlock: { scheme: "pull_lead" } },
-        { roleName: "LEAD", appliesTo: ["RB", "FB"], defaultBlock: { scheme: "pull_lead" } },
+        { roleName: "LEAD_FB", appliesTo: ["FB"], defaultBlock: { scheme: "pull_lead" } },
+        { roleName: "LEAD_RB", appliesTo: ["RB"], defaultBlock: { scheme: "pull_lead" } },
         { roleName: "BALL", appliesTo: ["QB"], defaultBlock: { scheme: "zone_step" } },
       ],
       buildPolicy: { placementStrategy: "relative_to_alignment", runLandmarks: true },
