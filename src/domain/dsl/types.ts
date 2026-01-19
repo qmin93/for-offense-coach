@@ -432,6 +432,51 @@ export type Strength = "left" | "right" | "none";
 
 export type HashPosition = "L" | "M" | "R";
 
+// ============================================
+// Play Context Types (Pre-Context Persistence)
+// Saved as part of play.meta.context
+// ============================================
+
+export type PlayIntent = "pass" | "run" | "rpo";
+export type BoxCount = 5 | 6 | 7 | 8 | "unknown";
+export type ContextFront = "even" | "odd" | "over" | "under" | "bear" | "unknown";
+export type ThreeTech = "strong" | "weak" | "none" | "unknown";
+export type ContextShell = "1high" | "2high" | "unknown";
+export type PressureLevel = "none" | "low" | "medium" | "high";
+export type ContextDown = 1 | 2 | 3 | 4 | "-";
+export type ContextDistance = "short" | "medium" | "long" | "goal" | "-";
+export type ContextHash = "L" | "M" | "R" | "-";
+
+export interface PlayContextSituation {
+  down: ContextDown;
+  distance: ContextDistance;
+  hash: ContextHash;
+}
+
+export interface PlayContext {
+  playType: PlayIntent;
+  boxCount: BoxCount;
+  front: ContextFront;
+  threeTech: ThreeTech;
+  shell: ContextShell;
+  pressure: PressureLevel;
+  situation: PlayContextSituation;
+}
+
+export const DEFAULT_PLAY_CONTEXT: PlayContext = {
+  playType: "pass",
+  boxCount: "unknown",
+  front: "unknown",
+  threeTech: "unknown",
+  shell: "unknown",
+  pressure: "none",
+  situation: {
+    down: "-",
+    distance: "-",
+    hash: "-",
+  },
+};
+
 export interface PlayMeta {
   personnel?: Personnel;
   unit?: Unit;
@@ -444,6 +489,8 @@ export interface PlayMeta {
   distance?: ScoutCardDistance;
   hash?: HashPosition;
   callName?: string;
+  // Pre-Context (persisted from Start New Play flow)
+  context?: PlayContext;
 }
 
 // Scout Card constrained types

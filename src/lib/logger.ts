@@ -107,7 +107,13 @@ export type EditorEvent =
   | "PLAYBACK_PAUSE"
   | "PLAYBACK_SEEK"
   | "CONTEXT_INITIALIZED"
-  | "CONTEXT_ADJUSTED";
+  | "CONTEXT_ADJUSTED"
+  | "CONTEXT_RESTORED"
+  | "CONTEXT_RESTORE_SKIPPED"
+  | "CONTEXT_SYNCED_TO_PLAY"
+  | "CONTEXT_SYNC_SKIPPED"
+  | "CONTEXT_DEFENSE_APPLYING"
+  | "CONTEXT_DEFENSE_SKIPPED";
 
 // ============================================
 // Telemetry Events (MVP 필수 12+)

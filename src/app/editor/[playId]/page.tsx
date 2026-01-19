@@ -115,6 +115,10 @@ export default function EditorPage() {
     buildFromConcept,
     hasCompletedPreContext,
     initializeContext,
+    // Context persistence actions
+    restoreContextFromPlay,
+    syncContextToPlay,
+    applyContextDefense,
     // Multi-selection for copy/paste
     selectedPlayerIds,
     selectedActionIds,
@@ -198,6 +202,27 @@ export default function EditorPage() {
     }
   }, [playId, play, isLoading]);
 
+  // Restore context from loaded play (for existing plays)
+  // This ensures Pre-Context survives page refresh and play reload
+  const hasRestoredContext = useRef(false);
+  useEffect(() => {
+    if (
+      !isLoading &&
+      playId !== "new" &&
+      play?.meta?.context &&
+      !hasCompletedPreContext &&
+      !hasRestoredContext.current
+    ) {
+      hasRestoredContext.current = true;
+      restoreContextFromPlay();
+
+      // After context is restored, apply defense if context has defense settings
+      setTimeout(() => {
+        applyContextDefense();
+      }, 0);
+    }
+  }, [isLoading, playId, play?.meta?.context, hasCompletedPreContext, restoreContextFromPlay, applyContextDefense]);
+
   // Recovery handlers
   const handleRecover = useCallback((snapshotId: string) => {
     const recoveredPlay = recoverFromSnapshot(snapshotId);
@@ -220,8 +245,15 @@ export default function EditorPage() {
     (context: PreContext) => {
       initializeContext(context);
       initPlay(); // Initialize empty play after context is set
+
+      // After play is created, sync context to play.meta and apply defense
+      // Use setTimeout to ensure play state is updated
+      setTimeout(() => {
+        syncContextToPlay();
+        applyContextDefense();
+      }, 0);
     },
-    [initializeContext, initPlay]
+    [initializeContext, initPlay, syncContextToPlay, applyContextDefense]
   );
 
   // Hard Onboarding concept selection handler

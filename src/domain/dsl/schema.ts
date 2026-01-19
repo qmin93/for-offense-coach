@@ -254,6 +254,36 @@ export const ActionSchema = z.discriminatedUnion("actionType", [
 export const PersonnelSchema = z.enum(["10", "11", "12", "13", "20", "21", "22", "23"]);
 export const StrengthSchema = z.enum(["left", "right", "none"]);
 
+// ============================================
+// Play Context Schema (Pre-Context Persistence)
+// ============================================
+
+export const PlayIntentSchema = z.enum(["pass", "run", "rpo"]);
+export const BoxCountSchema = z.union([z.literal(5), z.literal(6), z.literal(7), z.literal(8), z.literal("unknown")]);
+export const ContextFrontSchema = z.enum(["even", "odd", "over", "under", "bear", "unknown"]);
+export const ThreeTechSchema = z.enum(["strong", "weak", "none", "unknown"]);
+export const ContextShellSchema = z.enum(["1high", "2high", "unknown"]);
+export const PressureLevelSchema = z.enum(["none", "low", "medium", "high"]);
+export const ContextDownSchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal("-")]);
+export const ContextDistanceSchema = z.enum(["short", "medium", "long", "goal", "-"]);
+export const ContextHashSchema = z.enum(["L", "M", "R", "-"]);
+
+export const PlayContextSituationSchema = z.object({
+  down: ContextDownSchema,
+  distance: ContextDistanceSchema,
+  hash: ContextHashSchema,
+});
+
+export const PlayContextSchema = z.object({
+  playType: PlayIntentSchema,
+  boxCount: BoxCountSchema,
+  front: ContextFrontSchema,
+  threeTech: ThreeTechSchema,
+  shell: ContextShellSchema,
+  pressure: PressureLevelSchema,
+  situation: PlayContextSituationSchema,
+});
+
 export const PlayMetaSchema = z.object({
   personnel: PersonnelSchema.optional(),
   unit: UnitSchema.optional(),
@@ -261,6 +291,7 @@ export const PlayMetaSchema = z.object({
   formationId: z.string().optional(),
   conceptId: z.string().optional(),
   nflStyle: z.boolean().optional(),
+  context: PlayContextSchema.optional(),
 });
 
 export const FieldSettingsSchema = z.object({

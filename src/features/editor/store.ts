@@ -14,6 +14,7 @@ import type {
   Point,
   DefensePreset,
   AutoBuildFailure,
+  PlayContext,
 } from "@/domain/dsl/types";
 import { saveDraft } from "@/lib/local-draft";
 import type { PreContext } from "./components/PreContextScreen";
@@ -68,6 +69,41 @@ export function createContextSummary(context: PreContext): {
   };
 }
 
+// Helper to convert PreContext to PlayContext (for persistence)
+// Both have identical structure, this ensures type safety
+export function preContextToPlayContext(preContext: PreContext): PlayContext {
+  return {
+    playType: preContext.playType,
+    boxCount: preContext.boxCount,
+    front: preContext.front,
+    threeTech: preContext.threeTech,
+    shell: preContext.shell,
+    pressure: preContext.pressure,
+    situation: {
+      down: preContext.situation.down,
+      distance: preContext.situation.distance,
+      hash: preContext.situation.hash,
+    },
+  };
+}
+
+// Helper to convert PlayContext to PreContext (for restoration)
+export function playContextToPreContext(playContext: PlayContext): PreContext {
+  return {
+    playType: playContext.playType,
+    boxCount: playContext.boxCount,
+    front: playContext.front,
+    threeTech: playContext.threeTech,
+    shell: playContext.shell,
+    pressure: playContext.pressure,
+    situation: {
+      down: playContext.situation.down,
+      distance: playContext.situation.distance,
+      hash: playContext.situation.hash,
+    },
+  };
+}
+
 // ============================================
 // Auto-build Result Type for UI
 // ============================================
@@ -81,7 +117,12 @@ export interface BuildFromConceptResult {
 import { createPlay, createPlayFromFormation } from "@/domain/dsl/factories";
 import { type SnapConfig, DEFAULT_SNAP_CONFIG } from "@/domain/engine/snap";
 import { autoBuildFromConcept, applyAutoBuildToPlay } from "@/domain/engine/auto-build";
-import { getDefensePresetById, computeOffensiveStrength } from "@/domain/engine/defense-presets";
+import {
+  getDefensePresetById,
+  computeOffensiveStrength,
+  getDefensePresetForContext,
+  hasDefenseContext,
+} from "@/domain/engine/defense-presets";
 import {
   loadPlayerDefaults,
   applyDefaultsToPlay,
@@ -293,6 +334,11 @@ export interface EditorState {
   resetContextToInitial: () => void;
   clearContext: () => void;
   getContextDiff: () => string[];
+
+  // Context Persistence (Pre-Context → Play.meta.context)
+  restoreContextFromPlay: () => void;
+  syncContextToPlay: () => void;
+  applyContextDefense: () => void;
 }
 
 // ============================================
@@ -1596,5 +1642,120 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   getContextDiff: () => {
     const state = get();
     return getContextDiff(state.context.initial, state.context.active);
+  },
+
+  // ============================================
+  // Context Persistence Actions
+  // ============================================
+
+  /**
+   * Restore context from play.meta.context (called after loading a play)
+   * This allows context to survive page refresh and play reload
+   */
+  restoreContextFromPlay: () => {
+    const state = get();
+    const play = state.play;
+
+    if (!play?.meta?.context) {
+      editorLog.event("CONTEXT_RESTORE_SKIPPED", { reason: "no_saved_context" });
+      return;
+    }
+
+    const savedContext = play.meta.context;
+    const restoredPreContext = playContextToPreContext(savedContext);
+
+    editorLog.event("CONTEXT_RESTORED", {
+      source: "play.meta",
+      contextSummary: createContextSummary(restoredPreContext),
+    });
+
+    set({
+      context: {
+        initial: deepClone(restoredPreContext),
+        active: deepClone(restoredPreContext),
+        source: "restored",
+        lastUpdatedAt: Date.now(),
+      },
+      hasCompletedPreContext: true,
+      suggestionsType: restoredPreContext.playType === "pass" ? "pass" : "run",
+    });
+  },
+
+  /**
+   * Sync current active context to play.meta.context (called when context changes)
+   * This persists context so it survives save/reload
+   */
+  syncContextToPlay: () => {
+    const state = get();
+    const play = state.play;
+    const activeContext = state.context.active;
+
+    if (!play) {
+      editorLog.event("CONTEXT_SYNC_SKIPPED", { reason: "no_play" });
+      return;
+    }
+
+    // Convert PreContext to PlayContext for storage
+    const playContext = preContextToPlayContext(activeContext);
+
+    // Update play.meta.context
+    const updatedPlay = deepClone(play);
+    if (!updatedPlay.meta) {
+      updatedPlay.meta = {};
+    }
+    updatedPlay.meta.context = playContext;
+
+    // Also sync situation to scout card fields for backward compatibility
+    if (activeContext.situation.down !== "-") {
+      updatedPlay.meta.down = activeContext.situation.down;
+    }
+    if (activeContext.situation.distance !== "-") {
+      updatedPlay.meta.distance = activeContext.situation.distance;
+    }
+    if (activeContext.situation.hash !== "-") {
+      updatedPlay.meta.hash = activeContext.situation.hash;
+    }
+
+    editorLog.event("CONTEXT_SYNCED_TO_PLAY", {
+      contextSummary: createContextSummary(activeContext),
+    });
+
+    set({ play: updatedPlay, isDirty: true });
+  },
+
+  /**
+   * Auto-apply defense preset based on context settings
+   * Called when entering editor with defense context (box count, front, etc.)
+   */
+  applyContextDefense: () => {
+    const state = get();
+    const activeContext = state.context.active;
+
+    // Check if we have meaningful defense context
+    if (!hasDefenseContext(activeContext)) {
+      editorLog.event("CONTEXT_DEFENSE_SKIPPED", { reason: "no_defense_context" });
+      return;
+    }
+
+    // Find best matching defense preset
+    const preset = getDefensePresetForContext(activeContext);
+
+    if (!preset) {
+      editorLog.event("CONTEXT_DEFENSE_SKIPPED", { reason: "no_matching_preset" });
+      return;
+    }
+
+    editorLog.event("CONTEXT_DEFENSE_APPLYING", {
+      presetId: preset.id,
+      presetName: preset.name,
+      boxCount: activeContext.boxCount,
+      front: activeContext.front,
+    });
+
+    // Apply the defense preset (this uses the existing applyDefensePreset action)
+    get().applyDefensePreset(preset.id);
+
+    // Ensure defense is visible
+    set({ showDefense: true });
   },
 }));

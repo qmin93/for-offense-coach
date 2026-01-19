@@ -472,3 +472,111 @@ export function computeOffensiveStrength(formation: Formation): Strength {
   // Default to right
   return "right";
 }
+
+// ============================================
+// Context to Defense Preset Mapping
+// Maps PreContext settings to best matching defense preset
+// ============================================
+
+export interface ContextDefenseInput {
+  boxCount?: 5 | 6 | 7 | 8 | "unknown";
+  front?: "even" | "odd" | "over" | "under" | "bear" | "unknown";
+  threeTech?: "strong" | "weak" | "none" | "unknown";
+  shell?: "1high" | "2high" | "unknown";
+}
+
+/**
+ * Find the best matching defense preset for given context settings.
+ * Returns null if no meaningful context is provided (all unknown).
+ *
+ * Priority:
+ * 1. Exact front + box match (e.g., even front + 7 box → 4-3)
+ * 2. Front type match (e.g., odd front → 3-4 or 3-3)
+ * 3. Box count match (e.g., 6 box → Nickel or 4-2)
+ * 4. Shell match (e.g., 1high → Cover 1)
+ */
+export function getDefensePresetForContext(context: ContextDefenseInput): DefensePreset | null {
+  const { boxCount, front, threeTech, shell } = context;
+
+  // If all settings are unknown, return null
+  if (
+    (boxCount === "unknown" || boxCount === undefined) &&
+    (front === "unknown" || front === undefined) &&
+    (shell === "unknown" || shell === undefined)
+  ) {
+    return null;
+  }
+
+  // Score each preset based on context match
+  let bestPreset: DefensePreset | null = null;
+  let bestScore = -1;
+
+  for (const preset of DEFENSE_PRESETS) {
+    let score = 0;
+
+    // Front type match (highest priority for structure)
+    if (front && front !== "unknown") {
+      if (preset.front === front) {
+        score += 30;
+      } else if (
+        // Over/Under are variants of even
+        (front === "over" || front === "under") && preset.front === "even"
+      ) {
+        score += 15;
+      } else if (
+        // Map even to any 4-down, odd to any 3-down
+        (front === "even" && (preset.front === "even" || preset.front === "over" || preset.front === "under"))
+      ) {
+        score += 20;
+      } else if (
+        front === "odd" && (preset.front === "odd" || preset.front === "bear")
+      ) {
+        score += 20;
+      }
+    }
+
+    // Box count match
+    if (boxCount && boxCount !== "unknown") {
+      if (preset.boxCount === boxCount) {
+        score += 25;
+      } else if (Math.abs(preset.boxCount - boxCount) === 1) {
+        score += 10; // Close match
+      }
+    }
+
+    // 3-Tech side match (for Over/Under)
+    if (threeTech && threeTech !== "unknown") {
+      if (preset.threeTechSide === threeTech) {
+        score += 15;
+      }
+    }
+
+    // Shell match
+    if (shell && shell !== "unknown") {
+      if (
+        (shell === "1high" && preset.shell === "cover1") ||
+        (shell === "2high" && (preset.shell === "cover2" || preset.shell === "cover3"))
+      ) {
+        score += 20;
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestPreset = preset;
+    }
+  }
+
+  return bestPreset;
+}
+
+/**
+ * Check if the context has any meaningful defense settings
+ */
+export function hasDefenseContext(context: ContextDefenseInput): boolean {
+  return (
+    (context.boxCount !== undefined && context.boxCount !== "unknown") ||
+    (context.front !== undefined && context.front !== "unknown") ||
+    (context.shell !== undefined && context.shell !== "unknown")
+  );
+}
