@@ -753,15 +753,29 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   // Apply formation - full replacement (players get new IDs, actions reset)
+  // IMPORTANT: Preserves context and defense from existing play
   applyFormation: (formation: Formation) => {
     const state = get();
     const currentPlay = state.play;
+
+    // Save defense preset to re-apply after formation change
+    const currentDefensePresetId = state.defensePresetId;
 
     // Create fresh play from formation - always get new player IDs
     let newPlay = createPlayFromFormation(
       formation,
       currentPlay?.name || formation.name
     );
+
+    // IMPORTANT: Preserve context from existing play
+    // Context includes defense settings (boxCount, front, shell), situation (down/distance/hash)
+    // These should NOT be reset when changing formations
+    if (currentPlay?.meta?.context) {
+      newPlay.meta = {
+        ...newPlay.meta,
+        context: currentPlay.meta.context,
+      };
+    }
 
     // IMPORTANT: Clear all actions when formation changes
     // Routes/blocks tied to old player IDs become invalid
@@ -778,6 +792,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       playerCount: newPlay.roster.players.length,
       actionsReset: true,
       defaultsApplied: state.autoApplyDefaults,
+      contextPreserved: !!currentPlay?.meta?.context,
+      defensePresetId: currentDefensePresetId,
     });
 
     // Create snapshot before formation change (important recovery point)
@@ -786,6 +802,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
 
     get().setPlay(newPlay);
+
+    // Re-apply defense preset after formation change
+    // This ensures defense players are properly mirrored based on new offensive strength
+    if (currentDefensePresetId) {
+      get().applyDefensePreset(currentDefensePresetId);
+    }
   },
 
   // Move player
