@@ -362,6 +362,23 @@ h1, h2, h3, h4, h5, h6 {
   filter: drop-shadow(0 0 4px hsl(var(--primary)));
 }
 
+/* Toolbar Button Styles */
+.toolbar-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.toolbar-btn-active {
+  background: hsl(var(--brand-blue));
+  border-color: transparent;
+  color: #fff;
+}
+
 /* Utility classes */
 .text-balance {
   text-wrap: balance;

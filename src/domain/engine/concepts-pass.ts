@@ -870,6 +870,342 @@ export const PASS_CONCEPTS: Concept[] = [
     },
     passHints: { category: "intermediate", stress: ["cover3", "soft_corner"] },
   },
+
+  // ============================================
+  // Mills - Deep vertical stretch
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_mills",
+    name: "Mills",
+    conceptType: "pass",
+    summary: "Post/dig vertical stretch concept",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "POST", appliesTo: ["Z"], defaultRoute: { pattern: "post", depth: 18 } },
+        { roleName: "DIG", appliesTo: ["H"], defaultRoute: { pattern: "dig", depth: 12 } },
+        { roleName: "FLAT", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 3 } },
+        { roleName: "BACKSIDE_GO", appliesTo: ["X"], defaultRoute: { pattern: "go", depth: 20 } },
+        { roleName: "SEAM", appliesTo: ["Y"], defaultRoute: { pattern: "seam", depth: 15 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "deep", manBeater: true, stress: ["cover2", "cover3"] },
+  },
+
+  // ============================================
+  // Bubble Screen - Quick lateral pass
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_bubble",
+    name: "Bubble Screen",
+    conceptType: "pass",
+    summary: "Quick bubble screen to slot",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2", "3x1", "trips"],
+    },
+    template: {
+      roles: [
+        { roleName: "BUBBLE", appliesTo: ["H"], defaultRoute: { pattern: "flat", depth: 1 } },
+        { roleName: "STALK_BLOCK", appliesTo: ["Z"], defaultRoute: { pattern: "hitch", depth: 2 } },
+        { roleName: "BACKSIDE_BLOCK", appliesTo: ["X"], defaultRoute: { pattern: "hitch", depth: 2 } },
+        { roleName: "BLOCK", appliesTo: ["Y"], defaultRoute: { pattern: "hitch", depth: 2 } },
+        { roleName: "LEAD_BLOCK", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 1 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "screen", zoneBeater: true, stress: ["box_numbers"] },
+  },
+
+  // ============================================
+  // Smoke Screen - Pre-snap read screen
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_smoke",
+    name: "Smoke Screen",
+    conceptType: "pass",
+    summary: "Pre-snap read quick screen",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "SMOKE", appliesTo: ["Z"], defaultRoute: { pattern: "flat", depth: 0 } },
+        { roleName: "STALK_BLOCK", appliesTo: ["H"], defaultRoute: { pattern: "hitch", depth: 2 } },
+        { roleName: "BACKSIDE_GO", appliesTo: ["X"], defaultRoute: { pattern: "go", depth: 15 } },
+        { roleName: "BLOCK", appliesTo: ["Y"], defaultRoute: { pattern: "hitch", depth: 2 } },
+        { roleName: "CHECK_RELEASE", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 2 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "screen", zoneBeater: true, stress: ["soft_corner"] },
+  },
+
+  // ============================================
+  // Now Screen - Fast quick screen
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_now",
+    name: "Now Screen",
+    conceptType: "pass",
+    summary: "Fast WR screen off RPO look",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "NOW", appliesTo: ["Z"], defaultRoute: { pattern: "flat", depth: 1 } },
+        { roleName: "CRACK_BLOCK", appliesTo: ["H"], defaultRoute: { pattern: "hitch", depth: 2 } },
+        { roleName: "BACKSIDE_GO", appliesTo: ["X"], defaultRoute: { pattern: "go", depth: 18 } },
+        { roleName: "BLOCK", appliesTo: ["Y"], defaultRoute: { pattern: "hitch", depth: 2 } },
+        { roleName: "FAKE_RUN", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 3 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "screen", stress: ["overhang"] },
+  },
+
+  // ============================================
+  // Tunnel Screen - Interior screen
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_tunnel",
+    name: "Tunnel Screen",
+    conceptType: "pass",
+    summary: "Interior tunnel screen to slot",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2", "3x1", "trips"],
+    },
+    template: {
+      roles: [
+        { roleName: "TUNNEL", appliesTo: ["H"], defaultRoute: { pattern: "shallow", depth: 2, direction: "inside" } },
+        { roleName: "CLEAR", appliesTo: ["Z"], defaultRoute: { pattern: "go", depth: 15 } },
+        { roleName: "BACKSIDE_CLEAR", appliesTo: ["X"], defaultRoute: { pattern: "go", depth: 15 } },
+        { roleName: "LEAD_BLOCK", appliesTo: ["Y"], defaultRoute: { pattern: "flat", depth: 2 } },
+        { roleName: "CHECK_RELEASE", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 3 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "screen", stress: ["aggressive_lb"] },
+  },
+
+  // ============================================
+  // Slow Screen - Delayed RB screen
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_slow_screen",
+    name: "Slow Screen",
+    conceptType: "pass",
+    summary: "Delayed RB screen with OL release",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 1,
+      preferredStructures: ["2x2", "ace", "I"],
+    },
+    template: {
+      roles: [
+        { roleName: "SCREEN", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 0 } },
+        { roleName: "CLEAR", appliesTo: ["Z"], defaultRoute: { pattern: "go", depth: 18 } },
+        { roleName: "BACKSIDE_CLEAR", appliesTo: ["X"], defaultRoute: { pattern: "go", depth: 18 } },
+        { roleName: "SEAM", appliesTo: ["Y"], defaultRoute: { pattern: "seam", depth: 15 } },
+        { roleName: "SWING", appliesTo: ["H"], defaultRoute: { pattern: "flat", depth: 4 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "screen", stress: ["blitz", "pressure"] },
+  },
+
+  // ============================================
+  // Option Route (Choice) - 3rd Down
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_option",
+    name: "Option Route",
+    conceptType: "pass",
+    summary: "Coverage-read option routes",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "OPTION", appliesTo: ["H"], defaultRoute: { pattern: "hitch", depth: 8 } },
+        { roleName: "CLEAR", appliesTo: ["Z"], defaultRoute: { pattern: "go", depth: 18 } },
+        { roleName: "BACKSIDE_DIG", appliesTo: ["X"], defaultRoute: { pattern: "dig", depth: 12 } },
+        { roleName: "SEAM", appliesTo: ["Y"], defaultRoute: { pattern: "seam", depth: 14 } },
+        { roleName: "FLAT", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 3 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "intermediate", manBeater: true, zoneBeater: true, stress: ["3rd_down"] },
+  },
+
+  // ============================================
+  // Pivot - Quick pivot route
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_pivot",
+    name: "Pivot",
+    conceptType: "pass",
+    summary: "Quick pivot routes underneath",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2", "3x1", "bunch"],
+    },
+    template: {
+      roles: [
+        { roleName: "PIVOT", appliesTo: ["H"], defaultRoute: { pattern: "out", depth: 5 } },
+        { roleName: "WHEEL", appliesTo: ["RB"], defaultRoute: { pattern: "wheel", depth: 12 } },
+        { roleName: "CLEAR_GO", appliesTo: ["Z"], defaultRoute: { pattern: "go", depth: 18 } },
+        { roleName: "BACKSIDE_DIG", appliesTo: ["X"], defaultRoute: { pattern: "dig", depth: 10 } },
+        { roleName: "SEAM", appliesTo: ["Y"], defaultRoute: { pattern: "seam", depth: 14 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "quick", manBeater: true, stress: ["flat_conflict"] },
+  },
+
+  // ============================================
+  // Fade - Redzone fade route
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_fade",
+    name: "Fade",
+    conceptType: "pass",
+    summary: "Back shoulder fade for redzone",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "FADE", appliesTo: ["Z"], defaultRoute: { pattern: "go", depth: 12 } },
+        { roleName: "FLAT", appliesTo: ["H"], defaultRoute: { pattern: "flat", depth: 3 } },
+        { roleName: "BACKSIDE_SLANT", appliesTo: ["X"], defaultRoute: { pattern: "slant", depth: 6 } },
+        { roleName: "DRAG", appliesTo: ["Y"], defaultRoute: { pattern: "shallow", depth: 3 } },
+        { roleName: "CHECK_RELEASE", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 2 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "deep", stress: ["redzone", "man"] },
+  },
+
+  // ============================================
+  // Smash Fade - Corner/Fade combo
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_smash_fade",
+    name: "Smash Fade",
+    conceptType: "pass",
+    summary: "Corner hitch + fade combo for redzone",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "FADE", appliesTo: ["Z"], defaultRoute: { pattern: "go", depth: 12 } },
+        { roleName: "HITCH", appliesTo: ["H"], defaultRoute: { pattern: "hitch", depth: 5 } },
+        { roleName: "BACKSIDE_FADE", appliesTo: ["X"], defaultRoute: { pattern: "go", depth: 12 } },
+        { roleName: "FLAT", appliesTo: ["Y"], defaultRoute: { pattern: "flat", depth: 3 } },
+        { roleName: "CHECK_RELEASE", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 2 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "deep", stress: ["redzone", "cover2"] },
+  },
+
+  // ============================================
+  // Spacing Z (Redzone) - Compressed spacing
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_spacing_z",
+    name: "Spacing Z",
+    conceptType: "pass",
+    summary: "Redzone spacing concept with compressed routes",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 3,
+      preferredStructures: ["2x2", "3x1", "bunch"],
+    },
+    template: {
+      roles: [
+        { roleName: "CORNER", appliesTo: ["Z"], defaultRoute: { pattern: "out", depth: 5 } },
+        { roleName: "FLAT", appliesTo: ["H"], defaultRoute: { pattern: "flat", depth: 2 } },
+        { roleName: "SIT", appliesTo: ["Y"], defaultRoute: { pattern: "hitch", depth: 4 } },
+        { roleName: "BACKSIDE_FLAT", appliesTo: ["X"], defaultRoute: { pattern: "flat", depth: 3 } },
+        { roleName: "CHECK_RELEASE", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 1 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "quick", zoneBeater: true, stress: ["redzone", "goalline"] },
+  },
+
+  // ============================================
+  // Hitch - Basic hitch routes
+  // ============================================
+  {
+    schemaVersion: "1.0",
+    type: "concept",
+    id: "concept_pass_hitch",
+    name: "Hitch",
+    conceptType: "pass",
+    summary: "Quick hitch routes vs soft coverage",
+    badges: ["nfl_style"],
+    requirements: {
+      minEligibleReceivers: 2,
+      preferredStructures: ["2x2", "3x1"],
+    },
+    template: {
+      roles: [
+        { roleName: "HITCH", appliesTo: ["Z"], defaultRoute: { pattern: "hitch", depth: 5 } },
+        { roleName: "BACKSIDE_HITCH", appliesTo: ["X"], defaultRoute: { pattern: "hitch", depth: 5 } },
+        { roleName: "SEAM", appliesTo: ["H"], defaultRoute: { pattern: "seam", depth: 12 } },
+        { roleName: "FLAT", appliesTo: ["Y"], defaultRoute: { pattern: "flat", depth: 3 } },
+        { roleName: "CHECK_RELEASE", appliesTo: ["RB"], defaultRoute: { pattern: "flat", depth: 2 } },
+      ],
+      buildPolicy: { placementStrategy: "relative_to_alignment" },
+    },
+    passHints: { category: "quick", zoneBeater: true, stress: ["soft_corner", "off_coverage"] },
+  },
 ];
 
 export function getPassConceptById(id: string): Concept | undefined {

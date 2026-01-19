@@ -164,9 +164,32 @@ export function getPassSuggestions(input: PassSuggestionInput): SuggestionResult
     return { concept, score, reasons, typedReasons, category };
   });
 
-  // Sort by score descending, show more pass concepts (up to 20)
-  const sorted = results.sort((a, b) => b.score - a.score).slice(0, 20);
-  return normalizeScores(sorted);
+  // Sort by score descending
+  const sorted = results.sort((a, b) => b.score - a.score);
+
+  // Minimum guarantee: ensure at least 12 pass concepts are shown
+  const MIN_PASS_CONCEPTS = 12;
+  const MAX_PASS_CONCEPTS = 20;
+
+  let finalResults = sorted.slice(0, MAX_PASS_CONCEPTS);
+
+  // If we have fewer than minimum, add more from all concepts (unfiltered by category)
+  if (finalResults.length < MIN_PASS_CONCEPTS) {
+    const allConcepts = PASS_CONCEPTS.filter(c =>
+      !finalResults.some(r => r.concept.id === c.id)
+    );
+    const additionalResults = allConcepts.map((concept) => {
+      const score = scorePassConcept(concept, input);
+      const { reasons, typedReasons } = generatePassReasons(concept, input);
+      const category = concept.passHints?.category || "intermediate";
+      return { concept, score, reasons, typedReasons, category };
+    }).sort((a, b) => b.score - a.score);
+
+    const needed = MIN_PASS_CONCEPTS - finalResults.length;
+    finalResults = [...finalResults, ...additionalResults.slice(0, needed)];
+  }
+
+  return normalizeScores(finalResults);
 }
 
 function scorePassConcept(concept: Concept, input: PassSuggestionInput): number {
