@@ -607,9 +607,10 @@ export function getEnhancedSuggestions(
     sorted = sorted.filter((r) => !r.alerts?.some((a) => a.includes("risky")));
   }
 
-  // Return top results: 8-12 for pass, top 5 for run
-  const limit = context.playType === "pass" ? 12 : 5;
-  const topResults = sorted.slice(0, limit);
+  // Return top 5 results for both pass and run
+  // Coach decision UI: fewer, focused choices
+  const TOP_5_LIMIT = 5;
+  const topResults = sorted.slice(0, TOP_5_LIMIT);
   return normalizeScores(topResults);
 }
 
