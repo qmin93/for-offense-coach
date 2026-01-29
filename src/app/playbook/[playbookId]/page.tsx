@@ -1,11 +1,54 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+// ============================================
+// Playbook Page - Enhanced with sections, drag-drop, tags
+// ============================================
+
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { usePlaybookStore } from "@/features/playbook/store";
 import { Button } from "@/components/ui";
 import { PlayRenderer } from "@/domain/render/svg-renderer";
+import { exportPlaybookToPdf, capturePlaySvgAsImage } from "@/lib/pdf-export";
+import { toast } from "sonner";
+import type { Play, ExportOverlayMode, OverlayDensity, PlaySituationTag, PlaybookSectionType } from "@/domain/dsl/types";
+import { SECTION_COLORS } from "@/domain/dsl/types";
+import { ExportValidationDialog } from "@/features/playbook/components/ExportValidationDialog";
+import { PlaybookSectionCard } from "@/features/playbook/components/PlaybookSectionCard";
+import { PlaybookFilters } from "@/features/playbook/components/PlaybookFilters";
+import { PlaybookOverview } from "@/features/playbook/components/PlaybookOverview";
+import { telemetry, startTimer, endTimer } from "@/lib/telemetry";
+import {
+  ArrowLeft,
+  Plus,
+  Share2,
+  FileDown,
+  BarChart3,
+  ChevronDown,
+  Layers,
+} from "lucide-react";
+
+// Types for export overlay settings
+interface ExportOverlaySettings {
+  overlayMode: ExportOverlayMode;
+  density: OverlayDensity;
+  includeLegend: boolean;
+}
+
+// Section type options for add section dialog
+const SECTION_TYPE_OPTIONS: Array<{ type: PlaybookSectionType; label: string }> = [
+  { type: "install", label: "Install Day" },
+  { type: "run", label: "Run Game" },
+  { type: "pass", label: "Pass Game" },
+  { type: "rpo", label: "RPO" },
+  { type: "screen", label: "Screens" },
+  { type: "gadget", label: "Gadgets" },
+  { type: "redzone", label: "Red Zone" },
+  { type: "goalline", label: "Goal Line" },
+  { type: "2minute", label: "2-Minute" },
+  { type: "custom", label: "Custom" },
+];
 
 export default function PlaybookPage() {
   const params = useParams();
@@ -18,219 +61,410 @@ export default function PlaybookPage() {
     addSection,
     renameSection,
     removeSection,
+    toggleSectionCollapse,
+    setSectionColor,
+    removePlayFromSection,
+    addTagToPlay,
+    removeTagFromPlay,
     setExportSettings,
     isExporting,
     setExporting,
+    activeFilterTags,
+    searchQuery,
+    setActiveFilterTags,
+    toggleFilterTag,
+    setSearchQuery,
+    clearFilters,
+    setViewMode,
+    getPlaybookStats,
   } = usePlaybookStore();
 
   const [showExportModal, setShowExportModal] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [showAddSection, setShowAddSection] = useState(false);
+  const [newSectionName, setNewSectionName] = useState("");
+  const [newSectionType, setNewSectionType] = useState<PlaybookSectionType>("custom");
+  const [showOverview, setShowOverview] = useState(false);
+  const exportContainerRef = useRef<HTMLDivElement>(null);
+
+  // Export overlay settings from the dialog
+  const [exportOverlaySettings, setExportOverlaySettings] = useState<ExportOverlaySettings>({
+    overlayMode: "both",
+    density: "standard",
+    includeLegend: false,
+  });
 
   useEffect(() => {
     if (playbookId === "new") {
-      initPlaybook("New Playbook");
+      initPlaybook("New Playbook", "default");
     }
     // TODO: Load existing playbook from DB
   }, [playbookId, initPlaybook]);
 
-  const handleExportPdf = async () => {
+  // Get stats
+  const stats = useMemo(() => getPlaybookStats(), [getPlaybookStats, playbook, plays]);
+
+  // Calculate filtered plays count
+  const filteredPlaysCount = useMemo(() => {
+    if (!playbook) return 0;
+    let count = 0;
+    playbook.sections.forEach((section) => {
+      section.playIds.forEach((playId) => {
+        const play = plays.get(playId);
+        if (!play) return;
+
+        // Search filter
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          const matchesName = play.name.toLowerCase().includes(query);
+          const matchesConcept = play.meta?.conceptId?.toLowerCase().includes(query);
+          if (!matchesName && !matchesConcept) return;
+        }
+
+        // Tag filter
+        if (activeFilterTags.length > 0) {
+          const playTags = (play.tags || []) as PlaySituationTag[];
+          const hasMatchingTag = activeFilterTags.some((tag) => playTags.includes(tag));
+          if (!hasMatchingTag) return;
+        }
+
+        count++;
+      });
+    });
+    return count;
+  }, [playbook, plays, searchQuery, activeFilterTags]);
+
+  // Get all plays from all sections
+  const getAllPlays = useCallback((): Play[] => {
+    if (!playbook) return [];
+    const allPlays: Play[] = [];
+    playbook.sections.forEach((section) => {
+      section.playIds.forEach((playId) => {
+        const play = plays.get(playId);
+        if (play) allPlays.push(play);
+      });
+    });
+    return allPlays;
+  }, [playbook, plays]);
+
+  const handleExportPdf = async (overlaySettings: ExportOverlaySettings) => {
     if (!playbook) return;
+
+    const allPlays = getAllPlays();
+    if (allPlays.length === 0) {
+      toast.error("No plays to export");
+      return;
+    }
+
+    setExportOverlaySettings(overlaySettings);
     setExporting(true);
+    setExportProgress(0);
+    startTimer("pdf_export");
 
     try {
-      // In a real implementation, this would call a server endpoint
-      // For now, we'll just show a placeholder
-      alert("PDF Export would be generated here.\n\nIn production, this calls a server endpoint that renders each play to PDF pages.");
+      await new Promise<void>((resolve) => {
+        setTimeout(() => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              resolve();
+            });
+          });
+        }, 300);
+      });
+
+      const diagramImages: (string | null)[] = [];
+      const container = exportContainerRef.current;
+
+      if (container) {
+        const playContainers = container.querySelectorAll("[data-play-export]");
+        for (let i = 0; i < playContainers.length; i++) {
+          const playContainer = playContainers[i] as HTMLElement;
+          const image = await capturePlaySvgAsImage(playContainer);
+          diagramImages.push(image);
+          setExportProgress(Math.round(((i + 1) / playContainers.length) * 80));
+        }
+      }
+
+      setExportProgress(90);
+
+      const pdfBlob = await exportPlaybookToPdf(
+        {
+          plays: allPlays.slice(0, 10),
+          playbookName: playbook.name,
+          settings: playbook.exportSettings,
+          maxPages: 10,
+        },
+        diagramImages
+      );
+
+      setExportProgress(100);
+
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${playbook.name || "playbook"}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      const timeMs = endTimer("pdf_export");
+      telemetry.exportPdf({
+        playbookId: playbook.id,
+        pages: Math.min(allPlays.length, 10),
+        style: playbook.exportSettings?.pageStyle || "classic",
+        timeMs,
+        success: true,
+        blocked: false,
+      });
+
+      toast.success("PDF exported successfully!");
+      setShowExportModal(false);
+    } catch (error) {
+      console.error("PDF export failed:", error);
+
+      const timeMs = endTimer("pdf_export");
+      telemetry.exportPdf({
+        playbookId: playbook.id,
+        pages: Math.min(allPlays.length, 10),
+        style: playbook.exportSettings?.pageStyle || "classic",
+        timeMs,
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+
+      toast.error("Failed to export PDF");
     } finally {
       setExporting(false);
-      setShowExportModal(false);
+      setExportProgress(0);
     }
+  };
+
+  const handleAddSection = () => {
+    if (!newSectionName.trim()) return;
+    addSection(newSectionName.trim(), newSectionType);
+    setNewSectionName("");
+    setNewSectionType("custom");
+    setShowAddSection(false);
+    toast.success("Section added");
   };
 
   if (!playbook) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="text-slate-500">Loading...</div>
       </div>
     );
   }
 
+  const viewMode = playbook.viewMode || "grid";
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-950">
       {/* Header */}
-      <header className="bg-white border-b px-6 py-4">
-        <div className="flex items-center justify-between">
+      <header className="bg-slate-900 border-b border-slate-800 px-6 py-4 sticky top-0 z-30">
+        <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-4">
-            <Link href="/" className="text-blue-600 hover:text-blue-700">
-              ← Back
+            <Link
+              href="/"
+              className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
             </Link>
-            <input
-              type="text"
-              value={playbook.name}
-              onChange={(e) => {
-                // TODO: updateName
-              }}
-              className="text-2xl font-bold bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2"
-            />
+            <div className="h-6 w-px bg-slate-700" />
+            <div>
+              <input
+                type="text"
+                value={playbook.name}
+                onChange={() => {
+                  // TODO: updateName
+                }}
+                className="text-xl font-bold text-white bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 -ml-2"
+              />
+              <p className="text-xs text-slate-500 ml-2">
+                {stats.totalPlays} plays • {stats.totalSections} sections
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setShowExportModal(true)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowOverview(!showOverview)}
+              className={showOverview ? "text-blue-400" : ""}
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Overview
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowExportModal(true)}>
+              <FileDown className="w-4 h-4 mr-2" />
               Export PDF
             </Button>
-            <Button variant="primary">Share</Button>
+            <Button variant="default" size="sm">
+              <Share2 className="w-4 h-4 mr-2" />
+              Share
+            </Button>
           </div>
         </div>
       </header>
 
       {/* Main content */}
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
+        {/* Overview (collapsible) */}
+        {showOverview && <PlaybookOverview stats={stats} isExpanded={true} />}
+
+        {/* Filters */}
+        <PlaybookFilters
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          activeFilterTags={activeFilterTags}
+          onToggleTag={toggleFilterTag}
+          onClearFilters={clearFilters}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          totalPlays={stats.totalPlays}
+          filteredPlays={filteredPlaysCount}
+        />
+
         {/* Sections */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {playbook.sections.map((section) => (
-            <div key={section.id} className="bg-white rounded-lg shadow">
-              <div className="px-4 py-3 border-b flex items-center justify-between">
-                <h2 className="text-lg font-semibold">{section.name}</h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      const newName = prompt("Section name:", section.name);
-                      if (newName) renameSection(section.id, newName);
-                    }}
-                    className="text-sm text-gray-500 hover:text-gray-700"
-                  >
-                    Rename
-                  </button>
-                  <button
-                    onClick={() => removeSection(section.id)}
-                    className="text-sm text-red-500 hover:text-red-700"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-              <div className="p-4">
-                {section.playIds.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400">
-                    <p>No plays in this section</p>
-                    <Link
-                      href="/editor/new"
-                      className="text-blue-600 hover:underline text-sm mt-2 inline-block"
-                    >
-                      Create a play
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-3 gap-4">
-                    {section.playIds.map((playId) => {
-                      const play = plays.get(playId);
-                      if (!play) return null;
-                      return (
-                        <div
-                          key={playId}
-                          className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
-                        >
-                          <div className="aspect-video bg-gray-800">
-                            <PlayRenderer play={play} />
-                          </div>
-                          <div className="p-2">
-                            <div className="font-medium text-sm truncate">
-                              {play.name}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {play.meta?.personnel} •{" "}
-                              {play.meta?.formationId?.replace("formation_", "")}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
+            <PlaybookSectionCard
+              key={section.id}
+              section={section}
+              plays={plays}
+              viewMode={viewMode}
+              activeFilterTags={activeFilterTags}
+              searchQuery={searchQuery}
+              onToggleCollapse={() => toggleSectionCollapse(section.id)}
+              onRename={(name) => renameSection(section.id, name)}
+              onRemove={() => {
+                if (confirm(`Delete section "${section.name}"?`)) {
+                  removeSection(section.id);
+                  toast.success("Section deleted");
+                }
+              }}
+              onSetColor={(color) => setSectionColor(section.id, color)}
+              onRemovePlay={(playId) => {
+                removePlayFromSection(section.id, playId);
+                toast.success("Play removed from section");
+              }}
+              onAddTagToPlay={(playId, tag) => addTagToPlay(playId, tag)}
+              onRemoveTagFromPlay={(playId, tag) => removeTagFromPlay(playId, tag)}
+            />
           ))}
 
           {/* Add section button */}
-          <button
-            onClick={() => {
-              const name = prompt("Section name:");
-              if (name) addSection(name);
-            }}
-            className="w-full py-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-gray-400 hover:text-gray-600 transition-colors"
-          >
-            + Add Section
-          </button>
+          {showAddSection ? (
+            <div className="bg-slate-900 rounded-lg border border-slate-700 p-4">
+              <h3 className="text-sm font-medium text-white mb-3">Add New Section</h3>
+              <div className="flex flex-col gap-3">
+                <input
+                  type="text"
+                  value={newSectionName}
+                  onChange={(e) => setNewSectionName(e.target.value)}
+                  placeholder="Section name..."
+                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleAddSection();
+                    if (e.key === "Escape") setShowAddSection(false);
+                  }}
+                />
+                <div className="flex flex-wrap gap-2">
+                  {SECTION_TYPE_OPTIONS.map(({ type, label }) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        setNewSectionType(type);
+                        if (!newSectionName) setNewSectionName(label);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                        newSectionType === type
+                          ? "text-white"
+                          : "text-slate-400 hover:text-white bg-slate-800"
+                      }`}
+                      style={{
+                        backgroundColor:
+                          newSectionType === type ? SECTION_COLORS[type] : undefined,
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setShowAddSection(false)}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleAddSection}
+                    disabled={!newSectionName.trim()}
+                  >
+                    Add Section
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAddSection(true)}
+              className="w-full py-4 border-2 border-dashed border-slate-700 rounded-lg text-slate-400 hover:border-slate-600 hover:text-slate-300 transition-colors flex items-center justify-center gap-2"
+            >
+              <Plus className="w-5 h-5" />
+              Add Section
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Export Modal */}
+      {/* Export Validation Dialog */}
+      <ExportValidationDialog
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onExport={handleExportPdf}
+        playbook={playbook}
+        plays={plays}
+        isExporting={isExporting}
+        exportProgress={exportProgress}
+      />
+
+      {/* Hidden container for rendering plays during export */}
       {showExportModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold mb-4">Export PDF</h3>
+        <div
+          ref={exportContainerRef}
+          className="fixed top-0 left-[-9999px] w-[800px]"
+          aria-hidden="true"
+        >
+          {getAllPlays()
+            .slice(0, 10)
+            .map((play, index) => {
+              const showDefenseLabels =
+                exportOverlaySettings.overlayMode === "defense" ||
+                exportOverlaySettings.overlayMode === "both";
+              const showLandmarks =
+                exportOverlaySettings.overlayMode === "landmarks" ||
+                exportOverlaySettings.overlayMode === "both";
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Page Style
-                </label>
-                <select
-                  value={playbook.exportSettings?.pageStyle || "classic"}
-                  onChange={(e) =>
-                    setExportSettings({
-                      pageStyle: e.target.value as "classic" | "minimal",
-                    })
-                  }
-                  className="w-full border rounded-lg p-2"
+              return (
+                <div
+                  key={play.id}
+                  data-play-export={index}
+                  className="w-[800px] h-[600px]"
                 >
-                  <option value="classic">Classic</option>
-                  <option value="minimal">Minimal</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="includeNotes"
-                  checked={playbook.exportSettings?.includeNotes ?? true}
-                  onChange={(e) =>
-                    setExportSettings({ includeNotes: e.target.checked })
-                  }
-                  className="rounded"
-                />
-                <label htmlFor="includeNotes" className="text-sm">
-                  Include coaching notes
-                </label>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="includeGrid"
-                  checked={playbook.exportSettings?.includeGrid ?? false}
-                  onChange={(e) =>
-                    setExportSettings({ includeGrid: e.target.checked })
-                  }
-                  className="rounded"
-                />
-                <label htmlFor="includeGrid" className="text-sm">
-                  Include alignment grid
-                </label>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-6">
-              <Button variant="outline" onClick={() => setShowExportModal(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleExportPdf}
-                disabled={isExporting}
-              >
-                {isExporting ? "Exporting..." : "Export"}
-              </Button>
-            </div>
-          </div>
+                  <PlayRenderer
+                    play={play}
+                    showDefense={true}
+                    showDefenseLabels={showDefenseLabels}
+                    showLandmarks={showLandmarks}
+                    overlayDensity={exportOverlaySettings.density}
+                    useCollisionAvoidance={showDefenseLabels && showLandmarks}
+                    showLegend={exportOverlaySettings.includeLegend}
+                  />
+                </div>
+              );
+            })}
         </div>
       )}
     </div>

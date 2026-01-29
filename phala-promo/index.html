@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phala Network - Reel Style Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;900&family=JetBrains+Mono:wght@700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --brand: #C0E735;
+            --bg: #050505;
+            --surface: #111;
+            --text-main: white;
+            --text-sub: #888;
+        }
+
+        body {
+            margin: 0;
+            background: #000;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            perspective: 1000px;
+            /* For 3D rotation */
+        }
+
+        /* 9:16 Canvas */
+        #canvas {
+            width: 100%;
+            max-width: 540px;
+            aspect-ratio: 9/16;
+            background: var(--bg);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(50, 50, 50, 0.5);
+            /* Zoom Container */
+            transform-style: preserve-3d;
+            transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        /* --- LAYERS --- */
+        .layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 1. Background Grid */
+        .bg-grid {
+            background-image:
+                linear-gradient(rgba(30, 30, 30, 0.4) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 30, 30, 0.4) 1px, transparent 1px);
+            background-size: 50px 50px;
+            opacity: 0.3;
+            transform: scale(2);
+            /* Make it big for panning */
+            animation: panGrid 20s linear infinite;
+        }
+
+        @keyframes panGrid {
+            to {
+                transform: scale(2) translateY(50px);
+            }
+        }
+
+        /* 2. UI Mockup Container (Browser) */
+        .browser-mockup {
+            width: 90%;
+            height: 60%;
+            background: #1a1a1a;
+            border-radius: 16px;
+            border: 1px solid #333;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+            position: absolute;
+            top: 20%;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.5s ease;
+            transform: translateY(100vh);
+            /* Start hidden */
+            overflow: hidden;
+        }
+
+        .browser-header {
+            height: 40px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            gap: 8px;
+            background: #222;
+        }
+
+        .b-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #444;
+        }
+
+        .b-dot.r {
+            background: #ff5f56;
+        }
+
+        .b-dot.y {
+            background: #ffbd2e;
+        }
+
+        .b-dot.g {
+            background: #27c93f;
+        }
+
+        .url-bar {
+            background: #000;
+            color: #666;
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 4px;
+            flex: 1;
+            margin-left: 10px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .browser-body {
+            flex: 1;
+            padding: 20px;
+            background: #0d0d0d;
+            position: relative;
+            color: #ddd;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+        }
+
+        /* 3. Captions (Reel Style) */
+        .caption-container {
+            position: absolute;
+            bottom: 25%;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            z-index: 999;
+        }
+
+        .caption-word {
+            display: inline-block;
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: white;
+            text-transform: uppercase;
+            text-shadow: 0 4px 10px rgba(0, 0, 0, 0.8);
+            transform: scale(0);
+            opacity: 0;
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.1s;
+            margin: 0 5px;
+            -webkit-text-stroke: 2px black;
+        }
+
+        .caption-word.active {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .highlight {
+            color: var(--brand);
+        }
+
+        .highlight-red {
+            color: #ff4444;
+        }
+
+        /* Fake Mouse */
+        .cursor {
+            width: 24px;
+            height: 24px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white' stroke='black' stroke-width='2'%3E%3Cpath d='M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z'/%3E%3C/svg%3E");
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            pointer-events: none;
+            transition: all 0.3s ease-out;
+            /* Smooth movement */
+            filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        .click-effect {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--brand);
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            opacity: 0;
+            transform: scale(0.5);
+        }
+
+        .clicked .click-effect {
+            animation: clickPulse 0.4s ease-out;
+        }
+
+        @keyframes clickPulse {
+            0% {
+                opacity: 1;
+                transform: scale(0.5);
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(1.5);
+            }
+        }
+
+        /* Content Elements inside Browser */
+        .hero-title {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            transition: opacity 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--brand);
+            color: black;
+            padding: 10px 20px;
+            border-radius: 8px;
+            display: inline-block;
+            font-weight: 700;
+            margin-top: 20px;
+        }
+
+        .code-block {
+            background: #222;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid var(--brand);
+            margin-top: 20px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.4s;
+        }
+
+        .hardware-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+            opacity: 0;
+        }
+
+        .hw-card {
+            background: #111;
+            border: 1px solid #333;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="canvas">
+        <!-- Layer 1: BG -->
+        <div class="layer bg-grid"></div>
+
+        <!-- Layer 2: Simulated Browser -->
+        <div class="browser-mockup" id="browser">
+            <div class="browser-header">
+                <div class="b-dot r"></div>
+                <div class="b-dot y"></div>
+                <div class="b-dot g"></div>
+                <div class="url-bar" id="url-text">phala.com</div>
+            </div>
+            <div class="browser-body" id="browser-content">
+                <!-- Dynamic Content injected via JS -->
+                <div class="hero-title">Build AI That<br>Users Trust.</div>
+                <div style="color: #666;">The Confidential AI Cloud</div>
+                <div class="btn-primary" id="btn-start">Get Started</div>
+            </div>
+            <!-- Cursor lives inside browser frame roughly -->
+            <div class="cursor" id="cursor" style="transform: translate(300px, 400px);">
+                <div class="click-effect"></div>
+            </div>
+        </div>
+
+        <!-- Layer 3: Overlay Captions -->
+        <div class="caption-container" id="captions">
+            <!-- Words appear here -->
+        </div>
+    </div>
+
+    <script>
+        // Script Engine
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        const el = (id) => document.getElementById(id);
+
+        async function typeUrl(text) {
+            const bar = el('url-text');
+            bar.innerText = '';
+            for (let char of text) {
+                bar.innerText += char;
+                await sleep(50);
+            }
+        }
+
+        async function moveCursor(x, y, click = false) {
+            const cursor = el('cursor');
+            cursor.style.transform = `translate(${x}px, ${y}px)`;
+            await sleep(400); // Wait for move
+            if (click) {
+                cursor.classList.add('clicked');
+                await sleep(200);
+                cursor.classList.remove('clicked');
+            }
+        }
+
+        // Caption System: Shows words one by one
+        async function say(text, color = 'white', speed = 200) {
+            const container = el('captions');
+            container.innerHTML = ''; // Clear previous
+
+            const words = text.split(' ');
+            for (let word of words) {
+                const span = document.createElement('span');
+                span.innerText = word;
+                span.className = 'caption-word active';
+                if (color === 'brand') span.classList.add('highlight');
+                if (color === 'red') span.classList.add('highlight-red');
+
+                container.appendChild(span);
+                await sleep(speed);
+                // Optional: remove word to act like "rolling" captions or keep stacking
+                // Let's keep stacking for short phrases, clean for new phrases
+            }
+            await sleep(500); // Hold reading time
+        }
+
+        function clearCaptions() { el('captions').innerHTML = ''; }
+
+        async function zoomCanvas(scale, originX = 50, originY = 50) {
+            const c = el('canvas');
+            c.style.transformOrigin = `${originX}% ${originY}%`;
+            c.style.transform = `scale(${scale})`;
+        }
+
+        // --- MAIN TIMELINE ---
+        async function runTimeline() {
+            // Scene 0: Reset
+            const browser = el('browser');
+            const content = el('browser-content');
+
+            // Scene 1: Hook (Large text, no browser yet)
+            await say("AI HAS A", 'white', 300);
+            clearCaptions();
+            await say("HUGE PROBLEM", 'red', 400);
+            clearCaptions();
+
+            // Scene 2: Browser Slide In
+            browser.style.transform = 'translateY(0)'; // Slide Up
+            await sleep(800);
+
+            await moveCursor(200, 300, false); // Move to center
+
+            // Scene 3: Problem Demo (Data Leak)
+            await say("YOUR DATA", 'white', 250);
+            content.innerHTML = `<div style="color:#ff4444; font-size:1.5rem; border:2px dashed red; padding:20px;">⚠ DATA LEAKED ⚠<br><br>User: "My secret key is..."<br>AI: "Loging to server..."</div>`;
+            await say("IS EXPOSED", 'red', 250);
+            await zoomCanvas(1.2, 50, 40); // Zoom in on leak
+            await sleep(1000);
+
+            // Scene 4: Solution (Phala)
+            clearCaptions();
+            await zoomCanvas(1.0); // Zoom out
+            content.innerHTML = `<div class="hero-title">Phala Network</div><div class="code-block" style="opacity:1;">> Initializing TEE...<br>> Securing Data...<br>> Status: <span style="color:#C0E735">ENCRYPTED</span></div>`;
+
+            await typeUrl("phala.com/solution");
+            await say("BUT PHALA", 'brand', 300);
+            await moveCursor(350, 150, true); // Click something
+            clearCaptions();
+            await say("FIXES THIS.", 'brand', 400);
+
+            // Scene 5: Hardware Showcase (Fast Cuts)
+            clearCaptions();
+            await say("POWERFUL HARDWARE", 'white', 200);
+
+            // Show Cards
+            content.innerHTML = `
+                <div class="hero-title" style="font-size:1.5rem;">Global GPU Fleet</div>
+                <div class="hardware-grid" style="opacity:1;">
+                    <div class="hw-card"><h2 style="color:#76b900">H100</h2>Nvidia</div>
+                    <div class="hw-card"><h2 style="color:white">H200</h2>Nvidia</div>
+                    <div class="hw-card"><h2 style="color:white">TDX</h2>Intel</div>
+                    <div class="hw-card"><h2 style="color:#C0E735">TEE</h2>Secure</div>
+                </div>`;
+
+            await moveCursor(80, 250);
+            await zoomCanvas(1.5, 20, 40); // Zoom on H100
+            await sleep(800);
+            await moveCursor(380, 250);
+            await zoomCanvas(1.5, 80, 40); // Pan to TEE
+            await sleep(800);
+            await zoomCanvas(1.0);
+
+            // Scene 6: Models
+            clearCaptions();
+            content.innerHTML = `
+            <div style="font-size:1.2rem; margin-bottom:10px;">Supported Models</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <span style="background:#333; padding:5px 10px; border-radius:20px;">Llama 3</span>
+                <span style="background:#333; padding:5px 10px; border-radius:20px;">DeepSeek</span>
+                <span style="background:#333; padding:5px 10px; border-radius:20px;">Mistral</span>
+            </div>
+            `;
+            await say("ANY MODEL.", 'white', 300);
+            await say("TOTALLY PRIVATE.", 'brand', 300);
+
+            // Scene 7: CTA
+            clearCaptions();
+            content.innerHTML = `<div class="hero-title">Start Building</div><div class="btn-primary" style="transform:scale(1.5);">phala.com</div>`;
+            await moveCursor(250, 400, true); // Click button
+
+            await say("LINK IN BIO", 'brand', 500);
+            await sleep(2000);
+
+            // Loop?
+            // location.reload();
+        }
+
+        // Start
+        setTimeout(runTimeline, 500);
+
+    </script>
+</body>
+
+</html>

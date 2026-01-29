@@ -13,6 +13,8 @@ import type {
   Concept,
   Point,
 } from "./types";
+import { createPlay } from "./factories";
+import { editorLog } from "@/lib/logger";
 
 export interface ValidationError {
   path: string;
@@ -409,4 +411,126 @@ export function validateConcept(concept: Concept): ValidationResult {
     errors,
     warnings,
   };
+}
+
+// ============================================
+// Safe Play Validation & Recovery
+// DSL이 깨지면 fallback으로 복구
+// ============================================
+
+export interface SafePlayResult {
+  play: Play;
+  wasRecovered: boolean;
+  validationResult: ValidationResult;
+}
+
+/**
+ * Validate a play and recover to safe state if invalid.
+ * Returns the validated play (or a safe fallback) with validation info.
+ */
+export function validateAndRecoverPlay(
+  data: unknown,
+  fallbackName: string = "Recovered Play"
+): SafePlayResult {
+  // First, check if data is even an object
+  if (!data || typeof data !== "object") {
+    editorLog.error("VALIDATION_FAIL", "Play data is not an object", {});
+    return {
+      play: createPlay(fallbackName),
+      wasRecovered: true,
+      validationResult: {
+        valid: false,
+        errors: [{ path: "root", message: "Play data is not an object", severity: "error" }],
+        warnings: [],
+      },
+    };
+  }
+
+  const playData = data as Play;
+
+  // Attempt validation
+  const result = validatePlay(playData);
+
+  if (result.valid) {
+    return {
+      play: playData,
+      wasRecovered: false,
+      validationResult: result,
+    };
+  }
+
+  // Play is invalid - log errors and attempt recovery
+  editorLog.error("VALIDATION_FAIL", `${result.errors.length} validation errors`, {
+    error: result.errors.map((e) => `${e.path}: ${e.message}`).join("; "),
+  });
+
+  // Try to salvage what we can
+  const recoveredPlay = attemptPlayRecovery(playData, fallbackName);
+  const revalidationResult = validatePlay(recoveredPlay);
+
+  return {
+    play: recoveredPlay,
+    wasRecovered: true,
+    validationResult: revalidationResult,
+  };
+}
+
+/**
+ * Attempt to recover a corrupted play by fixing common issues
+ */
+function attemptPlayRecovery(corrupted: Partial<Play>, fallbackName: string): Play {
+  const base = createPlay(corrupted.name || fallbackName);
+
+  // Try to preserve valid parts
+  return {
+    ...base,
+    id: corrupted.id || base.id,
+    name: corrupted.name || base.name,
+    description: corrupted.description || base.description,
+    tags: Array.isArray(corrupted.tags) ? corrupted.tags : base.tags,
+    meta: corrupted.meta || base.meta,
+    field: corrupted.field || base.field,
+    roster: {
+      players: recoverPlayers(corrupted.roster?.players),
+      groups: corrupted.roster?.groups || [],
+    },
+    actions: recoverActions(corrupted.actions, corrupted.roster?.players),
+    notes: corrupted.notes || base.notes,
+    history: corrupted.history || base.history,
+    createdAt: corrupted.createdAt || base.createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function recoverPlayers(players: unknown): Player[] {
+  if (!Array.isArray(players)) return [];
+
+  return players.filter((p): p is Player => {
+    if (!p || typeof p !== "object") return false;
+    const player = p as Player;
+    return Boolean(player.id && player.role && player.alignment);
+  });
+}
+
+function recoverActions(actions: unknown, players: unknown): Action[] {
+  if (!Array.isArray(actions)) return [];
+
+  const playerIds = new Set(
+    Array.isArray(players)
+      ? players.filter((p): p is Player => p && typeof p === "object" && "id" in p).map((p) => p.id)
+      : []
+  );
+
+  return actions.filter((a): a is Action => {
+    if (!a || typeof a !== "object") return false;
+    const action = a as Action;
+
+    // Must have id and actionType
+    if (!action.id || !action.actionType) return false;
+
+    // If references a player, must exist
+    if (action.fromPlayerId && !playerIds.has(action.fromPlayerId)) return false;
+
+    return true;
+  });
 }

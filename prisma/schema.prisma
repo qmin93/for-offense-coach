@@ -23,6 +23,9 @@ model User {
   plays            Play[]
   playbooks        Playbook[]
   shareLinks       ShareLink[]
+  activities       Activity[]
+  commentsAuthored PlayComment[] @relation("CommentAuthor")
+  commentsResolved PlayComment[] @relation("CommentResolver")
 }
 
 model Workspace {
@@ -32,9 +35,11 @@ model Workspace {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  members   WorkspaceMember[]
-  plays     Play[]
-  playbooks Playbook[]
+  members    WorkspaceMember[]
+  invites    WorkspaceInvite[]
+  plays      Play[]
+  playbooks  Playbook[]
+  activities Activity[]
 }
 
 enum WorkspaceType {
@@ -83,6 +88,7 @@ model Play {
   creator       User          @relation(fields: [createdBy], references: [id])
   playbookPlays PlaybookPlay[]
   shareLinks    ShareLink[]
+  comments      PlayComment[]
 }
 
 // ============================================
@@ -208,4 +214,119 @@ enum ShareTarget {
 enum SharePermission {
   VIEW_ONLY
   VIEW_DOWNLOAD
+}
+
+// ============================================
+// Workspace Invite (초대 대기)
+// ============================================
+
+model WorkspaceInvite {
+  id          String       @id @default(cuid())
+  workspaceId String
+  email       String       // 초대받은 이메일
+  role        Role         @default(EDITOR)
+  token       String       @unique @default(cuid())
+  status      InviteStatus @default(PENDING)
+  expiresAt   DateTime     // 초대 만료일
+
+  invitedBy   String       // 초대한 사용자 ID
+  createdAt   DateTime     @default(now())
+  acceptedAt  DateTime?
+
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, email])
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+// ============================================
+// Activity Feed (워크스페이스 활동 로그)
+// ============================================
+
+model Activity {
+  id          String       @id @default(cuid())
+  workspaceId String
+  actorId     String       // 활동 수행자
+  action      ActivityType
+  targetType  String?      // "play" | "playbook" | "member"
+  targetId    String?      // 대상 리소스 ID
+  targetName  String?      // 대상 이름 (삭제되어도 표시용)
+  metadata    Json?        // 추가 정보 (old/new values 등)
+  createdAt   DateTime     @default(now())
+
+  workspace   Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor       User         @relation(fields: [actorId], references: [id])
+
+  @@index([workspaceId, createdAt])
+}
+
+enum ActivityType {
+  // Play 관련
+  PLAY_CREATED
+  PLAY_UPDATED
+  PLAY_DELETED
+  PLAY_DUPLICATED
+
+  // Playbook 관련
+  PLAYBOOK_CREATED
+  PLAYBOOK_UPDATED
+  PLAYBOOK_DELETED
+  PLAY_ADDED_TO_PLAYBOOK
+  PLAY_REMOVED_FROM_PLAYBOOK
+
+  // Member 관련
+  MEMBER_JOINED
+  MEMBER_LEFT
+  MEMBER_ROLE_CHANGED
+  MEMBER_INVITED
+
+  // Share 관련
+  SHARE_LINK_CREATED
+  PLAY_FORKED
+
+  // Comment 관련
+  COMMENT_ADDED
+  COMMENT_RESOLVED
+}
+
+// ============================================
+// Play Comments (코칭 메모/마크업)
+// ============================================
+
+model PlayComment {
+  id          String        @id @default(cuid())
+  playId      String
+  authorId    String
+  content     String        // 코멘트 내용
+
+  // 좌표 기반 핀 (선택적)
+  pinX        Float?        // Normalized x coordinate (0-1)
+  pinY        Float?        // Normalized y coordinate (-1 to 1)
+
+  // 상태
+  status      CommentStatus @default(OPEN)
+  resolvedBy  String?       // 해결한 사용자 ID
+  resolvedAt  DateTime?
+
+  // 메타데이터
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  play        Play          @relation(fields: [playId], references: [id], onDelete: Cascade)
+  author      User          @relation("CommentAuthor", fields: [authorId], references: [id])
+  resolver    User?         @relation("CommentResolver", fields: [resolvedBy], references: [id])
+
+  @@index([playId, createdAt])
+}
+
+enum CommentStatus {
+  OPEN
+  RESOLVED
 }

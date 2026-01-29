@@ -1,13 +1,26 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useEffect, useRef } from "react";
 import { useEditorStore } from "../store";
-import {
-  getPassSuggestions,
-  getRunSuggestions,
-  SuggestionResult,
-} from "@/domain/engine/suggestions";
-import { Button } from "@/components/ui";
+import { getComprehensiveSuggestions } from "@/domain/engine/suggestions";
+import type { EnhancedSuggestionResult } from "@/domain/engine/suggestion-context";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { getRunConceptById } from "@/domain/engine/concepts-run";
+import { getPassConceptById } from "@/domain/engine/concepts-pass";
+import { getDefensePresetById } from "@/domain/engine/defense-presets";
+import { telemetry, setLastAutobuildContext } from "@/lib/telemetry";
+import { ConceptPackIndicator } from "@/components/ui/concept-pack-badge";
+import { useTeamProfile } from "@/lib/team-profile";
+
+// ============================================
+// Streamlined Suggestions Panel
+// Decision-focused: Top 5 concepts, no clutter
+// Rule: PASS in = PASS Top 5 only
+// Rule: Formation click = Formation-specific Top 5
+// ============================================
 
 export function SuggestionsPanel() {
   const {
@@ -16,231 +29,273 @@ export function SuggestionsPanel() {
     suggestionsType,
     closeSuggestions,
     buildFromConcept,
+    canUndo,
+    undo,
+    defensePresetId,
   } = useEditorStore();
 
-  // Run suggestion inputs
-  const [box, setBox] = useState<6 | 7 | 8>(7);
-  const [front, setFront] = useState<"odd" | "even">("even");
-  const [threeTech, setThreeTech] = useState<"strong" | "weak" | "none">("none");
+  // Track if we've already tracked the panel open
+  const hasTrackedOpen = useRef(false);
 
+  // Get team capabilities for personalized recommendations
+  const { capabilities: teamCapabilities } = useTeamProfile();
+
+  // Get current defense preset info
+  const defensePreset = defensePresetId ? getDefensePresetById(defensePresetId) : null;
+
+  // Determine play type from entry point - this is LOCKED
+  // If user entered with PASS, only show PASS. No mixing.
+  const lockedPlayType = suggestionsType === "pass" ? "pass" : "run";
+
+  // Get Top 5 suggestions based on locked playType and current formation
+  // Includes team capabilities for personalized recommendations
   const suggestions = useMemo(() => {
     if (!play || !suggestionsOpen) return [];
+    const result = getComprehensiveSuggestions(
+      play,
+      defensePresetId,
+      lockedPlayType,
+      teamCapabilities
+    );
+    // Force Top 5 only - clean decision UI
+    return result.enhanced.slice(0, 5);
+  }, [play, suggestionsOpen, defensePresetId, lockedPlayType, teamCapabilities]);
 
-    const structure =
-      play.meta?.formationId?.includes("trips")
-        ? "3x1"
-        : play.meta?.formationId?.includes("bunch")
-        ? "bunch"
-        : play.meta?.formationId?.includes("ace")
-        ? "ace"
-        : play.meta?.formationId?.includes("i_")
-        ? "I"
-        : "2x2";
-
-    const eligibleReceivers = play.roster.players.filter((p) =>
-      ["X", "Y", "Z", "H", "RB", "FB"].includes(p.role)
-    ).length;
-
-    if (suggestionsType === "pass") {
-      return getPassSuggestions({
-        formationId: play.meta?.formationId || "",
-        structure: structure as any,
-        eligibleReceivers,
+  // Track panel open telemetry
+  useEffect(() => {
+    if (suggestionsOpen && !hasTrackedOpen.current && play?.meta?.formationId) {
+      telemetry.suggestionsOpened({
+        formationId: play.meta.formationId,
+        mode: lockedPlayType,
+        conceptCount: suggestions.length,
       });
-    } else {
-      return getRunSuggestions({
-        formationId: play.meta?.formationId || "",
-        structure: structure as any,
-        box,
-        front,
-        threeTech: threeTech === "none" ? undefined : threeTech,
-      });
+      hasTrackedOpen.current = true;
     }
-  }, [play, suggestionsOpen, suggestionsType, box, front, threeTech]);
+    if (!suggestionsOpen) {
+      hasTrackedOpen.current = false;
+    }
+  }, [suggestionsOpen, play?.meta?.formationId, lockedPlayType, suggestions.length]);
 
   if (!suggestionsOpen) return null;
 
-  const handleBuild = (result: SuggestionResult) => {
-    buildFromConcept(result.concept);
-    // Show undo toast would go here
+  const handleBuild = (result: EnhancedSuggestionResult, position: number) => {
+    // Track concept click
+    telemetry.conceptClicked({
+      conceptId: result.conceptId,
+      conceptName: result.name,
+      conceptType: result.conceptType as "pass" | "run",
+      source: "suggestions",
+      position,
+    });
+
+    // Find the concept
+    const concept =
+      result.conceptType === "run"
+        ? getRunConceptById(result.conceptId)
+        : getPassConceptById(result.conceptId);
+
+    if (!concept) {
+      toast.error("Concept not found");
+      return;
+    }
+
+    // Set autobuild context
+    setLastAutobuildContext({
+      conceptId: result.conceptId,
+      conceptName: result.name,
+      reasonCount: result.typedReasons?.length || 0,
+      startedAt: Date.now(),
+    });
+
+    const buildResult = buildFromConcept(concept);
+
+    if (!buildResult?.success) {
+      toast.error(`Failed: ${buildResult?.failure?.message || "Unknown error"}`);
+      return;
+    }
+
+    // Success toast with undo
+    toast.success(`Built: ${result.name}`, {
+      action: canUndo()
+        ? { label: "Undo", onClick: () => undo() }
+        : undefined,
+    });
   };
 
-  // Group pass suggestions by category
-  const groupedSuggestions = useMemo(() => {
-    if (suggestionsType === "run") return null;
-
-    const groups: Record<string, SuggestionResult[]> = {};
-    suggestions.forEach((s) => {
-      const cat = s.category || "other";
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(s);
-    });
-    return groups;
-  }, [suggestions, suggestionsType]);
+  // Format formation name for display
+  const formationName = play?.meta?.formationId
+    ?.replace(/_/g, " ")
+    .replace(/\b\w/g, (l) => l.toUpperCase()) || "Select Formation";
 
   return (
-    <div className="w-80 bg-white border-l shadow-lg overflow-y-auto">
-      {/* Header */}
-      <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between">
-        <h3 className="font-semibold">
-          {suggestionsType === "pass" ? "Pass" : "Run"} Suggestions
-        </h3>
-        <button
-          onClick={closeSuggestions}
-          className="text-gray-400 hover:text-gray-600"
-        >
-          ✕
-        </button>
+    <div className="w-72 bg-background border-l border-border shadow-lg overflow-y-auto flex flex-col h-full">
+      {/* Header - Clean, minimal */}
+      <div className="sticky top-0 bg-background border-b border-border p-3 z-10">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold text-white text-sm">
+            Top 5 {lockedPlayType.toUpperCase()}
+          </h3>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={closeSuggestions}
+            className="h-6 w-6 text-white/60 hover:text-white hover:bg-white/10"
+          >
+            ✕
+          </Button>
+        </div>
+
+        {/* Context chips - Formation + Defense */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Badge
+            variant="outline"
+            className="text-xs bg-primary/10 text-primary border-primary/30"
+          >
+            {formationName}
+          </Badge>
+          {defensePreset && (
+            <Badge
+              variant="outline"
+              className="text-xs bg-red-500/10 text-red-400 border-red-500/30"
+            >
+              vs {defensePreset.name}
+            </Badge>
+          )}
+        </div>
       </div>
 
-      {/* Run inputs */}
-      {suggestionsType === "run" && (
-        <div className="p-4 border-b bg-gray-50">
-          <div className="text-xs font-medium text-gray-500 mb-2">
-            Defense Input (Required)
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-gray-600">Box</label>
-              <select
-                value={box}
-                onChange={(e) => setBox(Number(e.target.value) as 6 | 7 | 8)}
-                className="w-full mt-1 p-1.5 text-sm border rounded"
-              >
-                <option value={6}>6</option>
-                <option value={7}>7</option>
-                <option value={8}>8</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-600">Front</label>
-              <select
-                value={front}
-                onChange={(e) => setFront(e.target.value as "odd" | "even")}
-                className="w-full mt-1 p-1.5 text-sm border rounded"
-              >
-                <option value="odd">Odd</option>
-                <option value="even">Even</option>
-              </select>
-            </div>
-            <div className="col-span-2">
-              <label className="text-xs text-gray-600">3-Tech</label>
-              <select
-                value={threeTech}
-                onChange={(e) =>
-                  setThreeTech(e.target.value as "strong" | "weak" | "none")
-                }
-                className="w-full mt-1 p-1.5 text-sm border rounded"
-              >
-                <option value="none">None</option>
-                <option value="strong">Strong</option>
-                <option value="weak">Weak</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Pass suggestions grouped */}
-      {suggestionsType === "pass" && groupedSuggestions && (
-        <div className="p-4 space-y-4">
-          {["quick", "intermediate", "deep", "screen"].map((category) => {
-            const items = groupedSuggestions[category];
-            if (!items || items.length === 0) return null;
-
-            return (
-              <div key={category}>
-                <div className="text-xs font-semibold text-gray-500 uppercase mb-2">
-                  {category}
-                </div>
-                <div className="space-y-2">
-                  {items.map((result) => (
-                    <ConceptCard
-                      key={result.concept.id}
-                      result={result}
-                      onBuild={() => handleBuild(result)}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Run suggestions (top 5) */}
-      {suggestionsType === "run" && (
-        <div className="p-4 space-y-2">
-          <div className="text-xs font-semibold text-gray-500 uppercase mb-2">
-            Top 5 Run Concepts
-          </div>
-          {suggestions.map((result, i) => (
+      {/* Concept List - Clean, decision-focused */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
+        {suggestions.length === 0 ? (
+          <EmptyState playType={lockedPlayType} hasDefense={!!defensePresetId} />
+        ) : (
+          suggestions.map((result, index) => (
             <ConceptCard
-              key={result.concept.id}
+              key={result.conceptId}
               result={result}
-              rank={i + 1}
-              onBuild={() => handleBuild(result)}
+              rank={index + 1}
+              onBuild={() => handleBuild(result, index)}
             />
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
   );
 }
 
 // ============================================
-// Concept Card Component
+// Empty State - Minimal guidance
+// ============================================
+
+function EmptyState({
+  playType,
+  hasDefense,
+}: {
+  playType: "run" | "pass";
+  hasDefense: boolean;
+}) {
+  if (playType === "run" && !hasDefense) {
+    return (
+      <div className="text-center py-8">
+        <div className="text-amber-400 font-medium mb-2 text-sm">
+          Select Defense First
+        </div>
+        <p className="text-xs text-white/50">
+          Box count required for run suggestions
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-center py-8 text-white/50 text-sm">
+      No concepts available
+    </div>
+  );
+}
+
+// ============================================
+// Concept Card - Decision-focused with clear reasoning
+// Rule: Every card MUST show "why this concept" in human language
+// No scores - only readable reasons
 // ============================================
 
 interface ConceptCardProps {
-  result: SuggestionResult;
-  rank?: number;
+  result: EnhancedSuggestionResult;
+  rank: number;
   onBuild: () => void;
 }
 
 function ConceptCard({ result, rank, onBuild }: ConceptCardProps) {
-  const { concept, score, reasons } = result;
+  const { name, conceptId, conceptType, typedReasons, fit, why } = result;
+
+  // Build a meaningful reason from available data
+  // Priority: 1) favorable typed reason, 2) fit summary, 3) why array, 4) first typed reason
+  const getKeyReason = (): string => {
+    // 1. Find first favorable reason with text
+    const favorableReason = typedReasons?.find((r) => r.favorable);
+    if (favorableReason?.text && !favorableReason.text.includes("Standard")) {
+      return favorableReason.text;
+    }
+
+    // 2. Build from fit object (most contextual)
+    const fitParts: string[] = [];
+    if (fit?.numbers && fit.numbers.includes("favorable")) fitParts.push(fit.numbers);
+    if (fit?.coverage) fitParts.push(fit.coverage);
+    if (fit?.front && fit.front.includes("favorable")) fitParts.push(fit.front);
+    if (fit?.structure && fit.structure.includes("optimal")) fitParts.push(fit.structure);
+    if (fitParts.length > 0) {
+      return fitParts[0]; // Use most relevant fit
+    }
+
+    // 3. Use why array (human-readable reasons)
+    if (why && why.length > 0) {
+      return why[0];
+    }
+
+    // 4. Fall back to first typed reason
+    if (typedReasons?.[0]?.text) {
+      return typedReasons[0].text;
+    }
+
+    // 5. Ultimate fallback
+    return conceptType === "run"
+      ? "Effective run concept for this formation"
+      : "Effective pass concept for this formation";
+  };
+
+  const keyReason = getKeyReason();
 
   return (
-    <div className="p-3 border rounded-lg hover:border-blue-300 transition-colors">
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2">
-          {rank && (
-            <span className="w-5 h-5 bg-blue-100 text-blue-700 rounded text-xs font-bold flex items-center justify-center">
-              {rank}
-            </span>
-          )}
-          <div>
-            <div className="font-medium text-sm">{concept.name}</div>
-            <div className="text-xs text-gray-500">{concept.summary}</div>
+    <Card className="bg-white/5 border-white/10 hover:border-primary/50 transition-colors">
+      <CardContent className="p-3">
+        {/* Header: Rank + Name */}
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">
+            {rank}
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-sm text-white flex items-center gap-1.5">
+              <span className="truncate">{name}</span>
+              <ConceptPackIndicator conceptId={conceptId} showLockIcon={false} />
+            </div>
           </div>
         </div>
-        <div className="text-xs font-medium text-gray-400">{score}</div>
-      </div>
 
-      {/* Reasons */}
-      <div className="text-xs text-gray-600 space-y-0.5 mb-2">
-        {reasons.map((reason, i) => (
-          <div key={i}>• {reason}</div>
-        ))}
-      </div>
+        {/* Key reason - ALWAYS visible, more prominent */}
+        <p className="text-xs text-white/80 mb-3 line-clamp-2 pl-7 leading-relaxed">
+          {keyReason}
+        </p>
 
-      {/* Badges */}
-      <div className="flex items-center gap-2 mb-2">
-        {concept.badges?.map((badge) => (
-          <span
-            key={badge}
-            className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded"
-          >
-            {badge}
-          </span>
-        ))}
-      </div>
-
-      {/* Build button */}
-      <Button variant="primary" size="sm" className="w-full" onClick={onBuild}>
-        Auto-build
-      </Button>
-    </div>
+        {/* Build button - primary action */}
+        <Button
+          size="sm"
+          className="w-full bg-brand-blue hover:bg-brand-blue-hover text-white"
+          onClick={onBuild}
+        >
+          Build
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

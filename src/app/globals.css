@@ -1,16 +1,327 @@
-@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Oswald:wght@500;600;700&display=swap');
 
-:root {
-  --field-green: #2d5a27;
-  --field-line: #ffffff;
-  --offense-primary: #1e40af;
-  --offense-secondary: #3b82f6;
-  --defense-primary: #dc2626;
-  --defense-secondary: #f87171;
+@import "tailwindcss";
+@import "../styles/theme.css";
+
+@plugin "tailwindcss-animate";
+
+/* ============================================
+ * Tailwind v4 Theme - Brand Blue Colors
+ * Single source of truth for app-wide button colors
+ * Change these values to rebrand all buttons
+ * ============================================ */
+@theme {
+  --color-brand-blue: hsl(217 91% 56%);
+  --color-brand-blue-hover: hsl(217 91% 50%);
+  --color-brand-blue-soft: hsl(217 91% 96%);
+  --color-brand-blue-muted: hsl(217 60% 25%);
+}
+
+/* Base styles */
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  font-family: system-ui, -apple-system, sans-serif;
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Oswald', system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.font-display {
+  font-family: 'Oswald', system-ui, sans-serif;
+}
+
+/* Component styles */
+.glass-panel {
+  background-color: hsl(var(--card) / 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid hsl(var(--glass-border));
+  border-radius: var(--radius);
+}
+
+/* Panel System */
+.panel {
+  background: var(--gradient-panel);
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+.panel-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid hsl(var(--border));
+  font-family: 'Oswald', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Glow Effects */
+.glow-primary {
+  box-shadow: 0 0 40px -10px hsl(var(--primary) / 0.4);
+}
+
+.glow-secondary {
+  box-shadow: 0 0 40px -10px hsl(var(--accent) / 0.4);
+}
+
+.glow-accent {
+  box-shadow: 0 0 20px hsl(var(--accent) / 0.3), 0 0 40px hsl(var(--accent) / 0.1);
+}
+
+.glow-text {
+  text-shadow: 0 0 10px hsl(var(--accent) / 0.5);
+}
+
+.gradient-border {
+  position: relative;
+  background: hsl(var(--card));
+  border-radius: var(--radius);
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: calc(var(--radius) + 1px);
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary) / 0.5),
+    hsl(var(--accent) / 0.5),
+    hsl(var(--primary) / 0.3)
+  );
+  z-index: -1;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Field Canvas */
+.field-canvas {
+  background: linear-gradient(180deg, hsl(var(--field)) 0%, hsl(var(--field-dark)) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.field-line {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.field-line-bold {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Field gradient for SVG background */
+.field-gradient {
+  background: linear-gradient(
+    180deg,
+    hsl(140 45% 22%) 0%,
+    hsl(140 50% 16%) 100%
+  );
+}
+
+/* Player Node Styles */
+.player-offense {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border-width: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-color: hsl(var(--offense));
+  background: hsl(var(--offense) / 0.2);
+  color: hsl(var(--offense));
+}
+
+.player-defense {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border-width: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-color: hsl(var(--destructive));
+  background: hsl(var(--destructive) / 0.2);
+  color: hsl(var(--destructive));
+}
+
+/* Floating animation */
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Slow pulse animation */
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+/* Pulse glow animation for selection */
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px hsl(var(--accent) / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px hsl(var(--accent) / 0.5);
+  }
+}
+
+/* Draw route animation for SVG paths */
+.animate-draw-route {
+  animation: draw-route 2s ease-out forwards;
+}
+
+@keyframes draw-route {
+  from {
+    stroke-dashoffset: 200;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Draw line animation */
+.animate-draw-line {
+  animation: draw-line 0.8s ease-out forwards;
+}
+
+@keyframes draw-line {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Fade in animation */
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fade in up animation */
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out forwards;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Slide in animations */
+.animate-slide-in-left {
+  animation: slide-in-left 0.5s ease-out forwards;
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.5s ease-out forwards;
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Glow pulse animation */
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px -5px hsl(var(--primary) / 0.6);
+  }
 }
 
 /* SVG Editor Styles */
@@ -48,5 +359,27 @@ body {
 }
 
 .player-node.selected {
-  filter: drop-shadow(0 0 4px var(--offense-secondary));
+  filter: drop-shadow(0 0 4px hsl(var(--primary)));
+}
+
+/* Toolbar Button Styles */
+.toolbar-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.toolbar-btn-active {
+  background: hsl(var(--brand-blue));
+  border-color: transparent;
+  color: #fff;
+}
+
+/* Utility classes */
+.text-balance {
+  text-wrap: balance;
 }

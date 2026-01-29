@@ -1,0 +1,216 @@
+/* ============================================
+ * Theme System - ForOffenseCoach Design
+ * HSL-based CSS variables (shadcn/ui compatible)
+ * Cold Blue Professional Theme (gridiron-logic)
+ * ============================================ */
+
+:root {
+  /* === Brand Blue Identity === */
+  --brand-blue: 217 91% 56%;
+  --brand-blue-hover: 217 91% 50%;
+  --brand-blue-soft: 217 91% 96%;
+  --brand-blue-muted: 217 60% 25%;
+
+  /* === Button Tokens === */
+  --btn-primary-bg: var(--brand-blue);
+  --btn-primary-fg: 210 40% 98%;
+  --btn-secondary-bg: transparent;
+  --btn-secondary-fg: var(--brand-blue);
+  --btn-secondary-border: var(--brand-blue);
+  --btn-ghost-fg: var(--brand-blue);
+
+  /* Core Dark Palette */
+  --background: 230 15% 6%;
+  --foreground: 210 20% 90%;
+
+  /* Surface Hierarchy */
+  --card: 225 15% 9%;
+  --card-foreground: 210 20% 90%;
+
+  --popover: 225 15% 11%;
+  --popover-foreground: 210 20% 90%;
+
+  /* Primary - Cold Blue (linked to brand) */
+  --primary: var(--brand-blue);
+  --primary-foreground: 210 40% 98%;
+  --primary-muted: var(--brand-blue-muted);
+
+  /* Secondary - Gunmetal */
+  --secondary: 220 15% 14%;
+  --secondary-foreground: 210 20% 85%;
+
+  /* Muted - Steel Gray */
+  --muted: 220 15% 18%;
+  --muted-foreground: 215 15% 55%;
+
+  /* Accent - Cold Blue Glow */
+  --accent: 217 80% 50%;
+  --accent-foreground: 210 40% 98%;
+
+  /* Destructive - Deep Crimson */
+  --destructive: 0 72% 45%;
+  --destructive-foreground: 210 40% 98%;
+
+  /* UI Elements */
+  --border: 220 15% 18%;
+  --input: 220 15% 14%;
+  --ring: 217 91% 60%;
+
+  --radius: 0.375rem;
+
+  /* Custom tokens for ForOffenseCoach */
+  /* Field - The Sacred Ground */
+  --field: 140 45% 22%;
+  --field-lines: 140 30% 40%;
+  --field-dark: 140 50% 12%;
+  --field-endzone: 140 60% 18%;
+
+  /* Route/Block/Motion markers */
+  --route: 45 95% 55%;
+  --block: 199 89% 48%;
+  --motion: 35 95% 60%;
+
+  /* Player Colors */
+  --offense: 217 91% 60%;
+  --defense: 0 72% 50%;
+  --neutral: 210 20% 70%;
+
+  --panel-glass: 225 15% 10%;
+  --panel-border: 220 15% 20%;
+
+  /* Sidebar */
+  --sidebar-background: 225 15% 8%;
+  --sidebar-foreground: 210 20% 85%;
+  --sidebar-primary: 217 91% 60%;
+  --sidebar-primary-foreground: 210 40% 98%;
+  --sidebar-accent: 220 15% 14%;
+  --sidebar-accent-foreground: 210 20% 90%;
+  --sidebar-border: 220 15% 15%;
+  --sidebar-ring: 217 91% 60%;
+
+  /* Glow effects */
+  --glow-primary: 217 91% 60%;
+  --glow-secondary: 217 80% 50%;
+  --glass-bg: 225 15% 10%;
+  --glass-border: 220 15% 20%;
+
+  /* Gradients */
+  --gradient-dark: linear-gradient(180deg, hsl(230 15% 6%) 0%, hsl(225 15% 4%) 100%);
+  --gradient-panel: linear-gradient(180deg, hsl(225 15% 11%) 0%, hsl(225 15% 8%) 100%);
+  --gradient-field: linear-gradient(180deg, hsl(140 45% 22%) 0%, hsl(140 50% 16%) 100%);
+  --gradient-accent: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(217 80% 45%) 100%);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.3);
+  --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
+  --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.5), 0 4px 6px -4px hsl(0 0% 0% / 0.4);
+  --shadow-glow: 0 0 20px hsl(217 91% 60% / 0.2);
+
+  /* Legacy compatibility */
+  --bg-primary: hsl(230 15% 6%);
+  --bg-secondary: hsl(225 15% 9%);
+  --bg-tertiary: hsl(225 15% 11%);
+  --bg-elevated: hsl(225 15% 13%);
+  --border-subtle: hsl(220 15% 18%);
+  --border-strong: hsl(220 15% 25%);
+  --text-primary: hsl(0 0% 100%);
+  --text-secondary: hsl(0 0% 85%);
+  --text-muted: hsl(0 0% 70%);
+  --text-inverse: hsl(230 15% 6%);
+  --success: hsl(140 70% 45%);
+  --success-soft: hsl(140 70% 45% / 0.16);
+  --warning: hsl(45 95% 55%);
+  --warning-soft: hsl(45 95% 55% / 0.16);
+  --error: hsl(0 72% 50%);
+  --error-soft: hsl(0 72% 50% / 0.16);
+  --accent-color: hsl(217 80% 50%);
+  --accent-strong: hsl(217 91% 55%);
+  --accent-soft: hsl(217 80% 50% / 0.15);
+  --focus-ring: 0 0 0 3px hsl(217 91% 60% / 0.22);
+}
+
+.dark {
+  /* Core Dark Palette */
+  --background: 230 15% 6%;
+  --foreground: 210 20% 90%;
+
+  --card: 225 15% 9%;
+  --card-foreground: 210 20% 90%;
+
+  --popover: 225 15% 11%;
+  --popover-foreground: 210 20% 90%;
+
+  --primary: 217 91% 60%;
+  --primary-foreground: 210 40% 98%;
+  --primary-muted: 217 60% 25%;
+
+  --secondary: 220 15% 14%;
+  --secondary-foreground: 210 20% 85%;
+
+  --muted: 220 15% 18%;
+  --muted-foreground: 215 15% 55%;
+
+  --accent: 217 80% 50%;
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 0 72% 45%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 220 15% 18%;
+  --input: 220 15% 14%;
+  --ring: 217 91% 60%;
+
+  --sidebar-background: 225 15% 8%;
+  --sidebar-foreground: 210 20% 85%;
+  --sidebar-primary: 217 91% 60%;
+  --sidebar-primary-foreground: 210 40% 98%;
+  --sidebar-accent: 220 15% 14%;
+  --sidebar-accent-foreground: 210 20% 90%;
+  --sidebar-border: 220 15% 15%;
+  --sidebar-ring: 217 91% 60%;
+}
+
+/* Light Theme */
+.light,
+[data-theme="light"] {
+  --background: 0 0% 100%;
+  --foreground: 220 15% 11%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 220 15% 11%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 15% 11%;
+
+  --primary: 217 91% 50%;
+  --primary-foreground: 0 0% 100%;
+  --primary-muted: 217 60% 85%;
+
+  --secondary: 220 15% 92%;
+  --secondary-foreground: 220 15% 11%;
+
+  --muted: 220 15% 92%;
+  --muted-foreground: 215 15% 45%;
+
+  --accent: 217 80% 45%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 72% 50%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 220 15% 85%;
+  --input: 220 15% 85%;
+  --ring: 217 91% 50%;
+
+  /* Legacy compatibility for light mode */
+  --bg-primary: hsl(0 0% 98%);
+  --bg-secondary: hsl(0 0% 100%);
+  --bg-tertiary: hsl(220 15% 96%);
+  --bg-elevated: hsl(220 15% 92%);
+  --border-subtle: hsl(220 15% 85%);
+  --border-strong: hsl(220 15% 75%);
+  --text-primary: hsl(220 15% 11%);
+  --text-secondary: hsl(215 15% 35%);
+  --text-muted: hsl(215 15% 45%);
+  --text-inverse: hsl(0 0% 100%);
+}

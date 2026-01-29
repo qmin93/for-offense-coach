@@ -8,8 +8,6 @@ import type {
   Play,
   Player,
   Formation,
-  Concept,
-  Action,
   RouteAction,
   BlockAction,
   MotionAction,
@@ -21,8 +19,7 @@ import type {
   BlockScheme,
   MotionType,
 } from "./types";
-
-const SCHEMA_VERSION = "1.0";
+import { CURRENT_SCHEMA_VERSION } from "./versioning";
 
 // ============================================
 // Play Factory
@@ -33,7 +30,7 @@ export function createPlay(
   options?: Partial<Play>
 ): Play {
   return {
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: CURRENT_SCHEMA_VERSION,
     type: "play",
     id: uuid(),
     name,
@@ -146,7 +143,12 @@ export function createBlockAction(
     block: {
       scheme,
       target: {
+        type: "landmark",
         landmark: target,
+      },
+      lineStyle: {
+        endCap: "slash",
+        line: "solid",
       },
     },
     style: {
@@ -163,6 +165,10 @@ export function createMotionAction(
   pathPoints: Point[],
   options?: Partial<MotionAction>
 ): MotionAction {
+  // Motion types that benefit from curved paths (more natural arcs)
+  const curvedMotionTypes: MotionType[] = ["jet", "orbit", "return"];
+  const defaultCurveMode = curvedMotionTypes.includes(motionType);
+
   return {
     id: `a_motion_${uuid().slice(0, 8)}`,
     actionType: "motion",
@@ -172,6 +178,7 @@ export function createMotionAction(
       motionType,
       pathPoints,
       endAlignment: pathPoints[pathPoints.length - 1],
+      curveMode: defaultCurveMode, // Enable curve for jet/orbit/return
     },
     timing: {
       phase: "pre_snap",
@@ -240,8 +247,10 @@ export function createPlayFromFormation(
   formation: Formation,
   name?: string
 ): Play {
+  // IMPORTANT: Generate new player IDs every time to ensure uniqueness
+  // This prevents issues when comparing/merging plays and ensures React keys are stable
   const players: Player[] = formation.defaults.players.map((p) => ({
-    id: p.id,
+    id: `p_${p.role.toLowerCase()}_${uuid().slice(0, 8)}`, // Always generate new ID
     role: p.role,
     label: p.label,
     unit: "offense" as const,
